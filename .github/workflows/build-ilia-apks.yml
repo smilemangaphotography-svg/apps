@@ -45,7 +45,9 @@ jobs:
 
       - name: Build NAR Mix
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug
-
+      - name: Remove stale FRAME QA source
+        shell: bash
+        run: rm -rf buildsrc/FRAME-Studio/app/src/debug
       - name: Build Ilias Coach
         run: gradle --no-daemon -p buildsrc/Ilias-Coach :app:assembleDebug
 
