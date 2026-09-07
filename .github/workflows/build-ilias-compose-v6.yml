@@ -59,6 +59,7 @@ jobs:
           pkg=buildsrc/Ilias-Coach/app/src/main/java/com/iliaperformance/iliacoach2026
           cp ilias-compose-v6/V6Features.kt "$pkg/V6Features.kt"
           python3 ilias-compose-v6/apply_v6_changes.py
+          python3 ilias-compose-v6/fix_v6_compile.py
       - name: Verify V6 architecture
         run: |
           pkg=buildsrc/Ilias-Coach/app/src/main/java/com/iliaperformance/iliacoach2026
@@ -66,6 +67,7 @@ jobs:
           grep -q 'V6LayoutMigration.merge' "$pkg/Persistence.kt"
           grep -q 'NutritionPreferencesBlock' "$pkg/V6Features.kt"
           grep -q 'WeekPlanBlock' "$pkg/V6Features.kt"
+          grep -q 'V6PrimaryButton' "$pkg/V6Features.kt"
           grep -q 'CoverHeroV6' "$pkg/Screens.kt"
           grep -q 'val sets: Int = 3' "$pkg/ModelsAndCatalog.kt"
           ! grep -R 'WebView' "$pkg"
