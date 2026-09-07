@@ -71,6 +71,10 @@ jobs:
         shell: bash
         run: python3 ilias-compose-v4/apply_compile_fixes.py
 
+      - name: Normalize Spotify block for V5
+        shell: bash
+        run: python3 ilias-compose-v5/normalize_spotify_for_v5.py
+
       - name: Apply V5 product changes
         shell: bash
         run: python3 ilias-compose-v5/apply_v5_changes.py
