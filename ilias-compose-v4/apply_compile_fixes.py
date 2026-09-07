@@ -52,14 +52,59 @@ replacements = {
         'ToggleRow("Recovery mode", features.recoveryMode) { checked: Boolean -> vm.setFeature { current: FeatureToggles -> current.copy(recoveryMode = checked) } }',
     'ToggleRow("Auto-start local music", features.autoMusic) { v -> vm.setFeature { it.copy(autoMusic = v) } }':
         'ToggleRow("Auto-start local music", features.autoMusic) { checked: Boolean -> vm.setFeature { current: FeatureToggles -> current.copy(autoMusic = checked) } }',
+
+    # MiniAction has signature (text, onClick, accent). Because onClick is not the final
+    # parameter Kotlin cannot use a trailing lambda. Make every click explicit.
+    'MiniAction("‹‹") { vm.spotifyPrevious() }':
+        'MiniAction("‹‹", onClick = { vm.spotifyPrevious() })',
+    'MiniAction("PLAY", accent = CoachLime) { vm.spotifyPlay() }':
+        'MiniAction("PLAY", onClick = { vm.spotifyPlay() }, accent = CoachLime)',
+    'MiniAction("PAUSE") { vm.spotifyPause() }':
+        'MiniAction("PAUSE", onClick = { vm.spotifyPause() })',
+    'MiniAction("Ⅱ") { vm.spotifyPause() }':
+        'MiniAction("Ⅱ", onClick = { vm.spotifyPause() })',
+    'MiniAction("››") { vm.spotifyNext() }':
+        'MiniAction("››", onClick = { vm.spotifyNext() })',
+    'MiniAction("↑") { vm.movePage(page.id, -1) }':
+        'MiniAction("↑", onClick = { vm.movePage(page.id, -1) })',
+    'MiniAction("↓") { vm.movePage(page.id, 1) }':
+        'MiniAction("↓", onClick = { vm.movePage(page.id, 1) })',
+    'MiniAction("RESTORE", accent = CoachLime) { vm.setPageVisible(page.id, true) }':
+        'MiniAction("RESTORE", onClick = { vm.setPageVisible(page.id, true) }, accent = CoachLime)',
+    'MiniAction("DELETE", accent = Color(0xFFFF6B6B)) { vm.removeCustomPage(page.id) }':
+        'MiniAction("DELETE", onClick = { vm.removeCustomPage(page.id) }, accent = Color(0xFFFF6B6B))',
+    'MiniAction("↑") { vm.moveBlock(block.id, -1) }':
+        'MiniAction("↑", onClick = { vm.moveBlock(block.id, -1) })',
+    'MiniAction("↓") { vm.moveBlock(block.id, 1) }':
+        'MiniAction("↓", onClick = { vm.moveBlock(block.id, 1) })',
+    'MiniAction("RESIZE") { vm.resizeBlock(block.id) }':
+        'MiniAction("RESIZE", onClick = { vm.resizeBlock(block.id) })',
+    'MiniAction("RESTORE", accent = CoachLime) { vm.setBlockVisible(block.id, true) }':
+        'MiniAction("RESTORE", onClick = { vm.setBlockVisible(block.id, true) }, accent = CoachLime)',
+    'MiniAction("REPLACE") { menu = true }':
+        'MiniAction("REPLACE", onClick = { menu = true })',
 }
 for old, new in replacements.items():
     s = s.replace(old, new)
+
+# Multiline local-player control.
+s = s.replace(
+'''MiniAction(if (playing) "PAUSE" else "PLAY", accent = CoachLime) {
+                    if (playing) vm.musicEngine.pause() else vm.playLocalMusic(Uri.parse(localUri))
+                }''',
+'''MiniAction(
+                    if (playing) "PAUSE" else "PLAY",
+                    onClick = { if (playing) vm.musicEngine.pause() else vm.playLocalMusic(Uri.parse(localUri)) },
+                    accent = CoachLime
+                )'''
+)
 
 p.write_text(s)
 
 # Assertions make CI fail early if a known broken construct returns.
 assert 'it@FeatureSwitch' not in s
+assert 'MiniAction("PLAY", accent = CoachLime) {' not in s
+assert 'MiniAction("RESTORE", accent = CoachLime) {' not in s
 assert 'import androidx.compose.foundation.layout.weight' not in (root / 'CoachApp.kt').read_text()
 assert 'import androidx.compose.foundation.layout.ColumnScope' in (root / 'Components.kt').read_text()
 print('Applied native Compose compile fixes')
