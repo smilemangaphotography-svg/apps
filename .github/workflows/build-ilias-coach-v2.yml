@@ -1,11 +1,11 @@
-name: Build ILIAS COACH V2 — Premium Android
+name: Build ILIAS COACH V3 — Safe Area + True Motion
 
 on:
   workflow_dispatch:
   push:
     branches: [ rebuild/ilias-coach-v2 ]
     paths:
-      - 'ilias-v2-overlay/**'
+      - 'ilias-v3-overlay/**'
       - '.github/workflows/build-ilias-coach-v2.yml'
 
 permissions:
@@ -40,7 +40,7 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Extract existing ILIA source
+      - name: Extract existing ILIAS source
         shell: bash
         run: |
           rm -rf buildsrc source.zip
@@ -50,35 +50,47 @@ jobs:
           test -f buildsrc/Ilias-Coach/app/build.gradle
           test -d buildsrc/Ilias-Coach/app/src/main/assets/media/anatomy
 
-      - name: Apply premium ILIAS COACH V2 overlay
+      - name: Apply ILIAS COACH V3 app layer
         shell: bash
         run: |
-          base64 -d ilias-v2-overlay/index.html.gz.b64 | gzip -d > buildsrc/Ilias-Coach/app/src/main/assets/index.html
-          base64 -d ilias-v2-overlay/styles.css.gz.b64 | gzip -d > buildsrc/Ilias-Coach/app/src/main/assets/styles.css
-          base64 -d ilias-v2-overlay/app.js.gz.b64 | gzip -d > buildsrc/Ilias-Coach/app/src/main/assets/app.js
-          cp ilias-v2-overlay/AndroidManifest.xml buildsrc/Ilias-Coach/app/src/main/AndroidManifest.xml
-          cp ilias-v2-overlay/MainActivity.java buildsrc/Ilias-Coach/app/src/main/java/com/iliaperformance/iliacoach2026/MainActivity.java
-          sed -i "s/versionCode 610; versionName '6.1.0'/versionCode 700; versionName '7.0.0-v2'/" buildsrc/Ilias-Coach/app/build.gradle
-          grep -q "ANATOMY MOTION" buildsrc/Ilias-Coach/app/src/main/assets/app.js
-          grep -q "Owner Controls" buildsrc/Ilias-Coach/app/src/main/assets/app.js
+          cp ilias-v3-overlay/index.html buildsrc/Ilias-Coach/app/src/main/assets/index.html
+          cp ilias-v3-overlay/coach-v3.css buildsrc/Ilias-Coach/app/src/main/assets/coach-v3.css
+          cp ilias-v3-overlay/coach-v3.js buildsrc/Ilias-Coach/app/src/main/assets/coach-v3.js
+          cp ilias-v3-overlay/AndroidManifest.xml buildsrc/Ilias-Coach/app/src/main/AndroidManifest.xml
+          cp ilias-v3-overlay/MainActivity.java buildsrc/Ilias-Coach/app/src/main/java/com/iliaperformance/iliacoach2026/MainActivity.java
+          sed -i "s/versionCode 610; versionName '6.1.0'/versionCode 730; versionName '7.3.0-v3'/" buildsrc/Ilias-Coach/app/build.gradle
+          grep -q "__setInsets" buildsrc/Ilias-Coach/app/src/main/assets/coach-v3.js
+          grep -q "FULL APP EDITOR" buildsrc/Ilias-Coach/app/src/main/assets/coach-v3.js
           grep -q "spotify-callback" buildsrc/Ilias-Coach/app/src/main/AndroidManifest.xml
-          test -f buildsrc/Ilias-Coach/app/src/main/assets/media/anatomy/lat-pulldown.webp
 
-      - name: Build ILIAS COACH V2
+      - name: Install verified true-motion reference loops
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p buildsrc/Ilias-Coach/app/src/main/assets/media/motion
+          curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/4bb51df7-a49e-444a-a489-f6fb75052f6f.mp4' -o buildsrc/Ilias-Coach/app/src/main/assets/media/motion/barbell-hip-thrust.mp4
+          curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/be0217e5-efe2-4a63-a829-c8a547327ea3.mp4' -o buildsrc/Ilias-Coach/app/src/main/assets/media/motion/machine-chest-press.mp4
+          curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/6c3a160e-2599-49c2-b789-6053ec88d260.mp4' -o buildsrc/Ilias-Coach/app/src/main/assets/media/motion/face-pull.mp4
+          test -s buildsrc/Ilias-Coach/app/src/main/assets/media/motion/barbell-hip-thrust.mp4
+          test -s buildsrc/Ilias-Coach/app/src/main/assets/media/motion/machine-chest-press.mp4
+          test -s buildsrc/Ilias-Coach/app/src/main/assets/media/motion/face-pull.mp4
+          ls -lh buildsrc/Ilias-Coach/app/src/main/assets/media/motion
+
+      - name: Build ILIAS COACH V3
         run: gradle --no-daemon -p buildsrc/Ilias-Coach :app:assembleDebug
 
       - name: Collect APK
         shell: bash
         run: |
           mkdir -p output
-          cp buildsrc/Ilias-Coach/app/build/outputs/apk/debug/app-debug.apk output/ILIAS-COACH-V2.apk
-          sha256sum output/ILIAS-COACH-V2.apk | tee output/SHA256SUMS.txt
+          cp buildsrc/Ilias-Coach/app/build/outputs/apk/debug/app-debug.apk output/ILIAS-COACH-V3.apk
+          sha256sum output/ILIAS-COACH-V3.apk | tee output/SHA256SUMS.txt
           ls -lh output
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ILIAS-COACH-V2-APK
+          name: ILIAS-COACH-V3-APK
           path: output/*
           if-no-files-found: error
           retention-days: 30
