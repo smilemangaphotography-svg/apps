@@ -66,6 +66,10 @@ jobs:
           rm -f "$pkg/MainActivity.java"
           cp ilias-compose-v4/*.kt "$pkg/"
 
+      - name: Apply native compile fixes
+        shell: bash
+        run: python3 ilias-compose-v4/apply_compile_fixes.py
+
       - name: Verify architecture locks
         shell: bash
         run: |
@@ -78,6 +82,7 @@ jobs:
           grep -q "class CoachDatabase" "$pkg/Persistence.kt"
           grep -q "class Media3MusicEngine" "$pkg/Engines.kt"
           grep -q "No exact exercise mapping" "$pkg/CoachApp.kt"
+          grep -q "animationAsset = \"media/anatomy/\$id.mp4\"" "$pkg/ModelsAndCatalog.kt"
           ! grep -R "WebView" "$pkg"
 
       - name: Build native Compose APK
