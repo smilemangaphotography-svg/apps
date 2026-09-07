@@ -1,0 +1,16 @@
+name: Inspect NAR UI Functions
+on:
+  push:
+    branches: [ rebuild/nar-mix45-admin-ai ]
+    paths: ['.github/workflows/inspect-nar-ui.yml']
+permissions: { contents: read }
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          rm -rf b s.zip; mkdir b; cp ILIA-SAFE-SOURCE.bin s.zip; unzip -q s.zip -d b
+          sed -n '82,136p' b/NAR-Mix/app/src/main/assets/app.js
+          echo '=== CSS TOP/NAV ==='
+          grep -nE 'pixelNar|narTop|topbar|brandHeader|searchbar|pixel.*Nav|\.card' b/NAR-Mix/app/src/main/assets/app.css | head -120
