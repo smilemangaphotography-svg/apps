@@ -79,6 +79,10 @@ jobs:
         shell: bash
         run: python3 ilias-compose-v5/apply_v5_changes.py
 
+      - name: Fix V5 Kotlin call sites
+        shell: bash
+        run: python3 ilias-compose-v5/fix_v5_compile.py
+
       - name: Verify V5 architecture locks
         shell: bash
         run: |
