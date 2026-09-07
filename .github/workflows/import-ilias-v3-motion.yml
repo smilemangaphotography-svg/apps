@@ -1,0 +1,45 @@
+name: Import ILIAS COACH V3 motion references
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ rebuild/ilias-coach-v2 ]
+    paths:
+      - '.github/workflows/import-ilias-v3-motion.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  import-motion:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: rebuild/ilias-coach-v2
+          fetch-depth: 0
+      - name: Download verified user motion loops
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ilias-v3-motion
+          curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/4bb51df7-a49e-444a-a489-f6fb75052f6f.mp4' -o ilias-v3-motion/barbell-hip-thrust.mp4
+          curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/be0217e5-efe2-4a63-a829-c8a547327ea3.mp4' -o ilias-v3-motion/machine-chest-press.mp4
+          curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/6c3a160e-2599-49c2-b789-6053ec88d260.mp4' -o ilias-v3-motion/face-pull.mp4
+          test -s ilias-v3-motion/barbell-hip-thrust.mp4
+          test -s ilias-v3-motion/machine-chest-press.mp4
+          test -s ilias-v3-motion/face-pull.mp4
+          file ilias-v3-motion/*.mp4
+      - name: Commit motion assets to GitHub branch
+        shell: bash
+        run: |
+          git config user.name 'smilemangaphotography-svg'
+          git config user.email 'smilemangaphotography@gmail.com'
+          git add ilias-v3-motion/*.mp4
+          if git diff --cached --quiet; then
+            echo 'Motion assets already committed.'
+          else
+            git commit -m 'Add verified true-motion exercise videos for ILIAS COACH V3'
+            git push origin HEAD:rebuild/ilias-coach-v2
+          fi
