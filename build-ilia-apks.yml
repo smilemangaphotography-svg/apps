@@ -1,0 +1,79 @@
+name: Build ILIA Android Apps — FINAL A54
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'ILIA-SAFE-SOURCE.bin'
+      - '.github/workflows/build-ilia-apks.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 35
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Extract final A54 source
+        shell: bash
+        run: |
+          rm -rf buildsrc ILIA-SAFE-SOURCE.zip
+          mkdir -p buildsrc
+          cp ILIA-SAFE-SOURCE.bin ILIA-SAFE-SOURCE.zip
+          unzip -q ILIA-SAFE-SOURCE.zip -d buildsrc
+          test -f buildsrc/FRAME-Studio/app/build.gradle
+          test -f buildsrc/Ilias-Coach/app/build.gradle
+          test -f buildsrc/NAR-Mix/app/build.gradle
+
+      - name: Build FRAME Studio
+        run: gradle --no-daemon -p buildsrc/FRAME-Studio :app:assembleDebug
+
+      - name: Build Ilias Coach
+        run: gradle --no-daemon -p buildsrc/Ilias-Coach :app:assembleDebug
+
+      - name: Build NAR Mix
+        run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug
+
+      - name: Collect final APKs
+        shell: bash
+        run: |
+          mkdir -p final-apks
+          cp buildsrc/FRAME-Studio/app/build/outputs/apk/debug/app-debug.apk final-apks/FRAME-Studio.apk
+          cp buildsrc/Ilias-Coach/app/build/outputs/apk/debug/app-debug.apk final-apks/Ilias-Coach.apk
+          cp buildsrc/NAR-Mix/app/build/outputs/apk/debug/app-debug.apk final-apks/NAR-Mix.apk
+          sha256sum final-apks/*.apk | tee final-apks/SHA256SUMS.txt
+          ls -lh final-apks
+
+      - name: Upload final APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ILIA-FINAL-A54-APKS
+          path: final-apks/*
+          if-no-files-found: error
+          retention-days: 30
