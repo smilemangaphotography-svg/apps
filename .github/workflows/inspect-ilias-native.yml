@@ -1,0 +1,30 @@
+name: Inspect ILIAS native shell
+
+on:
+  push:
+    branches: [ rebuild/ilias-coach-v2 ]
+    paths:
+      - '.github/workflows/inspect-ilias-native.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect native shell
+        shell: bash
+        run: |
+          mkdir -p buildsrc
+          cp ILIA-SAFE-SOURCE.bin source.zip
+          unzip -q source.zip -d buildsrc
+          echo '=== AndroidManifest ==='
+          cat buildsrc/Ilias-Coach/app/src/main/AndroidManifest.xml
+          echo '=== app/build.gradle ==='
+          cat buildsrc/Ilias-Coach/app/build.gradle
+          echo '=== native source files ==='
+          find buildsrc/Ilias-Coach/app/src/main -type f \( -name '*.java' -o -name '*.kt' \) -print
+          echo '=== native source contents ==='
+          while IFS= read -r f; do echo "--- $f ---"; sed -n '1,280p' "$f"; done < <(find buildsrc/Ilias-Coach/app/src/main -type f \( -name '*.java' -o -name '*.kt' \) | sort)
