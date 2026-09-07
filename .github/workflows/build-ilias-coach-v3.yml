@@ -1,0 +1,86 @@
+name: Build ILIAS COACH V3 — Accurate Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ rebuild/ilias-coach-v2 ]
+    paths:
+      - '.github/workflows/build-ilias-coach-v3.yml'
+      - 'ilias-v3-overlay/**'
+      - 'ilias-v3-motion/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android SDK 35
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Extract current source
+        shell: bash
+        run: |
+          rm -rf buildsrc source.zip
+          mkdir -p buildsrc
+          cp ILIA-SAFE-SOURCE.bin source.zip
+          unzip -q source.zip -d buildsrc
+          test -d buildsrc/Ilias-Coach/app/src/main/assets/media/anatomy
+      - name: Apply V3 frontend and Android shell
+        shell: bash
+        run: |
+          cp ilias-v3-overlay/index.html buildsrc/Ilias-Coach/app/src/main/assets/index.html
+          cp ilias-v3-overlay/coach-v3.css buildsrc/Ilias-Coach/app/src/main/assets/coach-v3.css
+          cp ilias-v3-overlay/coach-v3.js buildsrc/Ilias-Coach/app/src/main/assets/coach-v3.js
+          cp ilias-v3-overlay/AndroidManifest.xml buildsrc/Ilias-Coach/app/src/main/AndroidManifest.xml
+          cp ilias-v3-overlay/MainActivity.java buildsrc/Ilias-Coach/app/src/main/java/com/iliaperformance/iliacoach2026/MainActivity.java
+          sed -i "s/versionCode 610; versionName '6.1.0'/versionCode 731; versionName '7.3.1-v3'/" buildsrc/Ilias-Coach/app/build.gradle
+      - name: Install verified MP4 motion library
+        shell: bash
+        run: |
+          mkdir -p buildsrc/Ilias-Coach/app/src/main/assets/media/motion
+          if [ -d ilias-v3-motion ]; then cp ilias-v3-motion/*.mp4 buildsrc/Ilias-Coach/app/src/main/assets/media/motion/; fi
+          test -s buildsrc/Ilias-Coach/app/src/main/assets/media/motion/barbell-hip-thrust.mp4
+          test -s buildsrc/Ilias-Coach/app/src/main/assets/media/motion/machine-chest-press.mp4
+          test -s buildsrc/Ilias-Coach/app/src/main/assets/media/motion/face-pull.mp4
+          ls -lh buildsrc/Ilias-Coach/app/src/main/assets/media/motion
+      - name: Verify V3 locks
+        shell: bash
+        run: |
+          grep -q "__setInsets" buildsrc/Ilias-Coach/app/src/main/assets/coach-v3.js
+          grep -q "FULL APP EDITOR" buildsrc/Ilias-Coach/app/src/main/assets/coach-v3.js
+          grep -q "VERIFIED MOTION NOT INSTALLED" buildsrc/Ilias-Coach/app/src/main/assets/coach-v3.js
+          grep -q "spotify-callback" buildsrc/Ilias-Coach/app/src/main/AndroidManifest.xml
+      - name: Build APK
+        run: gradle --no-daemon -p buildsrc/Ilias-Coach :app:assembleDebug
+      - name: Collect APK
+        shell: bash
+        run: |
+          mkdir -p output
+          cp buildsrc/Ilias-Coach/app/build/outputs/apk/debug/app-debug.apk output/ILIAS-COACH-V3.apk
+          sha256sum output/ILIAS-COACH-V3.apk > output/SHA256SUMS.txt
+          ls -lh output
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ILIAS-COACH-V3-APK
+          path: output/*
+          retention-days: 30
+          if-no-files-found: error
