@@ -1,0 +1,33 @@
+name: Inspect NAR Source
+
+on:
+  push:
+    branches: [ rebuild/nar-mix45-admin-ai ]
+    paths:
+      - '.github/workflows/inspect-nar-source.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract source
+        shell: bash
+        run: |
+          rm -rf buildsrc source.zip
+          mkdir -p buildsrc
+          cp ILIA-SAFE-SOURCE.bin source.zip
+          unzip -q source.zip -d buildsrc
+          echo '=== NAR FILE TREE ==='
+          find buildsrc/NAR-Mix -maxdepth 8 -type f | sort | sed -n '1,500p'
+          echo '=== ASSETS ==='
+          find buildsrc/NAR-Mix/app/src/main/assets -maxdepth 5 -type f | sort | sed -n '1,500p' || true
+          echo '=== TEXT SOURCE ==='
+          find buildsrc/NAR-Mix/app/src/main -type f \( -name '*.kt' -o -name '*.java' -o -name '*.html' -o -name '*.js' -o -name '*.css' -o -name '*.json' -o -name '*.xml' \) -print0 | while IFS= read -r -d '' f; do
+            echo "--- FILE: $f ---"
+            sed -n '1,260p' "$f"
+          done
