@@ -1,0 +1,17 @@
+name: Inspect NAR DB Shape
+on:
+  push:
+    branches: [ rebuild/nar-mix45-admin-ai ]
+    paths: ['.github/workflows/inspect-nar-db.yml']
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          rm -rf b s.zip; mkdir b; cp ILIA-SAFE-SOURCE.bin s.zip; unzip -q s.zip -d b
+          echo '=== KNOWLEDGE HEAD ==='; sed -n '1,120p' b/NAR-Mix/app/src/main/assets/knowledge.js
+          echo '=== APP FUNCTIONS ==='; grep -nE '^function (app|render|nav|search|explore|my|mix|learn|admin|.*Modal)' b/NAR-Mix/app/src/main/assets/app.js | head -100
+          echo '=== INDEX ==='; cat b/NAR-Mix/app/src/main/assets/index.html
