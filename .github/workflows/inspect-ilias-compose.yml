@@ -1,0 +1,36 @@
+name: Inspect ILIAS Compose base
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ rebuild/ilias-coach-compose-v4 ]
+    paths:
+      - '.github/workflows/inspect-ilias-compose.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract source
+        shell: bash
+        run: |
+          rm -rf buildsrc source.zip
+          mkdir -p buildsrc
+          cp ILIA-SAFE-SOURCE.bin source.zip
+          unzip -q source.zip -d buildsrc
+          echo '=== settings.gradle ==='
+          cat buildsrc/Ilias-Coach/settings.gradle || true
+          echo '=== root build.gradle ==='
+          cat buildsrc/Ilias-Coach/build.gradle || true
+          echo '=== app build.gradle ==='
+          cat buildsrc/Ilias-Coach/app/build.gradle || true
+          echo '=== gradle.properties ==='
+          cat buildsrc/Ilias-Coach/gradle.properties || true
+          echo '=== manifest ==='
+          cat buildsrc/Ilias-Coach/app/src/main/AndroidManifest.xml || true
+          echo '=== source tree ==='
+          find buildsrc/Ilias-Coach/app/src/main -maxdepth 5 -type f | sort | sed -n '1,260p'
