@@ -38,7 +38,9 @@ jobs:
         run: python3 nar-mix45/patch_nar_mix45.py
       - name: Apply NAR Mix 4.6 editable flavor controls
         run: python3 nar-mix46/patch_nar_mix46.py
-      - name: Validate JS and V4.6 owner controls
+      - name: Apply sophisticated NAR cover
+        run: python3 nar-mix46/patch_cover_v46.py
+      - name: Validate JS, owner controls and cover
         run: |
           node --check buildsrc/NAR-Mix/app/src/main/assets/app.js
           grep -q 'function adminFlavorsModal' buildsrc/NAR-Mix/app/src/main/assets/app.js
@@ -48,6 +50,9 @@ jobs:
           grep -q 'SET COVER' buildsrc/NAR-Mix/app/src/main/assets/app.js
           grep -q 'Take cover photo' buildsrc/NAR-Mix/app/src/main/assets/app.js
           grep -q 'Manage flavors' buildsrc/NAR-Mix/app/src/main/assets/app.js
+          grep -q 'Knowledge tastes better.' buildsrc/NAR-Mix/app/src/main/assets/app.js
+          grep -q 'narLaunchV46' buildsrc/NAR-Mix/app/src/main/assets/app.css
+          grep -q 'ENTER NĀR' buildsrc/NAR-Mix/app/src/main/assets/app.js
       - name: Build NAR APK
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
       - name: Collect APK
