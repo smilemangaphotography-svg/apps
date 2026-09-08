@@ -48,7 +48,9 @@ jobs:
         run: python3 nar-canonical/patch_navigation.py
       - name: Apply approved 10-screen mockup lock
         run: python3 nar-mix47/patch_mockup_v47.py
-      - name: Validate canonical NAR mockup lock
+      - name: Apply NAR 4.8 audit fixes
+        run: python3 nar-canonical/patch_audit_v48.py
+      - name: Validate canonical NAR mockup and audit locks
         run: |
           JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
           CSS=buildsrc/NAR-Mix/app/src/main/assets/app.css
@@ -76,15 +78,27 @@ jobs:
           grep -q 'Recently Viewed' "$JS"
           grep -q 'function goTab(next)' "$JS"
           grep -q "function goLearn(topic='home')" "$JS"
+          grep -q 'function bowlData(k)' "$JS"
+          grep -q "ownerMini').onclick=adminHomeModal" "$JS"
+          grep -q 'Home · Quick access' "$JS"
+          grep -q 'navHome:true' "$JS"
+          grep -q 'NAR 4.8 AUDIT FIXES' "$CSS"
+          grep -q 'grid-template-columns:48px minmax(0,1fr) 42px 14px 40px' "$CSS"
+          grep -q 'left:50%!important;right:auto!important;transform:translateX(-50%)!important' "$CSS"
           if grep -q "learnTopic=b.dataset.topic;learn(p)" "$JS"; then exit 1; fi
           python3 - <<'PY'
           from pathlib import Path
           s = Path('buildsrc/NAR-Mix/app/src/main/assets/app.js').read_text()
+          c = Path('buildsrc/NAR-Mix/app/src/main/assets/app.css').read_text()
           marker = '/* ===== NAR MIX 4.5 — OWNER AI / PHOTO RECOGNITION ===== */'
           assert marker in s, 'AI marker missing'
           assert 'function gpt(p)' in s, 'GPT page missing'
           assert s.index(marker) < s.rindex('})();'), 'AI code escaped canonical NAR scope'
-          assert 'NĀR CANONICAL MOCKUP LOCK 2026-09-09' in Path('buildsrc/NAR-Mix/app/src/main/assets/app.css').read_text()
+          assert 'NĀR CANONICAL MOCKUP LOCK 2026-09-09' in c
+          assert 'NAR 4.8 AUDIT FIXES' in c
+          assert 'function bowlData(k)' in s
+          assert "$('.ownerMini').onclick=adminHomeModal" in s
+          assert all(x in s for x in ['navHome:true','navSearch:true','navMix:true','navGpt:true','navLearn:true','navMine:true'])
           PY
       - name: Build the same NAR APK
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
