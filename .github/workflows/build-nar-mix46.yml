@@ -8,6 +8,7 @@ on:
       - 'ILIA-SAFE-SOURCE.bin'
       - 'nar-mix45/**'
       - 'nar-mix46/**'
+      - 'nar-canonical/**'
       - '.github/workflows/build-nar-mix46.yml'
 
 permissions:
@@ -42,20 +43,29 @@ jobs:
         run: python3 nar-mix46/patch_nar_mix46.py
       - name: Apply NAR 4.6 launch cover
         run: python3 nar-mix46/patch_cover_v46.py
+      - name: Apply canonical navigation fix
+        run: python3 nar-canonical/patch_navigation.py
       - name: Validate canonical NAR
         run: |
-          node --check buildsrc/NAR-Mix/app/src/main/assets/app.js
-          grep -q 'function adminFlavorsModal' buildsrc/NAR-Mix/app/src/main/assets/app.js
-          grep -q 'Brand<select id="afBrand"' buildsrc/NAR-Mix/app/src/main/assets/app.js
-          grep -q 'Tobacco line<select id="afLineSelect"' buildsrc/NAR-Mix/app/src/main/assets/app.js
-          grep -q 'Replace main cover' buildsrc/NAR-Mix/app/src/main/assets/app.js
-          grep -q 'SET COVER' buildsrc/NAR-Mix/app/src/main/assets/app.js
-          grep -q 'Take cover photo' buildsrc/NAR-Mix/app/src/main/assets/app.js
-          grep -q 'Manage flavors' buildsrc/NAR-Mix/app/src/main/assets/app.js
-          grep -q 'Knowledge tastes better.' buildsrc/NAR-Mix/app/src/main/assets/app.js
-          grep -q 'narLaunchV46' buildsrc/NAR-Mix/app/src/main/assets/app.css
-          grep -q 'ENTER NĀR' buildsrc/NAR-Mix/app/src/main/assets/app.js
-          grep -q 'My NĀR' buildsrc/NAR-Mix/app/src/main/assets/app.js
+          JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
+          CSS=buildsrc/NAR-Mix/app/src/main/assets/app.css
+          node --check "$JS"
+          grep -q 'function adminFlavorsModal' "$JS"
+          grep -q 'Brand<select id="afBrand"' "$JS"
+          grep -q 'Tobacco line<select id="afLineSelect"' "$JS"
+          grep -q 'Replace main cover' "$JS"
+          grep -q 'SET COVER' "$JS"
+          grep -q 'Take cover photo' "$JS"
+          grep -q 'Manage flavors' "$JS"
+          grep -q 'Knowledge tastes better.' "$JS"
+          grep -q 'narLaunchV46' "$CSS"
+          grep -q 'ENTER NĀR' "$JS"
+          grep -q 'My NĀR' "$JS"
+          grep -q 'function goTab(next)' "$JS"
+          grep -q "function goLearn(topic='home')" "$JS"
+          grep -q 'goLearn(b.dataset.topic)' "$JS"
+          grep -q "$('#learnBack').onclick=()=>goLearn('home')" "$JS"
+          if grep -q "learnTopic=b.dataset.topic;learn(p)" "$JS"; then exit 1; fi
       - name: Build the same NAR APK
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
       - name: Collect canonical APK
