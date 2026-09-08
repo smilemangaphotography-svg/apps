@@ -38,3 +38,4 @@ jobs:
           grep -nE "moreBtn|ownerOrb|Owner Studio|adminHomeModal|narBrandHead|narTop" "$JS" | head -n 160 || true
           echo '=== BOWL / COVER CSS ==='
           grep -nE "launchBowl|launchBowlBody|launchStem|launchEmbers|ownerOrb|narBrandHead" "$CSS" | head -n 180 || true
+          echo 'inspection complete'
