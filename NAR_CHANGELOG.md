@@ -10,6 +10,33 @@ This file separates **verified Git history** from **requested/pending work**. A 
 
 ## Canonical updates after baseline
 
+### 2026-09-09 — NĀR 4.9 Functional Core
+
+**Build commit `6ee3b4e2fda4ffcd455cdc54b52903aa501622de` — Build NAR 4.9 functional core on canonical app**
+- Updated the existing `nar-main` application only. No replacement application, package identity, storage lineage, or alternate branch was created.
+- ENTER NĀR now explicitly opens Home and the six canonical navigation tabs are permanent: Home, Search, Mix, GPT, Learn, My NĀR.
+- Search was reworked so typing updates only the result region rather than re-rendering the entire page. This preserves input focus and prevents the Android keyboard from disappearing while typing.
+- Home and Search now expose all brands currently present in the NĀR database, with tappable brand shortcuts and line filters.
+- Search result cards now expose Sweet, Sour, and Cooling profile controls; tapping a profile control opens a similar-profile search instead of a dead label.
+- Flavor Detail now has five true functional tabs: Details, Mixes, Reviews, Photos, Similar.
+- Details renders structured ingredient rows from the actual flavor record. Example: Orange Team renders `O — Orange` and `M — Mandarin`.
+- Ingredient rows are tappable and open ingredient-based Search.
+- Sweet, Sour, and Cooling profile rows are tappable and open profile-similar results.
+- `Mix it with` is now interactive. Pairing labels resolve to real NĀR flavor records where possible; tapping a resolved pairing such as Earl Grey opens that flavor's full Detail page. Broader unresolved pairing terms fall back to Search instead of doing nothing.
+- Mixes tab provides pairing actions and a direct path to Build Your Mix.
+- Reviews tab provides structured NĀR summary information from existing rating/confidence/profile data without inventing individual review quotes.
+- Photos tab shows owner photos when available and otherwise shows catalog visual context plus the route to add real owner imagery.
+- Similar tab ranks related flavors from ingredient overlap and Sweet/Sour/Cooling/Intensity profile distance, with tappable flavor cards.
+- Owner Edit Flavor now includes Sweet, Sour, Cooling, Intensity, and Mix-it-with editing so the new functional data can be maintained without rebuilding the app.
+- Existing Owner Studio brand/line/flavor/photo controls, saved flavors, saved mixes, custom images, GPT/AI connection, Learn routing, and local storage are preserved.
+- Functional patch payload commit: `418f50a052ba948c8fd618aa0f96ba334df979af`; loader commit: `475c738b4a9167440fda7e403f94c2b041844a25`.
+- Local browser interaction tests passed for Home routing, six-tab navigation, all-brand shortcuts, focus-safe Search typing, brand/line filtering, Orange Team ingredient rendering, five Flavor Detail tabs, Earl Grey pairing navigation, profile-similar filtering, Owner profile fields, and permanent navigation behavior.
+- Responsive tests passed at 360×780, 390×844, 412×915, 430×932, and 480×900 with zero horizontal overflow on the six primary app pages; Flavor Detail retained all five tabs without horizontal overflow.
+- Canonical GitHub Actions run #10 completed successfully. The workflow applied the full 4.5 → 4.6 → canonical nav → 4.7 mockup → 4.8 audit → 4.9 Functional Core chain, passed JavaScript/regression validation, built the same Android APK, and uploaded the canonical artifact.
+- Workflow artifact: `NAR-CANONICAL-APK`; artifact digest: `sha256:4d31002da7640fe08ce351357e3bbd646bb9bfd0498c2b53e8fc5f88f3057a5e`.
+- Built APK: `NAR-CANONICAL-debug.apk`; APK SHA-256: `b460cd0fff6f1caaab170a8b6e30c3e5e32f21cd071a84678f380066d404be26`.
+- Pending next milestone: **NĀR 4.9.1 Real Learn Content**. Replace weak/fake bowl and tobacco visuals with accurate real-world/owned-or-permitted photographic assets and rebuild the Learn detail presentation while keeping this same canonical application.
+
 ### 2026-09-09 — NĀR 4.7 approved 10-screen mockup lock
 
 **Build commit `23e4c4766cfea3a1837be0ad1594df609bebc3c5` — Build canonical NAR with approved 10-screen mockup lock**
@@ -103,7 +130,9 @@ This file separates **verified Git history** from **requested/pending work**. A 
 
 These requirements continue only by updating `nar-main`.
 
-- Perform on-device visual comparison against the approved 10-screen mockup and correct any remaining spacing, image crop, typography or physical-device rendering differences incrementally.
+- **NĀR 4.9.1 Real Learn Content:** replace inaccurate/fake Master Chef bowl/tobacco graphics with accurate real-world visual material using owned, permitted, or appropriately created assets; make Learn detail pages visually trustworthy for Killer, Phunnel, Quasar, heat, packing, cooling, and technique.
+- Perform on-device comparison against the approved 10-screen reference and correct any remaining spacing, image crop, typography, or physical-device rendering differences incrementally.
+- Expand/correct catalog content as needed while preserving the 4.9 functional relationship model.
 - Preserve owner/admin ability to edit content, images, brands/lines, flavor data and layout visibility.
 - Preserve the approved NĀR visual direction while applying future revisions incrementally.
 - Any future bowl/anatomy or content correction must modify the canonical app rather than creating another NĀR build line.
