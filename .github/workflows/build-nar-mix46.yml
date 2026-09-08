@@ -9,6 +9,7 @@ on:
       - 'nar-mix45/**'
       - 'nar-mix46/**'
       - 'nar-canonical/**'
+      - 'nar-mix47/**'
       - '.github/workflows/build-nar-mix46.yml'
 
 permissions:
@@ -45,27 +46,46 @@ jobs:
         run: python3 nar-mix46/patch_cover_v46.py
       - name: Apply canonical navigation fix
         run: python3 nar-canonical/patch_navigation.py
-      - name: Validate canonical NAR
+      - name: Apply approved 10-screen mockup lock
+        run: python3 nar-mix47/patch_mockup_v47.py
+      - name: Validate canonical NAR mockup lock
         run: |
           JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
           CSS=buildsrc/NAR-Mix/app/src/main/assets/app.css
           node --check "$JS"
           grep -q 'function adminFlavorsModal' "$JS"
           grep -q 'Brand<select id="afBrand"' "$JS"
-          grep -q 'Tobacco line<select id="afLineSelect"' "$JS"
-          grep -q 'Replace main cover' "$JS"
+          grep -q 'Tobacco Line<select id="afLineSelect"' "$JS"
+          grep -q 'Change Image' "$JS"
           grep -q 'SET COVER' "$JS"
-          grep -q 'Take cover photo' "$JS"
+          grep -q 'afCamera' "$JS"
           grep -q 'Manage flavors' "$JS"
-          grep -q 'Knowledge tastes better.' "$JS"
-          grep -q 'narLaunchV46' "$CSS"
+          grep -q 'narLaunchV47' "$JS"
+          grep -q 'narLaunchV47' "$CSS"
+          grep -q 'EXPLORE · LEARN · MIX · ENJOY' "$JS"
           grep -q 'ENTER NĀR' "$JS"
+          grep -q 'homeQuick' "$JS"
+          grep -q 'Flavor Search' "$JS"
+          grep -q 'Build Your Mix' "$JS"
+          grep -q 'aiModeTabs' "$JS"
+          grep -q 'learnMockList' "$JS"
           grep -q 'My NĀR' "$JS"
+          grep -q 'ownerRows' "$JS"
+          grep -q 'Export / Import' "$JS"
+          grep -q 'Personal Notes' "$JS"
+          grep -q 'Recently Viewed' "$JS"
           grep -q 'function goTab(next)' "$JS"
           grep -q "function goLearn(topic='home')" "$JS"
-          grep -q 'goLearn(b.dataset.topic)' "$JS"
-          grep -q "$('#learnBack').onclick=()=>goLearn('home')" "$JS"
           if grep -q "learnTopic=b.dataset.topic;learn(p)" "$JS"; then exit 1; fi
+          python3 - <<'PY'
+          from pathlib import Path
+          s = Path('buildsrc/NAR-Mix/app/src/main/assets/app.js').read_text()
+          marker = '/* ===== NAR MIX 4.5 — OWNER AI / PHOTO RECOGNITION ===== */'
+          assert marker in s, 'AI marker missing'
+          assert 'function gpt(p)' in s, 'GPT page missing'
+          assert s.index(marker) < s.rindex('})();'), 'AI code escaped canonical NAR scope'
+          assert 'NĀR CANONICAL MOCKUP LOCK 2026-09-09' in Path('buildsrc/NAR-Mix/app/src/main/assets/app.css').read_text()
+          PY
       - name: Build the same NAR APK
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
       - name: Collect canonical APK
