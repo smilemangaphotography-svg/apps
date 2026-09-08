@@ -1,0 +1,106 @@
+{
+  "app": {
+    "name": "Personal Trainer",
+    "schemaVersion": 1,
+    "canonicalBranch": "personal-trainer-main"
+  },
+  "profile": {
+    "name": "",
+    "age": null,
+    "heightCm": null,
+    "weightKg": null,
+    "experience": "returning",
+    "availableDays": [],
+    "equipment": []
+  },
+  "goals": {
+    "primary": "general_fitness",
+    "secondary": [],
+    "race": {
+      "distance": null,
+      "targetTimeSeconds": null
+    },
+    "injuryFocused": false,
+    "customGoal": ""
+  },
+  "program": {
+    "presetMonths": 3,
+    "durationWeeks": 12,
+    "daysPerWeek": 4,
+    "preferredDays": [],
+    "startDate": null,
+    "priority": {
+      "strength": 40,
+      "running": 40,
+      "recovery": 20
+    }
+  },
+  "injuries": [
+    {
+      "type": "knee",
+      "enabled": false,
+      "side": "bilateral",
+      "pain": 0,
+      "notes": "",
+      "avoid": [],
+      "cleared": []
+    },
+    {
+      "type": "achilles",
+      "enabled": false,
+      "side": "bilateral",
+      "pain": 0,
+      "notes": "",
+      "avoid": [],
+      "cleared": []
+    },
+    {
+      "type": "tennis_elbow",
+      "enabled": false,
+      "side": "bilateral",
+      "pain": 0,
+      "notes": "",
+      "avoid": [],
+      "cleared": []
+    }
+  ],
+  "nutrition": {
+    "proteinTargetG": null,
+    "calorieTarget": null,
+    "waterTargetMl": null,
+    "creatineDailyG": null,
+    "allergies": [],
+    "intolerances": [],
+    "avoidFoods": [],
+    "notes": ""
+  },
+  "integrations": {
+    "garmin": {
+      "connected": false,
+      "lastSync": null
+    },
+    "strava": {
+      "connected": false,
+      "lastSync": null
+    }
+  },
+  "music": {
+    "source": "local",
+    "autoStartWithWorkout": true,
+    "autoStopWithWorkout": true,
+    "playlistId": null
+  },
+  "exerciseMotion": {
+    "requiredDurationSeconds": 6,
+    "requiredFields": [
+      "exerciseId",
+      "startPose",
+      "endPose",
+      "jointPath",
+      "targetMuscles",
+      "camera",
+      "assetUri",
+      "validated"
+    ]
+  }
+}
