@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Personal Trainer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main id="app">
+    <section id="cover" class="cover screen active">
+      <button class="icon-button admin-gear" data-action="admin" aria-label="Admin">⚙</button>
+      <div class="cover-art" aria-hidden="true">
+        <div class="pulse-ring ring-a"></div>
+        <div class="pulse-ring ring-b"></div>
+        <div class="athlete-mark">PT</div>
+      </div>
+      <div class="cover-copy">
+        <p class="eyebrow">ADAPT • TRAIN • RECOVER</p>
+        <h1>PERSONAL<br>TRAINER</h1>
+        <p class="cover-sub">Your training, running, recovery, music and nutrition in one adaptive plan.</p>
+      </div>
+      <button id="enterButton" class="primary enter">ENTER</button>
+    </section>
+
+    <section id="shell" class="shell hidden">
+      <header class="topbar">
+        <button id="menuButton" class="icon-button" aria-label="Open menu">☰</button>
+        <div class="brand-lockup">
+          <span class="brand-dot"></span>
+          <span>PERSONAL TRAINER</span>
+        </div>
+      </header>
+
+      <aside id="drawer" class="drawer" aria-hidden="true">
+        <div class="drawer-head">
+          <div>
+            <p class="eyebrow">CONTROL CENTER</p>
+            <h2>Your setup</h2>
+          </div>
+          <button id="closeDrawer" class="icon-button" aria-label="Close menu">×</button>
+        </div>
+        <nav class="drawer-nav">
+          <button data-drawer="profile">Profile</button>
+          <button data-drawer="goals">Goals</button>
+          <button data-drawer="programs">Programs</button>
+          <button data-drawer="injuries">Injuries</button>
+          <button data-drawer="food">Food & allergies</button>
+          <button data-drawer="garmin">Connect Garmin</button>
+          <button data-drawer="strava">Connect Strava</button>
+          <button data-drawer="sources">Music sources</button>
+          <button data-drawer="admin">Admin</button>
+        </nav>
+      </aside>
+      <div id="drawerScrim" class="scrim"></div>
+
+      <div class="content">
+        <section class="page active" data-page="home">
+          <div class="hero-card">
+            <p class="eyebrow">BUILD YOUR PLAN</p>
+            <h2>What are you training for?</h2>
+            <p>Choose the reason, timeline and weekly frequency. The program can combine performance with injury-focused work.</p>
+          </div>
+
+          <div class="reason-grid">
+            <button class="choice-card selected" data-goal="general_fitness"><strong>General fitness</strong><small>Strength + conditioning</small></button>
+            <button class="choice-card" data-goal="injury_recovery"><strong>Injury focused</strong><small>Train around limitations</small></button>
+            <button class="choice-card" data-goal="5k"><strong>5K</strong><small>Set target minutes</small></button>
+            <button class="choice-card" data-goal="10k"><strong>10K</strong><small>Set target minutes</small></button>
+            <button class="choice-card" data-goal="half"><strong>Half marathon</strong><small>Set target time</small></button>
+            <button class="choice-card" data-goal="full"><strong>Full marathon</strong><small>Set target time</small></button>
+          </div>
+
+          <section class="panel plan-builder">
+            <div class="panel-title"><div><p class="eyebrow">TIMELINE</p><h3>Adjust your program</h3></div><span id="weeksValue" class="metric">12 wk</span></div>
+            <label>Weeks<input id="weeksRange" type="range" min="4" max="52" value="12" /></label>
+            <label>Days per week<input id="daysRange" type="range" min="2" max="7" value="4" /></label>
+            <div class="inline-metrics"><span>Training days</span><strong id="daysValue">4 days</strong></div>
+            <label class="target-field">Target time<input id="targetTime" type="text" placeholder="e.g. 49:30 or 1:45:00" /></label>
+          </section>
+
+          <section class="panel quick-programs">
+            <div class="panel-title"><div><p class="eyebrow">PROGRAM LENGTH</p><h3>Preset blocks</h3></div></div>
+            <div class="segmented"><button data-months="3" class="active">3 months</button><button data-months="6">6 months</button><button data-months="12">12 months</button></div>
+          </section>
+
+          <section class="integration-row">
+            <button class="integration-card" data-drawer="garmin"><span>GARMIN</span><small>Connect training data</small></button>
+            <button class="integration-card" data-drawer="strava"><span>STRAVA</span><small>Connect running data</small></button>
+          </section>
+        </section>
+
+        <section class="page" data-page="train">
+          <div class="page-heading"><p class="eyebrow">TODAY'S SESSION</p><h2>Train</h2></div>
+          <div id="weekStrip" class="week-strip"></div>
+
+          <section class="session-summary panel">
+            <div><p class="eyebrow">PRIMARY</p><h3>Lower Body Strength</h3></div>
+            <div class="session-tags"><span>TRAIN</span><span>RUNNING</span><span>RECOVERY</span></div>
+          </section>
+
+          <article class="exercise-card">
+            <div class="exercise-meta"><div><p class="eyebrow">EXERCISE 1 OF 6</p><h3>45° Leg Press</h3></div><span class="loop-badge">6 SEC LOOP</span></div>
+            <div class="motion-stage">
+              <div class="motion-placeholder">
+                <div class="human-silhouette"><span class="torso"></span><span class="leg upper"></span><span class="leg lower"></span></div>
+                <div class="motion-line"></div>
+              </div>
+              <div class="pose-label start">START</div>
+              <div class="pose-label end">END</div>
+            </div>
+            <p class="motion-note">Production slot: anatomically validated start → end movement, fixed camera, correct joint path, target muscles, seamless 6-second loop.</p>
+            <div class="exercise-stats"><div><small>SETS</small><strong>3</strong></div><div><small>REPS</small><strong>12</strong></div><div><small>RPE</small><strong>7</strong></div><div><small>REST</small><strong>90s</strong></div></div>
+            <div class="workout-controls"><button class="secondary">Previous</button><button id="workoutButton" class="primary">START WORKOUT</button><button class="secondary">Next</button></div>
+          </article>
+        </section>
+
+        <section class="page" data-page="exercises">
+          <div class="page-heading"><p class="eyebrow">MOVEMENT LIBRARY</p><h2>Exercises</h2></div>
+          <div class="filter-row"><button class="chip active">All</button><button class="chip">Lower</button><button class="chip">Upper</button><button class="chip">Rehab</button><button class="chip">Mobility</button></div>
+          <div class="list-cards">
+            <article><strong>45° Leg Press</strong><small>Quads • glutes • controlled knee flexion</small><span>Motion ready slot</span></article>
+            <article><strong>Standing Calf Raise</strong><small>Calf • Achilles capacity</small><span>Motion ready slot</span></article>
+            <article><strong>Spanish Squat</strong><small>Knee-focused strength</small><span>Motion ready slot</span></article>
+            <article><strong>Wrist Extensor Isometric</strong><small>Tennis elbow support</small><span>Motion ready slot</span></article>
+          </div>
+        </section>
+
+        <section class="page" data-page="music">
+          <div class="page-heading"><p class="eyebrow">WORKOUT AUDIO</p><h2>Music</h2></div>
+          <section class="now-playing panel"><div class="album-mark">♫</div><div><small>SELECT A SOURCE</small><h3 id="musicStatus">No playlist selected</h3><p>Music can start automatically when your workout starts and stop when it finishes.</p></div></section>
+          <div class="source-grid">
+            <button class="source-card active" data-source="Local storage"><strong>Local storage</strong><small>Use audio stored on device</small></button>
+            <button class="source-card" data-source="YouTube"><strong>YouTube</strong><small>Authorized external playback</small></button>
+            <button class="source-card" data-source="Spotify"><strong>Spotify</strong><small>Authorized external playback</small></button>
+          </div>
+          <section class="panel toggles">
+            <label><span>Start music with workout</span><input id="autoStartMusic" type="checkbox" checked /></label>
+            <label><span>Stop music when workout ends</span><input id="autoStopMusic" type="checkbox" checked /></label>
+          </section>
+        </section>
+
+        <section class="page" data-page="nutrition">
+          <div class="page-heading"><p class="eyebrow">FUEL & RECOVERY</p><h2>Nutrition</h2></div>
+          <div class="nutrition-grid">
+            <article><small>PROTEIN</small><strong>— g</strong><span>Daily target</span></article>
+            <article><small>HYDRATION</small><strong>— ml</strong><span>Daily target</span></article>
+            <article><small>CREATINE</small><strong>— g</strong><span>Daily habit</span></article>
+            <article><small>CALORIES</small><strong>— kcal</strong><span>Optional target</span></article>
+          </div>
+          <section class="panel">
+            <p class="eyebrow">FOOD PROFILE</p><h3>Allergies & foods to avoid</h3>
+            <div class="tag-editor"><span class="tag">Add allergy +</span><span class="tag">Add intolerance +</span><span class="tag">Add avoid food +</span></div>
+          </section>
+        </section>
+      </div>
+
+      <nav class="bottom-nav">
+        <button class="active" data-nav="home"><span>⌂</span><small>Home</small></button>
+        <button data-nav="train"><span>▶</span><small>Train</small></button>
+        <button data-nav="exercises"><span>◎</span><small>Exercises</small></button>
+        <button data-nav="music"><span>♫</span><small>Music</small></button>
+        <button data-nav="nutrition"><span>◫</span><small>Nutrition</small></button>
+      </nav>
+
+      <dialog id="detailDialog">
+        <form method="dialog" class="dialog-card">
+          <button class="dialog-close" value="cancel">×</button>
+          <p class="eyebrow" id="dialogEyebrow">SETUP</p>
+          <h2 id="dialogTitle">Settings</h2>
+          <div id="dialogBody"></div>
+        </form>
+      </dialog>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
