@@ -1,0 +1,3 @@
+S')).length+'/'+out.length}function SHELLHIDDEN(){return $('shell').classList.contains('hidden')}
+buildWeek();render();if(location.search.includes('qa=1'))setTimeout(runQA,100);
+</script></body></html>

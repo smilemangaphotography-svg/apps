@@ -37,24 +37,25 @@ jobs:
       - name: Reconstruct bundled UI
         shell: bash
         run: |
-          cat personal-trainer/android-beta/app/src/main/assets/index.part00 \
-              personal-trainer/android-beta/app/src/main/assets/index.part01 \
-              personal-trainer/android-beta/app/src/main/assets/index.part02 \
-              personal-trainer/android-beta/app/src/main/assets/index.part03 \
+          cat personal-trainer/android-beta/app/src/main/assets/index.part* \
               > personal-trainer/android-beta/app/src/main/assets/index.html
-          test "$(wc -c < personal-trainer/android-beta/app/src/main/assets/index.html)" -eq 33490
+          test "$(wc -c < personal-trainer/android-beta/app/src/main/assets/index.html)" -eq 50381
+          test -s personal-trainer/android-beta/app/src/main/assets/media/goblet.webp
+          test -s personal-trainer/android-beta/app/src/main/assets/media/legpress.webp
+          ! grep -q "cdn.jsdelivr.net/npm/@bryllim" personal-trainer/android-beta/app/src/main/assets/index.html
+          ! grep -q "Choose file" personal-trainer/android-beta/app/src/main/assets/index.html
       - name: Build Personal Trainer APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
       - name: Package APK
         shell: bash
         run: |
           mkdir -p release
-          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/Personal-Trainer-Beta-1.2.apk
+          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/Personal-Trainer-Beta-1.3.apk
           sha256sum release/*.apk > release/SHA256SUMS.txt
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: PERSONAL-TRAINER-BETA-1.2
+          name: PERSONAL-TRAINER-BETA-1.3
           path: release/*
           if-no-files-found: error
           retention-days: 30
