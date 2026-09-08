@@ -1,0 +1,40 @@
+name: Inspect NAR — Canonical Navigation
+
+on:
+  push:
+    branches: [ nar-main ]
+    paths:
+      - '.github/workflows/inspect-nar-canonical.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract and apply canonical NAR patches
+        run: |
+          rm -rf buildsrc source.zip; mkdir -p buildsrc
+          cp ILIA-SAFE-SOURCE.bin source.zip
+          unzip -q source.zip -d buildsrc
+          python3 nar-mix45/patch_nar_mix45.py
+          python3 nar-mix46/patch_nar_mix46.py
+          python3 nar-mix46/patch_cover_v46.py
+      - name: Inspect navigation, Learn, back and owner hooks
+        shell: bash
+        run: |
+          JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
+          CSS=buildsrc/NAR-Mix/app/src/main/assets/app.css
+          echo '=== NAV / RENDER ==='
+          grep -nE "function nav\(|function bindNav\(|function render\(|data-tab|learnTopic|tab='learn'|tab=\"learn\"" "$JS" | head -n 180 || true
+          echo '=== LEARN FUNCTIONS / ROUTES ==='
+          grep -nE "function learn|learnTopic|Learn|data-learn|learnBack|topic" "$JS" | head -n 260 || true
+          echo '=== BACK HANDLING ==='
+          grep -nE "popstate|history|onpopstate|Back|backbtn|learn.*Back" "$JS" | head -n 180 || true
+          echo '=== OWNER / HEADER ==='
+          grep -nE "moreBtn|ownerOrb|Owner Studio|adminHomeModal|narBrandHead|narTop" "$JS" | head -n 160 || true
+          echo '=== BOWL / COVER CSS ==='
+          grep -nE "launchBowl|launchBowlBody|launchStem|launchEmbers|ownerOrb|narBrandHead" "$CSS" | head -n 180 || true
