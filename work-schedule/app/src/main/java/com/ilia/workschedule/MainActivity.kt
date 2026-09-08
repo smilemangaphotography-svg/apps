@@ -1,139 +1,792 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 package com.ilia.workschedule
 
-import android.Manifest
-import android.app.*
-import android.content.*
-import android.content.pm.PackageManager
+import android.content.Context
+import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.*
+import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.*
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.*
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.*
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.*
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Analytics
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Work
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.*
-import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import org.json.JSONArray
 import org.json.JSONObject
-import java.time.*
+import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.max
 
-private val Bronze=Color(0xFFD6A85C); private val Bg=Color(0xFF171A20); private val Panel=Color(0xFF242830)
-private val Panel2=Color(0xFF30343C); private val Txt=Color(0xFFF5F3EF); private val Muted=Color(0xFF9EA3AD); private val Pink=Color(0xFFF0A8D8)
+private val Bronze = Color(0xFFD6A85C)
+private val Background = Color(0xFF171A20)
+private val Panel = Color(0xFF242830)
+private val Panel2 = Color(0xFF30343C)
+private val TextPrimary = Color(0xFFF5F3EF)
+private val TextMuted = Color(0xFF9EA3AD)
 
-data class Entry(val id:Long=System.currentTimeMillis(), val kind:String="SHIFT", val title:String="Night Shift", val date:String=LocalDate.now().toString(), val start:Int=18*60, val end:Int=2*60, val breakMin:Int=30, val type:String="Night", val location:String="", val rate:Double=0.0, val notes:String="", val reminder:Int=60)
+private val TemplatePalette = listOf(
+    0xFFFFB6B9.toInt(), 0xFFFFC0B5.toInt(), 0xFFFFBE9F.toInt(), 0xFFFFE49D.toInt(),
+    0xFFC6F5A5.toInt(), 0xFFB5F2BA.toInt(), 0xFFB9DFF8.toInt(), 0xFFD5C2FF.toInt(),
+    0xFFFFB7EA.toInt(), 0xFFD6A85C.toInt()
+)
 
-class Store(private val c:Context){
-    private val p=c.getSharedPreferences("work_schedule",Context.MODE_PRIVATE)
-    fun load():List<Entry>{ val a=JSONArray(p.getString("entries","[]")); return (0 until a.length()).map{ o(a.getJSONObject(it)) }.sortedWith(compareBy<Entry>{it.date}.thenBy{it.start}) }
-    fun save(list:List<Entry>){ val a=JSONArray(); list.forEach{e->a.put(j(e))}; p.edit().putString("entries",a.toString()).apply() }
-    fun s(k:String,d:String)=p.getString(k,d)?:d; fun f(k:String,d:Float)=p.getFloat(k,d); fun i(k:String,d:Int)=p.getInt(k,d); fun b(k:String,d:Boolean)=p.getBoolean(k,d)
-    fun put(k:String,v:String)=p.edit().putString(k,v).apply(); fun put(k:String,v:Float)=p.edit().putFloat(k,v).apply(); fun put(k:String,v:Int)=p.edit().putInt(k,v).apply(); fun put(k:String,v:Boolean)=p.edit().putBoolean(k,v).apply()
-    private fun j(e:Entry)=JSONObject().apply{put("id",e.id);put("kind",e.kind);put("title",e.title);put("date",e.date);put("start",e.start);put("end",e.end);put("break",e.breakMin);put("type",e.type);put("location",e.location);put("rate",e.rate);put("notes",e.notes);put("reminder",e.reminder)}
-    private fun o(x:JSONObject)=Entry(x.optLong("id"),x.optString("kind","SHIFT"),x.optString("title"),x.optString("date"),x.optInt("start"),x.optInt("end"),x.optInt("break"),x.optString("type"),x.optString("location"),x.optDouble("rate"),x.optString("notes"),x.optInt("reminder"))
-}
+data class ShiftTemplate(
+    val id: Long = System.currentTimeMillis(),
+    val name: String,
+    val colorArgb: Int = TemplatePalette.first(),
+    val imageUri: String = "",
+    val note: String = ""
+)
 
-class MainActivity:ComponentActivity(){ override fun onCreate(b:Bundle?){super.onCreate(b); channel(this); setContent{ Theme{ App() } } } }
-class ReminderReceiver:BroadcastReceiver(){ override fun onReceive(c:Context,i:Intent){ val n=NotificationCompat.Builder(c,"schedule").setSmallIcon(android.R.drawable.ic_popup_reminder).setContentTitle(i.getStringExtra("t")?:"Work Schedule").setContentText(i.getStringExtra("b")?:"Upcoming event").setPriority(NotificationCompat.PRIORITY_HIGH).setAutoCancel(true).build(); (c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(i.getLongExtra("id",1).toInt(),n) } }
-private fun channel(c:Context){if(Build.VERSION.SDK_INT>=26)(c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(NotificationChannel("schedule","Schedule reminders",NotificationManager.IMPORTANCE_HIGH))}
-private fun alarm(c:Context,e:Entry){if(e.reminder<=0)return; val t=LocalDateTime.of(LocalDate.parse(e.date),LocalTime.of(e.start/60,e.start%60)).minusMinutes(e.reminder.toLong()).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(); if(t<=System.currentTimeMillis())return; val i=Intent(c,ReminderReceiver::class.java).putExtra("id",e.id).putExtra("t",if(e.kind=="SHIFT")"Upcoming ${e.type} shift" else e.title).putExtra("b","${ft(e.start)} • ${e.location.ifBlank{"Work Schedule"}}"); val pi=PendingIntent.getBroadcast(c,e.id.toInt(),i,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE); (c.getSystemService(Context.ALARM_SERVICE) as AlarmManager).setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,t,pi)}
+data class ShiftAssignment(val date: String, val templateId: Long)
 
-@Composable private fun Theme(x: @Composable () -> Unit)=MaterialTheme(colorScheme=darkColorScheme(primary=Bronze,background=Bg,surface=Panel,onBackground=Txt,onSurface=Txt),content=x)
-enum class Tab{CALENDAR,SHIFTS,ANALYTICS,SETTINGS}; sealed interface Route{data object Main:Route; data class Day(val d:LocalDate):Route; data class Edit(val d:LocalDate,val e:Entry?=null,val personal:Boolean=false):Route}
+private class ScheduleStore(private val context: Context) {
+    private val prefs = context.getSharedPreferences("work_schedule_beta", Context.MODE_PRIVATE)
 
-@Composable fun App(){
-    val c=LocalContext.current; val st=remember{Store(c)}; var data by remember{mutableStateOf(st.load())}; var tab by remember{mutableStateOf(Tab.CALENDAR)}; var route:Route by remember{mutableStateOf(Route.Main)}; var month by remember{mutableStateOf(YearMonth.now())}; var sheet by remember{mutableStateOf(false)}; var addDate by remember{mutableStateOf(LocalDate.now())}
-    val perm=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){}; LaunchedEffect(Unit){if(Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(c,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)perm.launch(Manifest.permission.POST_NOTIFICATIONS)}
-    fun persist(v:List<Entry>){data=v.sortedWith(compareBy<Entry>{it.date}.thenBy{it.start});st.save(data)}
-    BackHandler(route !is Route.Main){route=Route.Main}
-    when(val r=route){
-        Route.Main->Scaffold(containerColor=Bg,bottomBar={Nav(tab){tab=it}}){p->Box(Modifier.fillMaxSize().padding(p).statusBarsPadding()){
-            when(tab){
-                Tab.CALENDAR->Calendar(data,month,st,{month=it},{route=Route.Day(it)},{d->addDate=d;sheet=true},{share(c,month,data)},{tab=Tab.SETTINGS})
-                Tab.SHIFTS->Shifts(data){route=Route.Edit(LocalDate.parse(it.date),it,it.kind=="PERSONAL")}
-                Tab.ANALYTICS->Analytics(data)
-                Tab.SETTINGS->Settings(st,data)
+    fun jobName(): String = prefs.getString("job", "Main Job") ?: "Main Job"
+    fun setJobName(value: String) = prefs.edit().putString("job", value).apply()
+
+    fun loadTemplates(): List<ShiftTemplate> {
+        migrateLegacyIfNeeded()
+        val raw = prefs.getString("templates_v2", "[]") ?: "[]"
+        val a = JSONArray(raw)
+        return (0 until a.length()).map { i ->
+            val o = a.getJSONObject(i)
+            ShiftTemplate(
+                id = o.optLong("id"),
+                name = o.optString("name", "Shift"),
+                colorArgb = o.optInt("color", TemplatePalette[i % TemplatePalette.size]),
+                imageUri = o.optString("image", ""),
+                note = o.optString("note", "")
+            )
+        }
+    }
+
+    fun saveTemplates(items: List<ShiftTemplate>) {
+        val a = JSONArray()
+        items.forEach { t ->
+            a.put(JSONObject().apply {
+                put("id", t.id); put("name", t.name); put("color", t.colorArgb)
+                put("image", t.imageUri); put("note", t.note)
+            })
+        }
+        prefs.edit().putString("templates_v2", a.toString()).apply()
+    }
+
+    fun loadAssignments(): List<ShiftAssignment> {
+        migrateLegacyIfNeeded()
+        val raw = prefs.getString("assignments_v2", "[]") ?: "[]"
+        val a = JSONArray(raw)
+        return (0 until a.length()).map { i ->
+            val o = a.getJSONObject(i)
+            ShiftAssignment(o.optString("date"), o.optLong("templateId"))
+        }.filter { it.date.isNotBlank() }
+    }
+
+    fun saveAssignments(items: List<ShiftAssignment>) {
+        val a = JSONArray()
+        items.distinctBy { it.date }.forEach { x ->
+            a.put(JSONObject().apply { put("date", x.date); put("templateId", x.templateId) })
+        }
+        prefs.edit().putString("assignments_v2", a.toString()).apply()
+    }
+
+    private fun migrateLegacyIfNeeded() {
+        if (prefs.contains("templates_v2") || prefs.getBoolean("v2_migrated", false)) return
+        val raw = prefs.getString("entries", "[]") ?: "[]"
+        val legacy = runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
+        if (legacy.length() == 0) {
+            saveTemplates(emptyList()); saveAssignments(emptyList())
+            prefs.edit().putBoolean("v2_migrated", true).apply(); return
+        }
+        val labels = linkedMapOf<String, Long>()
+        val templates = mutableListOf<ShiftTemplate>()
+        val assignments = mutableListOf<ShiftAssignment>()
+        for (i in 0 until legacy.length()) {
+            val o = legacy.getJSONObject(i)
+            val kind = o.optString("kind", "SHIFT")
+            val label = if (kind == "SHIFT") o.optString("type", "Shift") else o.optString("title", "Personal")
+            val templateId = labels.getOrPut(label) {
+                val id = System.currentTimeMillis() + i
+                templates += ShiftTemplate(
+                    id = id,
+                    name = label,
+                    colorArgb = TemplatePalette[templates.size % TemplatePalette.size],
+                    note = o.optString("location", "")
+                )
+                id
             }
-        }; if(sheet)AddSheet({sheet=false},{sheet=false;route=Route.Edit(addDate)},{sheet=false;route=Route.Edit(addDate,personal=true)},{sheet=false;route=Route.Edit(addDate)})}
-        is Route.Day->Day(r.d,data.filter{it.date==r.d.toString()},{route=Route.Main},{route=Route.Edit(r.d)},{route=Route.Edit(r.d,personal=true)},{route=Route.Edit(r.d,it,it.kind=="PERSONAL")})
-        is Route.Edit->Editor(r.d,r.e,r.personal,st,{route=Route.Main},{e,repeat,days->
-            val old=data.filterNot{it.id==r.e?.id}; val made=if(r.e!=null)listOf(e.copy(id=r.e.id)) else repeat(e,repeat,days); persist(old+made); made.filter{st.b("notifications",true)}.forEach{alarm(c,it)}; month=YearMonth.from(LocalDate.parse(e.date));route=Route.Main;tab=Tab.CALENDAR
-        },if(r.e!=null){{persist(data.filterNot{it.id==r.e.id});route=Route.Main}}else null)
+            val date = o.optString("date", "")
+            if (date.isNotBlank()) assignments += ShiftAssignment(date, templateId)
+        }
+        saveTemplates(templates); saveAssignments(assignments)
+        prefs.edit().putBoolean("v2_migrated", true).apply()
     }
 }
 
-@Composable fun Nav(s:Tab,on:(Tab)->Unit){NavigationBar(containerColor=Bg,modifier=Modifier.navigationBarsPadding()){listOf(Tab.CALENDAR to Icons.Outlined.Home,Tab.SHIFTS to Icons.Outlined.Work,Tab.ANALYTICS to Icons.Outlined.Analytics,Tab.SETTINGS to Icons.Outlined.Settings).forEach{(t,i)->NavigationBarItem(t==s,{on(t)},{Icon(i,null)},{Text(t.name.lowercase().replaceFirstChar{it.uppercase()},fontSize=11.sp)},colors=NavigationBarItemDefaults.colors(selectedIconColor=Bronze,selectedTextColor=Bronze,indicatorColor=Color.Transparent,unselectedIconColor=Muted,unselectedTextColor=Muted))}}}
-
-@Composable fun Calendar(data:List<Entry>,m:YearMonth,st:Store,onM:(YearMonth)->Unit,onD:(LocalDate)->Unit,onAdd:(LocalDate)->Unit,onShare:()->Unit,onSettings:()->Unit){
-    var drag by remember{mutableStateOf(0f)}; val fmt=DateTimeFormatter.ofPattern("MMMM yyyy",Locale.getDefault()); Column(Modifier.fillMaxSize().padding(horizontal=20.dp)){
-        Row(Modifier.fillMaxWidth().padding(top=12.dp),verticalAlignment=Alignment.CenterVertically){Text(st.s("job","Main Job")+" ⌄",fontSize=24.sp);Spacer(Modifier.weight(1f));IconButton(onShare){Icon(Icons.Outlined.Share,null)};IconButton(onSettings){Icon(Icons.Outlined.CalendarMonth,null)}}
-        Spacer(Modifier.height(22.dp)); Card(colors=CardDefaults.cardColors(Panel2),shape=RoundedCornerShape(24.dp)){Row(Modifier.fillMaxWidth().padding(20.dp),verticalAlignment=Alignment.CenterVertically){Text(fmt.format(m.atDay(1)),fontSize=30.sp,fontWeight=FontWeight.Medium);Spacer(Modifier.weight(1f));IconButton({onAdd(if(YearMonth.from(LocalDate.now())==m)LocalDate.now() else m.atDay(1))},Modifier.size(56.dp).background(Txt,CircleShape)){Icon(Icons.Outlined.Add,null,tint=Bg,modifier=Modifier.size(30.dp))}}}
-        Spacer(Modifier.height(12.dp));Row(Modifier.fillMaxWidth()){listOf("Mon","Tue","Wed","Thu","Fri","Sat","Sun").forEachIndexed{i,d->Text(d,color=if(i>4)Muted else Txt,textAlign=TextAlign.Center,modifier=Modifier.weight(1f))}};Spacer(Modifier.height(10.dp))
-        Card(colors=CardDefaults.cardColors(Panel2),shape=RoundedCornerShape(24.dp),modifier=Modifier.fillMaxWidth().weight(1f).pointerInput(m){detectHorizontalDragGestures(onHorizontalDrag={_,a->drag+=a},onDragEnd={if(drag>80)onM(m.minusMonths(1));if(drag< -80)onM(m.plusMonths(1));drag=0f})}){Grid(m,data,onD)};Spacer(Modifier.height(8.dp))
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent { AppTheme { WorkScheduleApp() } }
     }
 }
-@Composable fun Grid(m:YearMonth,data:List<Entry>,onD:(LocalDate)->Unit){val off=m.atDay(1).dayOfWeek.value-1;val n=m.lengthOfMonth();Column(Modifier.padding(12.dp)){repeat(6){r->Row(Modifier.weight(1f)){repeat(7){c->val d=r*7+c-off+1;if(d in 1..n){val dt=m.atDay(d);val ev=data.filter{it.date==dt.toString()};Column(Modifier.weight(1f).fillMaxHeight().padding(2.dp).clickable{onD(dt)},horizontalAlignment=Alignment.CenterHorizontally){Text("$d",fontSize=16.sp,modifier=Modifier.padding(top=5.dp));ev.take(2).forEach{e->Text(if(e.kind=="SHIFT")e.type else e.title,fontSize=9.sp,color=Color(0xFF17120B),maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.fillMaxWidth().padding(1.dp).background(if(e.kind=="SHIFT")Bronze else Pink,RoundedCornerShape(4.dp)).padding(horizontal=3.dp,vertical=2.dp))}}}else Spacer(Modifier.weight(1f))}}}}}
 
-@Composable fun AddSheet(close:()->Unit,shift:()->Unit,personal:()->Unit,repeat:()->Unit){ModalBottomSheet(close,containerColor=Panel2){Text("Add to schedule",fontSize=20.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(horizontal=20.dp));Action("Add Shift","Add a work shift",Icons.Outlined.Work,shift);Action("Add Personal Event","Appointment, travel, etc.",Icons.Outlined.Event,personal);Action("Quick Repeat Shift","Add multiple shifts",Icons.Outlined.Schedule,repeat);Spacer(Modifier.height(20.dp))}}
-@Composable fun Action(t:String,s:String,i:androidx.compose.ui.graphics.vector.ImageVector,on:()->Unit){Card(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=6.dp).clickable(onClick=on),colors=CardDefaults.cardColors(Panel),shape=RoundedCornerShape(18.dp)){Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically){Icon(i,null,tint=Bronze);Spacer(Modifier.width(14.dp));Column(Modifier.weight(1f)){Text(t,fontWeight=FontWeight.SemiBold);Text(s,color=Muted,fontSize=13.sp)};Icon(Icons.Outlined.ChevronRight,null,color=Muted)}}}
-
-@Composable fun Day(d:LocalDate,ev:List<Entry>,back:()->Unit,addS:()->Unit,addP:()->Unit,open:(Entry)->Unit){Column(Modifier.fillMaxSize().background(Bg).statusBarsPadding().padding(20.dp)){Row(verticalAlignment=Alignment.CenterVertically){IconButton(back){Icon(Icons.Outlined.ChevronLeft,null)};Text(d.format(DateTimeFormatter.ofPattern("EEE, d MMMM yyyy")),fontSize=21.sp,fontWeight=FontWeight.SemiBold)};Spacer(Modifier.height(12.dp));LazyColumn(Modifier.weight(1f)){items(ev,key={it.id}){CardEntry(it,open)}};Button(addS,Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Bronze,contentColor=Bg)){Text("+  Add Shift")};Spacer(Modifier.height(8.dp));OutlinedButton(addP,Modifier.fillMaxWidth()){Text("+  Add Personal Event")};Spacer(Modifier.navigationBarsPadding())}}
-@Composable fun CardEntry(e:Entry,open:(Entry)->Unit){Card(Modifier.fillMaxWidth().padding(vertical=5.dp).clickable{open(e)},colors=CardDefaults.cardColors(Panel),shape=RoundedCornerShape(17.dp)){Row(Modifier.padding(15.dp),verticalAlignment=Alignment.CenterVertically){Icon(if(e.kind=="SHIFT")Icons.Outlined.Work else Icons.Outlined.Event,null,tint=if(e.kind=="SHIFT")Bronze else Pink);Spacer(Modifier.width(12.dp));Column(Modifier.weight(1f)){Text(if(e.kind=="SHIFT")"${e.type} Shift" else e.title,fontWeight=FontWeight.SemiBold);Text(timeLine(e),color=Muted,fontSize=13.sp);if(e.kind=="SHIFT")Text("${dur(paid(e))} • €${"%.2f".format(e.rate*paid(e)/60.0)}",color=Bronze,fontSize=13.sp)};Icon(Icons.Outlined.Edit,null,tint=Muted)}}}
-
-@Composable fun Shifts(data:List<Entry>,open:(Entry)->Unit){var f by remember{mutableStateOf("Upcoming")};val today=LocalDate.now();val x=data.filter{val d=LocalDate.parse(it.date);when(f){"Upcoming"->!d.isBefore(today);"Past"->d.isBefore(today);else->true}};Column(Modifier.fillMaxSize().padding(horizontal=20.dp)){Text("Shifts",fontSize=30.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(top=18.dp));Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.padding(vertical=12.dp)){listOf("Upcoming","Past","All").forEach{o->FilterChip(f==o,{f=o},{Text(o)})}};LazyColumn{items(x,key={it.id}){e->Text(LocalDate.parse(e.date).format(DateTimeFormatter.ofPattern("EEE, d MMM")),color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=8.dp));CardEntry(e,open)}}}}
-
-@Composable fun Analytics(data:List<Entry>){var m by remember{mutableStateOf(YearMonth.now())};val x=data.filter{it.kind=="SHIFT"&&YearMonth.from(LocalDate.parse(it.date))==m};val min=x.sumOf{paid(it)};val earn=x.sumOf{it.rate*paid(it)/60.0};Column(Modifier.fillMaxSize().padding(horizontal=20.dp)){Text("Analytics",fontSize=30.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(top=18.dp));Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){IconButton({m=m.minusMonths(1)}){Icon(Icons.Outlined.ChevronLeft,null)};Text(m.atDay(1).format(DateTimeFormatter.ofPattern("MMMM yyyy")),textAlign=TextAlign.Center,modifier=Modifier.weight(1f));IconButton({m=m.plusMonths(1)}){Icon(Icons.Outlined.ChevronRight,null)}};Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){Stat("Total Hours",dur(min),Modifier.weight(1f));Stat("Total Shifts","${x.size}",Modifier.weight(1f))};Spacer(Modifier.height(10.dp));Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){Stat("Total Earnings","€${"%.2f".format(earn)}",Modifier.weight(1f));Stat("Avg. per Shift","€${"%.2f".format(if(x.isEmpty())0.0 else earn/x.size)}",Modifier.weight(1f))};Spacer(Modifier.height(24.dp));Text("Shift Types",fontSize=18.sp,fontWeight=FontWeight.SemiBold);x.groupingBy{it.type}.eachCount().forEach{(t,n)->Row(Modifier.fillMaxWidth().padding(vertical=7.dp)){Box(Modifier.size(10.dp).background(Bronze,CircleShape));Spacer(Modifier.width(8.dp));Text(t,Modifier.weight(1f));Text("$n (${if(x.isEmpty())0 else n*100/x.size}%)",color=Muted)}}}}
-@Composable fun Stat(l:String,v:String,m:Modifier){Card(m,colors=CardDefaults.cardColors(Panel),shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(15.dp)){Text(l,color=Muted,fontSize=12.sp);Text(v,fontSize=23.sp,fontWeight=FontWeight.SemiBold)}}}
-
-@Composable fun Settings(st:Store,data:List<Entry>){val c=LocalContext.current;var job by remember{mutableStateOf(st.s("job","Main Job"))};var loc by remember{mutableStateOf(st.s("location","Santai Lounge"))};var rate by remember{mutableStateOf(st.f("rate",8.5f))};var br by remember{mutableStateOf(st.i("break",30))};var notif by remember{mutableStateOf(st.b("notifications",true))};var edit by remember{mutableStateOf("")};var export by remember{mutableStateOf(false)};var content by remember{mutableStateOf("")};val launcher=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")){u:Uri?->u?.let{c.contentResolver.openOutputStream(it)?.use{o->o.write(content.toByteArray())}}};Column(Modifier.fillMaxSize().padding(horizontal=20.dp)){Text("Settings",fontSize=30.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(top=18.dp));Text("Work Profile",color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=14.dp,bottom=6.dp));Card(colors=CardDefaults.cardColors(Panel),shape=RoundedCornerShape(18.dp)){SetRow("Job Name",job){edit="job"};HorizontalDivider(color=Color.White.copy(.06f));SetRow("Default Location",loc){edit="loc"};HorizontalDivider(color=Color.White.copy(.06f));SetRow("Default Hourly Rate","€${"%.2f".format(rate)}"){edit="rate"};HorizontalDivider(color=Color.White.copy(.06f));SetRow("Default Break","$br min"){edit="break"}};Spacer(Modifier.height(14.dp));Card(colors=CardDefaults.cardColors(Panel),shape=RoundedCornerShape(18.dp)){SetRow("Shift Types","Day • Evening • Night • Split • Extra • Holiday"){};HorizontalDivider(color=Color.White.copy(.06f));Row(Modifier.fillMaxWidth().padding(16.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.Notifications,null,tint=Bronze);Spacer(Modifier.width(12.dp));Text("Notifications",Modifier.weight(1f));Switch(notif,{notif=it;st.put("notifications",it)})};HorizontalDivider(color=Color.White.copy(.06f));SetRow("Appearance","Dark"){};HorizontalDivider(color=Color.White.copy(.06f));SetRow("Backup & Export","CSV"){export=true};HorizontalDivider(color=Color.White.copy(.06f));SetRow("About","Beta 0.1.0"){}}}
-    if(edit.isNotEmpty()){val cur=when(edit){"job"->job;"loc"->loc;"rate"->rate.toString();else->br.toString()};EditDialog(edit,cur,{edit=""}){v->when(edit){"job"->{job=v;st.put("job",v)};"loc"->{loc=v;st.put("location",v)};"rate"->{rate=v.toFloatOrNull()?:rate;st.put("rate",rate)};else->{br=v.toIntOrNull()?:br;st.put("break",br)}};edit=""}}
-    if(export)AlertDialog({export=false},{TextButton({export=false}){Text("Cancel")}},{Button({content=csv(data);export=false;launcher.launch("work-schedule.csv")}){Text("Export CSV")}},{Text("Backup & Export")},{Text("Export your schedule, hours and earnings as CSV.")})
+@Composable
+private fun AppTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = darkColorScheme(
+            primary = Bronze,
+            background = Background,
+            surface = Panel,
+            onBackground = TextPrimary,
+            onSurface = TextPrimary
+        ),
+        content = content
+    )
 }
-@Composable fun SetRow(l:String,v:String,on:()->Unit){Row(Modifier.fillMaxWidth().clickable(onClick=on).padding(16.dp),verticalAlignment=Alignment.CenterVertically){Text(l,Modifier.weight(1f));Text(v,color=Muted,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis);Icon(Icons.Outlined.ChevronRight,null,tint=Muted,modifier=Modifier.size(18.dp))}}
-@Composable fun EditDialog(k:String,cur:String,close:()->Unit,save:(String)->Unit){var t by remember(cur){mutableStateOf(cur)};AlertDialog(close,{TextButton(close){Text("Cancel")}},{TextButton({save(t)}){Text("Save")}},{Text(k.replaceFirstChar{it.uppercase()})},{OutlinedTextField(t,{t=it},singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=if(k=="rate"||k=="break")KeyboardType.Decimal else KeyboardType.Text))})}
 
-@Composable fun Editor(d:LocalDate,old:Entry?,personal:Boolean,st:Store,cancel:()->Unit,save:(Entry,String,Set<DayOfWeek>)->Unit,delete:(()->Unit)?){val c=LocalContext.current;var date by remember{mutableStateOf(old?.let{LocalDate.parse(it.date)}?:d)};var title by remember{mutableStateOf(old?.title?:if(personal)"" else "Night Shift")};var start by remember{mutableStateOf(old?.start?:if(personal)19*60 else 18*60)};var end by remember{mutableStateOf(old?.end?:2*60)};var br by remember{mutableStateOf(old?.breakMin?:st.i("break",30))};var type by remember{mutableStateOf(old?.type?:"Night")};var loc by remember{mutableStateOf(old?.location?:st.s("location","Santai Lounge"))};var rate by remember{mutableStateOf(old?.rate?:st.f("rate",8.5f).toDouble())};var notes by remember{mutableStateOf(old?.notes?:"")};var reminder by remember{mutableStateOf(old?.reminder?:60)};var rep by remember{mutableStateOf("Never")};var days by remember{mutableStateOf(setOf(date.dayOfWeek))};var menu by remember{mutableStateOf("")};var del by remember{mutableStateOf(false)};val e=Entry(old?.id?:System.currentTimeMillis(),if(personal)"PERSONAL" else "SHIFT",if(personal)title.ifBlank{"Personal Event"} else "$type Shift",date.toString(),start,if(personal)start else end,if(personal)0 else br,type,loc,if(personal)0.0 else rate,notes,reminder)
-    Column(Modifier.fillMaxSize().background(Bg).statusBarsPadding().padding(horizontal=20.dp)){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){TextButton(cancel){Text("Cancel",color=Txt)};Text(if(personal)if(old==null)"Personal Event" else "Edit Event" else if(old==null)"Add Shift" else "Edit Shift",Modifier.weight(1f),textAlign=TextAlign.Center,fontSize=20.sp,fontWeight=FontWeight.SemiBold);TextButton({save(e,if(old==null)rep else "Never",days)},enabled=!personal||title.isNotBlank()){Text("Save",color=Bronze,fontWeight=FontWeight.Bold)}};LazyColumn(Modifier.weight(1f)){item{Spacer(Modifier.height(10.dp));if(personal){Field("Event Title",title){title=it};Spacer(Modifier.height(8.dp))};Pick("Date",date.format(DateTimeFormatter.ofPattern("EEE, d MMMM yyyy"))){datePick(c,date){date=it}};Spacer(Modifier.height(8.dp));Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Pick(if(personal)"Time" else "Start Time",ft(start),Modifier.weight(1f)){timePick(c,start){start=it}};if(!personal)Pick("End Time",ft(end)+(if(end<=start)" (+1)" else ""),Modifier.weight(1f)){timePick(c,end){end=it}}};if(!personal){Spacer(Modifier.height(8.dp));Field("Break (minutes)",br.toString(),true){br=it.toIntOrNull()?:0};Spacer(Modifier.height(8.dp));Box{Pick("Shift Type",type){menu="type"};DropdownMenu(menu=="type",{menu=""}){listOf("Day","Evening","Night","Split","Extra","Holiday").forEach{x->DropdownMenuItem({Text(x)},{type=x;menu=""})}}}};Spacer(Modifier.height(8.dp));Field("Location",loc){loc=it};if(!personal){Spacer(Modifier.height(8.dp));Field("Hourly Rate (€)",rate.toString(),true){rate=it.toDoubleOrNull()?:0.0};if(old==null){Spacer(Modifier.height(8.dp));Box{Pick("Repeat",rep){menu="rep"};DropdownMenu(menu=="rep",{menu=""}){listOf("Never","Daily","Weekly","Custom").forEach{x->DropdownMenuItem({Text(x)},{rep=x;menu=""})}}};if(rep=="Custom")Days(days){days=it}}};Spacer(Modifier.height(8.dp));Box{Pick("Reminder",remLabel(reminder)){menu="rem"};DropdownMenu(menu=="rem",{menu=""}){listOf(0,30,60,120,1440).forEach{x->DropdownMenuItem({Text(remLabel(x))},{reminder=x;menu=""})}}};Spacer(Modifier.height(8.dp));OutlinedTextField(notes,{notes=it},label={Text("Notes")},minLines=4,modifier=Modifier.fillMaxWidth());if(!personal){Spacer(Modifier.height(10.dp));Card(colors=CardDefaults.cardColors(Panel),shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(15.dp)){Sum("Total time",dur(total(e)));Sum("Break","- ${e.breakMin}m");Sum("Paid hours",dur(paid(e)));Sum("Estimated pay","€${"%.2f".format(e.rate*paid(e)/60.0)}",Bronze)}}};if(delete!=null){Spacer(Modifier.height(14.dp));OutlinedButton({del=true},Modifier.fillMaxWidth()){Icon(Icons.Outlined.Delete,null);Spacer(Modifier.width(8.dp));Text("Delete")}};Spacer(Modifier.height(24.dp))}}}
-    if(del)AlertDialog({del=false},{TextButton({del=false}){Text("Cancel")}},{TextButton({del=false;delete?.invoke()}){Text("Delete")}},{Text("Delete entry?")},{Text("This cannot be undone.")})
+private enum class MainTab { CALENDAR, SHIFTS, ANALYTICS, SETTINGS }
+private sealed interface Route {
+    data object Main : Route
+    data class TemplateEditor(val templateId: Long? = null) : Route
 }
-@Composable fun Pick(l:String,v:String,m:Modifier=Modifier,on:()->Unit){Card(m.fillMaxWidth().clickable(onClick=on),colors=CardDefaults.cardColors(Panel),shape=RoundedCornerShape(16.dp)){Column(Modifier.padding(14.dp)){Text(l,color=Muted,fontSize=12.sp);Text(v,fontSize=16.sp)}}}
-@Composable fun Field(l:String,v:String,num:Boolean=false,on:(String)->Unit){OutlinedTextField(v,on,label={Text(l)},singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=if(num)KeyboardType.Decimal else KeyboardType.Text),modifier=Modifier.fillMaxWidth())}
-@Composable fun Days(s:Set<DayOfWeek>,on:(Set<DayOfWeek>)->Unit){Card(colors=CardDefaults.cardColors(Panel)){Column(Modifier.padding(8.dp)){DayOfWeek.values().forEach{d->Row(verticalAlignment=Alignment.CenterVertically){Checkbox(d in s,{x->on(if(x)s+d else s-d)});Text(d.name.lowercase().replaceFirstChar{it.uppercase()})}}}}}
-@Composable fun Sum(l:String,v:String,c:Color=Txt){Row(Modifier.fillMaxWidth().padding(vertical=2.dp)){Text(l,color=Muted,modifier=Modifier.weight(1f));Text(v,color=c)}}
 
-private fun datePick(c:Context,d:LocalDate,on:(LocalDate)->Unit)=DatePickerDialog(c,{_,y,m,x->on(LocalDate.of(y,m+1,x))},d.year,d.monthValue-1,d.dayOfMonth).show()
-private fun timePick(c:Context,m:Int,on:(Int)->Unit)=TimePickerDialog(c,{_,h,x->on(h*60+x)},m/60,m%60,true).show()
-private fun total(e:Entry):Int{var x=e.end-e.start;if(x<=0)x+=1440;return x}
-private fun paid(e:Entry)=max(0,total(e)-e.breakMin)
-private fun ft(m:Int)="%02d:%02d".format(m/60,m%60)
-private fun dur(m:Int)="${m/60}h ${m%60}m"
-private fun timeLine(e:Entry)=if(e.kind=="SHIFT")"${ft(e.start)} – ${ft(e.end)}${if(e.end<=e.start)" (+1)" else ""}${if(e.location.isNotBlank())" • ${e.location}" else ""}" else "${ft(e.start)}${if(e.location.isNotBlank())" • ${e.location}" else ""}"
-private fun remLabel(x:Int)=when(x){0->"None";30->"30 minutes before";60->"1 hour before";120->"2 hours before";1440->"1 day before";else->"$x minutes before"}
-private fun repeat(e:Entry,r:String,days:Set<DayOfWeek>):List<Entry>{val s=LocalDate.parse(e.date);val end=s.plusYears(1);return when(r){"Daily"->generateSequence(s){it.plusDays(1)}.takeWhile{!it.isAfter(end)}.map{e.copy(id=System.nanoTime()+it.toEpochDay(),date=it.toString())}.toList();"Weekly"->generateSequence(s){it.plusWeeks(1)}.takeWhile{!it.isAfter(end)}.map{e.copy(id=System.nanoTime()+it.toEpochDay(),date=it.toString())}.toList();"Custom"->generateSequence(s){it.plusDays(1)}.takeWhile{!it.isAfter(end)}.filter{it.dayOfWeek in days}.map{e.copy(id=System.nanoTime()+it.toEpochDay(),date=it.toString())}.toList();else->listOf(e)}}
-private fun share(c:Context,m:YearMonth,d:List<Entry>){val t=buildString{appendLine(m.atDay(1).format(DateTimeFormatter.ofPattern("MMMM yyyy")));d.filter{YearMonth.from(LocalDate.parse(it.date))==m}.forEach{appendLine("${it.date} • ${if(it.kind=="SHIFT")it.type else it.title} • ${ft(it.start)}")}};c.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT,t),"Share schedule"))}
-private fun csvEscape(v:Any)="\""+v.toString().replace("\"","\"\"")+"\""
-private fun csv(d:List<Entry>)=buildString{
-    appendLine("date,kind,title,start,end,break,type,location,rate,notes")
-    d.forEach{e->appendLine(listOf(e.date,e.kind,e.title,ft(e.start),ft(e.end),e.breakMin,e.type,e.location,e.rate,e.notes).joinToString(","){csvEscape(it)})}
+@Composable
+private fun WorkScheduleApp() {
+    val context = LocalContext.current
+    val store = remember { ScheduleStore(context) }
+    var templates by remember { mutableStateOf(store.loadTemplates()) }
+    var assignments by remember { mutableStateOf(store.loadAssignments()) }
+    var tab by remember { mutableStateOf(MainTab.CALENDAR) }
+    var route: Route by remember { mutableStateOf(Route.Main) }
+    var month by remember { mutableStateOf(YearMonth.now()) }
+    var paintMode by remember { mutableStateOf(false) }
+    var selectedTemplateId by remember { mutableStateOf<Long?>(templates.firstOrNull()?.id) }
+
+    fun saveTemplates(newItems: List<ShiftTemplate>) {
+        templates = newItems
+        store.saveTemplates(newItems)
+        if (selectedTemplateId !in newItems.map { it.id }) selectedTemplateId = newItems.firstOrNull()?.id
+    }
+    fun saveAssignments(newItems: List<ShiftAssignment>) {
+        assignments = newItems.distinctBy { it.date }
+        store.saveAssignments(assignments)
+    }
+    fun paintDate(date: LocalDate) {
+        val templateId = selectedTemplateId ?: return
+        val key = date.toString()
+        val existing = assignments.firstOrNull { it.date == key }
+        val updated = when {
+            existing?.templateId == templateId -> assignments.filterNot { it.date == key }
+            else -> assignments.filterNot { it.date == key } + ShiftAssignment(key, templateId)
+        }
+        saveAssignments(updated)
+        month = YearMonth.from(date)
+    }
+
+    BackHandler(enabled = route !is Route.Main) { route = Route.Main }
+
+    when (val current = route) {
+        Route.Main -> Scaffold(
+            containerColor = Background,
+            bottomBar = { BottomNavigation(tab) { tab = it } }
+        ) { padding ->
+            Box(Modifier.fillMaxSize().padding(padding).statusBarsPadding()) {
+                when (tab) {
+                    MainTab.CALENDAR -> CalendarScreen(
+                        jobName = store.jobName(),
+                        month = month,
+                        templates = templates,
+                        assignments = assignments,
+                        paintMode = paintMode,
+                        selectedTemplateId = selectedTemplateId,
+                        onMonth = { month = it },
+                        onTogglePaint = {
+                            if (templates.isEmpty()) route = Route.TemplateEditor()
+                            else paintMode = !paintMode
+                        },
+                        onSelectTemplate = { id -> selectedTemplateId = id; paintMode = true },
+                        onDate = { date -> if (paintMode) paintDate(date) },
+                        onCreateTemplate = { route = Route.TemplateEditor() },
+                        onManageTemplates = { tab = MainTab.SHIFTS },
+                        onShare = { shareMonth(context, month, templates, assignments) }
+                    )
+                    MainTab.SHIFTS -> TemplateListScreen(
+                        templates = templates,
+                        onCreate = { route = Route.TemplateEditor() },
+                        onOpen = { route = Route.TemplateEditor(it.id) }
+                    )
+                    MainTab.ANALYTICS -> AnalyticsScreen(month, templates, assignments, onMonth = { month = it })
+                    MainTab.SETTINGS -> SettingsScreen(store, templates, assignments)
+                }
+            }
+        }
+        is Route.TemplateEditor -> {
+            val existing = current.templateId?.let { id -> templates.firstOrNull { it.id == id } }
+            TemplateEditorScreen(
+                existing = existing,
+                onBack = { route = Route.Main },
+                onSave = { template ->
+                    val updated = if (existing == null) templates + template else templates.map { if (it.id == template.id) template else it }
+                    saveTemplates(updated)
+                    selectedTemplateId = template.id
+                    paintMode = true
+                    tab = MainTab.CALENDAR
+                    route = Route.Main
+                },
+                onDelete = if (existing == null) null else ({
+                    saveTemplates(templates.filterNot { it.id == existing.id })
+                    saveAssignments(assignments.filterNot { it.templateId == existing.id })
+                    route = Route.Main
+                })
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomNavigation(tab: MainTab, onTab: (MainTab) -> Unit) {
+    NavigationBar(containerColor = Background, modifier = Modifier.navigationBarsPadding()) {
+        val items = listOf(
+            MainTab.CALENDAR to Icons.Outlined.Home,
+            MainTab.SHIFTS to Icons.Outlined.Work,
+            MainTab.ANALYTICS to Icons.Outlined.Analytics,
+            MainTab.SETTINGS to Icons.Outlined.Settings
+        )
+        items.forEach { (item, icon) ->
+            NavigationBarItem(
+                selected = item == tab,
+                onClick = { onTab(item) },
+                icon = { Icon(icon, null) },
+                label = { Text(item.name.lowercase().replaceFirstChar { it.uppercase() }, fontSize = 11.sp) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = Bronze, selectedTextColor = Bronze, indicatorColor = Color.Transparent,
+                    unselectedIconColor = TextMuted, unselectedTextColor = TextMuted
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun CalendarScreen(
+    jobName: String,
+    month: YearMonth,
+    templates: List<ShiftTemplate>,
+    assignments: List<ShiftAssignment>,
+    paintMode: Boolean,
+    selectedTemplateId: Long?,
+    onMonth: (YearMonth) -> Unit,
+    onTogglePaint: () -> Unit,
+    onSelectTemplate: (Long) -> Unit,
+    onDate: (LocalDate) -> Unit,
+    onCreateTemplate: () -> Unit,
+    onManageTemplates: () -> Unit,
+    onShare: () -> Unit
+) {
+    var drag by remember { mutableStateOf(0f) }
+    val fmt = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+    val templateMap = templates.associateBy { it.id }
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        item {
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(jobName + " ⌄", fontSize = 24.sp)
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = onShare) { Icon(Icons.Outlined.Share, "Share") }
+                IconButton(onClick = onManageTemplates) { Icon(Icons.Outlined.Settings, "Shift templates") }
+            }
+            Spacer(Modifier.height(22.dp))
+            Card(colors = CardDefaults.cardColors(containerColor = Panel2), shape = RoundedCornerShape(24.dp)) {
+                Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(fmt.format(month.atDay(1)), fontSize = 30.sp, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.weight(1f))
+                    IconButton(
+                        onClick = onTogglePaint,
+                        modifier = Modifier.size(58.dp).background(TextPrimary, CircleShape).border(2.dp, Background, CircleShape)
+                    ) {
+                        Icon(if (paintMode) Icons.Outlined.Check else Icons.Outlined.Add, null, tint = Background, modifier = Modifier.size(30.dp))
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth()) {
+                listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEachIndexed { i, day ->
+                    Text(day, color = if (i > 4) TextMuted else TextPrimary, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Panel2),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.fillMaxWidth().pointerInput(month) {
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { _, amount -> drag += amount },
+                        onDragEnd = {
+                            if (drag > 80f) onMonth(month.minusMonths(1))
+                            if (drag < -80f) onMonth(month.plusMonths(1))
+                            drag = 0f
+                        }
+                    )
+                }
+            ) {
+                MonthGrid(month, assignments, templateMap, paintMode, onDate)
+            }
+            Spacer(Modifier.height(24.dp))
+            if (paintMode) {
+                Text(
+                    "Select a job type, then tap dates. Tap the same date again to remove it.",
+                    color = TextMuted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+                )
+                Spacer(Modifier.height(18.dp))
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Job types", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onManageTemplates) { Text("Manage") }
+            }
+            if (templates.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = onCreateTemplate),
+                    colors = CardDefaults.cardColors(containerColor = Panel2), shape = RoundedCornerShape(20.dp)
+                ) {
+                    Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(54.dp).background(TextPrimary, CircleShape), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Outlined.Add, null, tint = Background)
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column { Text("Create your first shift", fontSize = 18.sp, fontWeight = FontWeight.SemiBold); Text("Add your own photo, name and color", color = TextMuted, fontSize = 13.sp) }
+                    }
+                }
+            } else {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(templates, key = { it.id }) { template ->
+                        TemplateChoiceCard(
+                            template = template,
+                            selected = selectedTemplateId == template.id,
+                            onClick = { onSelectTemplate(template.id) }
+                        )
+                    }
+                    item { CreateTemplateTile(onCreateTemplate) }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            OutlinedButton(onClick = onCreateTemplate, modifier = Modifier.fillMaxWidth().height(58.dp), shape = RoundedCornerShape(18.dp)) {
+                Icon(Icons.Outlined.Add, null); Spacer(Modifier.width(8.dp)); Text("Create new shift")
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun MonthGrid(
+    month: YearMonth,
+    assignments: List<ShiftAssignment>,
+    templates: Map<Long, ShiftTemplate>,
+    paintMode: Boolean,
+    onDate: (LocalDate) -> Unit
+) {
+    val first = month.atDay(1)
+    val start = first.minusDays((first.dayOfWeek.value - 1).toLong())
+    val byDate = assignments.associateBy { it.date }
+    Column(Modifier.padding(10.dp)) {
+        repeat(6) { row ->
+            Row(Modifier.fillMaxWidth()) {
+                repeat(7) { col ->
+                    val date = start.plusDays((row * 7 + col).toLong())
+                    val inMonth = YearMonth.from(date) == month
+                    val assignment = byDate[date.toString()]
+                    val template = assignment?.let { templates[it.templateId] }
+                    CalendarCell(date, inMonth, template, paintMode, Modifier.weight(1f)) { onDate(date) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarCell(
+    date: LocalDate,
+    inMonth: Boolean,
+    template: ShiftTemplate?,
+    paintMode: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit
+) {
+    val today = date == LocalDate.now()
+    val bg = template?.let { Color(it.colorArgb) } ?: Color.Transparent
+    val textColor = if (template != null) Color(0xFF1A1A1A) else if (inMonth) TextPrimary else TextMuted.copy(alpha = .65f)
+    Box(
+        modifier = modifier.padding(2.dp).height(55.dp)
+            .clip(RoundedCornerShape(9.dp))
+            .background(bg)
+            .then(if (today) Modifier.border(1.5.dp, if (template == null) Bronze else Background, RoundedCornerShape(9.dp)) else Modifier)
+            .clickable(enabled = paintMode, onClick = onClick)
+    ) {
+        Text(date.dayOfMonth.toString(), color = textColor, fontSize = 14.sp, modifier = Modifier.padding(6.dp))
+        if (template != null) {
+            Row(
+                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(horizontal = 4.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (template.imageUri.isNotBlank()) {
+                    TemplatePhoto(template.imageUri, template.colorArgb, 19.dp)
+                    Spacer(Modifier.width(3.dp))
+                }
+                Text(template.name, color = Color(0xFF191919), fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TemplateChoiceCard(template: ShiftTemplate, selected: Boolean, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.width(158.dp).height(92.dp).then(if (selected) Modifier.border(2.dp, TextPrimary, RoundedCornerShape(18.dp)) else Modifier).clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = Color(template.colorArgb)), shape = RoundedCornerShape(18.dp)
+    ) {
+        Row(Modifier.fillMaxSize().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            TemplatePhoto(template.imageUri, template.colorArgb, 48.dp)
+            Spacer(Modifier.width(10.dp))
+            Column { Text(template.name, color = Color(0xFF171717), fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis); if (template.note.isNotBlank()) Text(template.note, color = Color(0xFF4F4F4F), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        }
+    }
+}
+
+@Composable
+private fun CreateTemplateTile(onCreate: () -> Unit) {
+    Card(
+        modifier = Modifier.width(132.dp).height(92.dp).clickable(onClick = onCreate),
+        colors = CardDefaults.cardColors(containerColor = Panel2), shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Box(Modifier.size(34.dp).background(TextPrimary, CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Add, null, tint = Background) }
+            Spacer(Modifier.height(5.dp)); Text("Create new", fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+private fun TemplateListScreen(templates: List<ShiftTemplate>, onCreate: () -> Unit, onOpen: (ShiftTemplate) -> Unit) {
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        item {
+            Row(Modifier.fillMaxWidth().padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Shift templates", fontSize = 30.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(18.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onCreate),
+                colors = CardDefaults.cardColors(containerColor = Panel2), shape = RoundedCornerShape(24.dp)
+            ) {
+                Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(62.dp).background(TextPrimary, CircleShape).border(2.dp, Background, CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Add, null, tint = Background, modifier = Modifier.size(28.dp)) }
+                    Spacer(Modifier.width(16.dp)); Text("Create new", fontSize = 23.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+        }
+        items(templates, key = { it.id }) { template ->
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable { onOpen(template) },
+                colors = CardDefaults.cardColors(containerColor = Panel2), shape = RoundedCornerShape(22.dp)
+            ) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TemplatePhoto(template.imageUri, template.colorArgb, 58.dp)
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(template.name, fontSize = 21.sp, fontWeight = FontWeight.Medium)
+                        if (template.note.isNotBlank()) Text(template.note, color = TextMuted, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    Icon(Icons.Outlined.Edit, null, tint = TextMuted)
+                }
+            }
+        }
+        item { Spacer(Modifier.height(30.dp)) }
+    }
+}
+
+@Composable
+private fun TemplateEditorScreen(
+    existing: ShiftTemplate?,
+    onBack: () -> Unit,
+    onSave: (ShiftTemplate) -> Unit,
+    onDelete: (() -> Unit)?
+) {
+    val context = LocalContext.current
+    var name by remember(existing?.id) { mutableStateOf(existing?.name ?: "") }
+    var imageUri by remember(existing?.id) { mutableStateOf(existing?.imageUri ?: "") }
+    var colorArgb by remember(existing?.id) { mutableStateOf(existing?.colorArgb ?: TemplatePalette[6]) }
+    var note by remember(existing?.id) { mutableStateOf(existing?.note ?: "") }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let {
+            runCatching { context.contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            imageUri = it.toString()
+        }
+    }
+    val template = ShiftTemplate(existing?.id ?: System.currentTimeMillis(), name.trim(), colorArgb, imageUri, note.trim())
+
+    Column(Modifier.fillMaxSize().background(Background).statusBarsPadding().padding(horizontal = 20.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("Back", color = TextPrimary) }
+            Text(if (existing == null) "New shift" else "Edit shift", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+            TextButton(onClick = { onSave(template) }, enabled = name.isNotBlank()) { Text("Save", color = Bronze, fontWeight = FontWeight.Bold) }
+        }
+        LazyColumn(Modifier.weight(1f)) {
+            item {
+                Spacer(Modifier.height(18.dp))
+                Text("Photo / logo", color = TextMuted, fontSize = 13.sp)
+                Spacer(Modifier.height(10.dp))
+                Card(colors = CardDefaults.cardColors(containerColor = Panel2), shape = RoundedCornerShape(24.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        TemplatePhoto(imageUri, colorArgb, 112.dp)
+                        Spacer(Modifier.height(14.dp))
+                        Button(onClick = { picker.launch(arrayOf("image/*")) }, colors = ButtonDefaults.buttonColors(containerColor = Bronze, contentColor = Background)) { Text(if (imageUri.isBlank()) "Upload your own picture" else "Change picture") }
+                        if (imageUri.isNotBlank()) TextButton(onClick = { imageUri = "" }) { Text("Remove picture") }
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Job type / shift name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(22.dp))
+                Text("Calendar color", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(10.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items(TemplatePalette) { argb ->
+                        val selected = argb == colorArgb
+                        Box(
+                            Modifier.size(52.dp).background(Color(argb), CircleShape)
+                                .then(if (selected) Modifier.border(3.dp, TextPrimary, CircleShape) else Modifier)
+                                .clickable { colorArgb = argb }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(22.dp))
+                OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("Note (optional)") }, minLines = 4, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(18.dp))
+                Text("Duration and wage are intentionally not part of this shift template.", color = TextMuted, fontSize = 12.sp)
+                if (onDelete != null) {
+                    Spacer(Modifier.height(22.dp))
+                    OutlinedButton(onClick = { confirmDelete = true }, modifier = Modifier.fillMaxWidth().height(54.dp)) {
+                        Icon(Icons.Outlined.Delete, null); Spacer(Modifier.width(8.dp)); Text("Delete shift template")
+                    }
+                }
+                Spacer(Modifier.height(30.dp))
+            }
+        }
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            confirmButton = { TextButton(onClick = { confirmDelete = false; onDelete?.invoke() }) { Text("Delete") } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
+            title = { Text("Delete shift template?") },
+            text = { Text("Dates using this template will also be cleared.") }
+        )
+    }
+}
+
+@Composable
+private fun TemplatePhoto(uri: String, colorArgb: Int, size: Dp) {
+    val context = LocalContext.current
+    val bitmap = remember(uri) {
+        if (uri.isBlank()) null else runCatching {
+            context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it) }?.asImageBitmap()
+        }.getOrNull()
+    }
+    Box(
+        modifier = Modifier.size(size).clip(CircleShape).background(Color(colorArgb)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (bitmap != null) Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        else Text("+", color = Color(0xFF262626), fontSize = (size.value * .34f).sp, fontWeight = FontWeight.Light)
+    }
+}
+
+@Composable
+private fun AnalyticsScreen(
+    month: YearMonth,
+    templates: List<ShiftTemplate>,
+    assignments: List<ShiftAssignment>,
+    onMonth: (YearMonth) -> Unit
+) {
+    val monthAssignments = assignments.filter { runCatching { YearMonth.from(LocalDate.parse(it.date)) == month }.getOrDefault(false) }
+    val counts = monthAssignments.groupingBy { it.templateId }.eachCount().toList().sortedByDescending { it.second }
+    val mostUsed = counts.firstOrNull()?.first?.let { id -> templates.firstOrNull { it.id == id }?.name } ?: "—"
+    val fmt = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        item {
+            Text("Analytics", fontSize = 30.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 18.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { onMonth(month.minusMonths(1)) }) { Icon(Icons.Outlined.ChevronLeft, null) }
+                Text(fmt.format(month.atDay(1)), modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                IconButton(onClick = { onMonth(month.plusMonths(1)) }) { Icon(Icons.Outlined.ChevronRight, null) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StatCard("Scheduled days", monthAssignments.size.toString(), Modifier.weight(1f))
+                StatCard("Job types used", counts.size.toString(), Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(10.dp))
+            StatCard("Most used", mostUsed, Modifier.fillMaxWidth())
+            Spacer(Modifier.height(24.dp))
+            Text("Job type breakdown", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+        }
+        items(counts, key = { it.first }) { (id, count) ->
+            templates.firstOrNull { it.id == id }?.let { t ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TemplatePhoto(t.imageUri, t.colorArgb, 42.dp)
+                    Spacer(Modifier.width(12.dp)); Text(t.name, modifier = Modifier.weight(1f)); Text(count.toString(), color = TextMuted)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatCard(label: String, value: String, modifier: Modifier) {
+    Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
+        Column(Modifier.padding(15.dp)) { Text(label, color = TextMuted, fontSize = 12.sp); Text(value, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+    }
+}
+
+@Composable
+private fun SettingsScreen(store: ScheduleStore, templates: List<ShiftTemplate>, assignments: List<ShiftAssignment>) {
+    val context = LocalContext.current
+    var job by remember { mutableStateOf(store.jobName()) }
+    var editJob by remember { mutableStateOf(false) }
+    var exportText by remember { mutableStateOf("") }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri: Uri? ->
+        uri?.let { context.contentResolver.openOutputStream(it)?.use { stream -> stream.write(exportText.toByteArray()) } }
+    }
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        Text("Settings", fontSize = 30.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 18.dp))
+        Spacer(Modifier.height(18.dp))
+        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
+            SettingsRow("Job name", job) { editJob = true }
+            HorizontalDivider(color = Color.White.copy(alpha = .06f))
+            SettingsRow("Shift templates", templates.size.toString()) { }
+            HorizontalDivider(color = Color.White.copy(alpha = .06f))
+            SettingsRow("Backup & Export", "CSV") {
+                exportText = exportCsv(templates, assignments)
+                exportLauncher.launch("work-schedule.csv")
+            }
+            HorizontalDivider(color = Color.White.copy(alpha = .06f))
+            SettingsRow("Appearance", "Dark") { }
+            HorizontalDivider(color = Color.White.copy(alpha = .06f))
+            SettingsRow("About", "Beta 0.2.0") { }
+        }
+    }
+    if (editJob) {
+        var value by remember(job) { mutableStateOf(job) }
+        AlertDialog(
+            onDismissRequest = { editJob = false },
+            confirmButton = { TextButton(onClick = { job = value.trim().ifBlank { "Main Job" }; store.setJobName(job); editJob = false }) { Text("Save") } },
+            dismissButton = { TextButton(onClick = { editJob = false }) { Text("Cancel") } },
+            title = { Text("Job name") },
+            text = { OutlinedTextField(value = value, onValueChange = { value = it }, singleLine = true) }
+        )
+    }
+}
+
+@Composable
+private fun SettingsRow(label: String, value: String, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, modifier = Modifier.weight(1f)); Text(value, color = TextMuted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.width(5.dp)); Icon(Icons.Outlined.ChevronRight, null, tint = TextMuted, modifier = Modifier.size(18.dp))
+    }
+}
+
+private fun shareMonth(context: Context, month: YearMonth, templates: List<ShiftTemplate>, assignments: List<ShiftAssignment>) {
+    val map = templates.associateBy { it.id }
+    val text = buildString {
+        appendLine(month.atDay(1).format(DateTimeFormatter.ofPattern("MMMM yyyy")))
+        assignments.filter { runCatching { YearMonth.from(LocalDate.parse(it.date)) == month }.getOrDefault(false) }
+            .sortedBy { it.date }
+            .forEach { a -> appendLine("${a.date} • ${map[a.templateId]?.name ?: "Shift"}") }
+    }
+    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), "Share schedule"))
+}
+
+private fun csv(value: String): String = "\"" + value.replace("\"", "\"\"") + "\""
+private fun exportCsv(templates: List<ShiftTemplate>, assignments: List<ShiftAssignment>): String {
+    val map = templates.associateBy { it.id }
+    return buildString {
+        appendLine("date,shift")
+        assignments.sortedBy { it.date }.forEach { a -> appendLine("${csv(a.date)},${csv(map[a.templateId]?.name ?: "Shift")}") }
+    }
 }
