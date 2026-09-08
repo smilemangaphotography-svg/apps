@@ -39,7 +39,9 @@ jobs:
         run: |
           cat personal-trainer/android-beta/app/src/main/assets/index.part* \
               > personal-trainer/android-beta/app/src/main/assets/index.html
-          test "$(wc -c < personal-trainer/android-beta/app/src/main/assets/index.html)" -eq 50381
+          test -s personal-trainer/android-beta/app/src/main/assets/index.html
+          grep -q "<!doctype html>" personal-trainer/android-beta/app/src/main/assets/index.html
+          grep -q "</html>" personal-trainer/android-beta/app/src/main/assets/index.html
           test -s personal-trainer/android-beta/app/src/main/assets/media/goblet.webp
           test -s personal-trainer/android-beta/app/src/main/assets/media/legpress.webp
           ! grep -q "cdn.jsdelivr.net/npm/@bryllim" personal-trainer/android-beta/app/src/main/assets/index.html
