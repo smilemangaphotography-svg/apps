@@ -1,0 +1,33 @@
+name: Inspect NAR Mix 4.6 edit hooks
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ rebuild/nar-mix46-editable-flavors ]
+    paths:
+      - '.github/workflows/inspect-nar-mix46.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract and patch source
+        run: |
+          rm -rf buildsrc source.zip; mkdir -p buildsrc
+          cp ILIA-SAFE-SOURCE.bin source.zip
+          unzip -q source.zip -d buildsrc
+          python3 nar-mix45/patch_nar_mix45.py
+      - name: Inspect flavor detail and admin hooks
+        shell: bash
+        run: |
+          JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
+          echo '=== DETAIL FUNCTIONS ==='
+          grep -nE "function (detail|flavorDetail|openFlavor|adminFlavor|editFlavor)|detailId|activeFlavor|selectedFlavor|adminPhotos|readAdminImage" "$JS" | head -n 120 || true
+          echo '=== ADD TO LIST / MIX IDEAS AREA ==='
+          grep -nE "Add to My List|Mix Ideas|community verdict|What is actually" "$JS" | head -n 80 || true
+          echo '=== ADMIN MODAL FUNCTIONS ==='
+          grep -nE "function admin.*Modal|Manage brands|Manage flavors|gallery" "$JS" | head -n 160 || true
