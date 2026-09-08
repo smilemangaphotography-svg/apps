@@ -20,6 +20,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.7"
+      - name: Apply Beta compile fixes
+        working-directory: work-schedule
+        run: python patch_beta.py
       - name: Build debug APK
         working-directory: work-schedule
         run: gradle :app:assembleDebug --stacktrace
