@@ -20,14 +20,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.7"
-      - name: Apply Beta compile fixes
-        working-directory: work-schedule
-        run: python patch_beta.py
       - name: Build debug APK
         working-directory: work-schedule
         run: gradle :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: Work-Schedule-Beta-0.1-APK
+          name: Work-Schedule-Beta-0.2-APK
           path: work-schedule/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
