@@ -1,0 +1,64 @@
+name: Build NAR Mix 4.6 — Editable Flavors
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ rebuild/nar-mix46-editable-flavors ]
+    paths:
+      - 'nar-mix45/**'
+      - 'nar-mix46/**'
+      - '.github/workflows/build-nar-mix46.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.10.2' }
+      - uses: android-actions/setup-android@v3
+      - name: Android SDK 35
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Extract NAR source
+        run: |
+          rm -rf buildsrc source.zip; mkdir -p buildsrc
+          cp ILIA-SAFE-SOURCE.bin source.zip
+          unzip -q source.zip -d buildsrc
+          test -f buildsrc/NAR-Mix/app/src/main/assets/knowledge.js
+          test -f buildsrc/NAR-Mix/app/src/main/assets/app.js
+      - name: Apply NAR Mix 4.5 base lock
+        run: python3 nar-mix45/patch_nar_mix45.py
+      - name: Apply NAR Mix 4.6 editable flavor controls
+        run: python3 nar-mix46/patch_nar_mix46.py
+      - name: Validate JS and V4.6 owner controls
+        run: |
+          node --check buildsrc/NAR-Mix/app/src/main/assets/app.js
+          grep -q 'function adminFlavorsModal' buildsrc/NAR-Mix/app/src/main/assets/app.js
+          grep -q 'Brand<select id="afBrand"' buildsrc/NAR-Mix/app/src/main/assets/app.js
+          grep -q 'Tobacco line<select id="afLineSelect"' buildsrc/NAR-Mix/app/src/main/assets/app.js
+          grep -q 'Replace main cover' buildsrc/NAR-Mix/app/src/main/assets/app.js
+          grep -q 'SET COVER' buildsrc/NAR-Mix/app/src/main/assets/app.js
+          grep -q 'Take cover photo' buildsrc/NAR-Mix/app/src/main/assets/app.js
+          grep -q 'Manage flavors' buildsrc/NAR-Mix/app/src/main/assets/app.js
+      - name: Build NAR APK
+        run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
+      - name: Collect APK
+        run: |
+          mkdir -p output
+          cp buildsrc/NAR-Mix/app/build/outputs/apk/debug/app-debug.apk output/NAR-MIX-4.6-EDITABLE-FLAVORS.apk
+          sha256sum output/NAR-MIX-4.6-EDITABLE-FLAVORS.apk > output/SHA256SUMS.txt
+          ls -lh output
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NAR-MIX-4.6-EDITABLE-FLAVORS-APK
+          path: output/*
+          retention-days: 30
+          if-no-files-found: error
