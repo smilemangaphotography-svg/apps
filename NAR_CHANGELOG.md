@@ -8,6 +8,26 @@ This file separates **verified Git history** from **requested/pending work**. A 
 - Fixed the NĀR 4.6 cover patch hook so the launch/age function can be replaced safely.
 - This commit is the source point for permanent branch `nar-main`.
 
+## Canonical updates after baseline
+
+### 2026-09-09 — Learn navigation repair
+
+**`7dee4993276fa28cc9a7e550e2ae3dc7abd95bfa` — Fix NAR Learn navigation on canonical app**
+- Added one canonical navigation router for tabs and Learn topics.
+- Bottom-navigation Learn now performs a full app render instead of an in-place partial render.
+- Killer, Phunnel, Quasar, Water, Heat, Troubleshoot and Myths topic actions now route through the canonical app cycle.
+- Learn back actions now return through the same canonical router.
+- Bowl-save, Settings → Bowl Library and render-recovery routes now return to Learn through the same router.
+- Existing Owner Studio, flavor editor, cover/gallery controls, GPT/AI hooks, My NĀR data and package identity are preserved.
+
+**`52b643b947f035a9052a875936f576874fbce1c1` — Apply canonical navigation fix in NAR build**
+- Added `nar-canonical/**` to the permanent NĀR build inputs.
+- Applies the Learn/navigation fix after the existing 4.5, 4.6 and launch-cover patches.
+- Added regression checks that fail the build if the stale in-place Learn navigation path returns.
+- Canonical GitHub Actions run #6 completed successfully.
+- APK artifact: `NAR-CANONICAL-APK` containing `NAR-CANONICAL-debug.apk`.
+- Artifact SHA-256 digest: `819f02c69582a857ce7e7815cad940d8f2e5fdf6e6bbf46939a18389f887926a`.
+
 ## Verified Git history leading to the baseline
 
 ### 2026-09-08
@@ -60,7 +80,6 @@ This file separates **verified Git history** from **requested/pending work**. A 
 
 These are requirements that should be implemented only by updating `nar-main`.
 
-- Fix the reported **Learn navigation** failure and verify every Learn route.
 - Continue matching the approved NĀR mockups without replacing the application.
 - Preserve owner/admin ability to edit content, images, brands/lines, flavor data and layout visibility.
 - Preserve the approved NĀR visual direction while applying future revisions incrementally.
