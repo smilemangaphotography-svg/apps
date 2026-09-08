@@ -1,10 +1,11 @@
-name: Build NAR Mix 4.6 — Editable Flavors
+name: Build NAR — Canonical App
 
 on:
   workflow_dispatch:
   push:
-    branches: [ rebuild/nar-mix46-editable-flavors ]
+    branches: [ nar-main ]
     paths:
+      - 'ILIA-SAFE-SOURCE.bin'
       - 'nar-mix45/**'
       - 'nar-mix46/**'
       - '.github/workflows/build-nar-mix46.yml'
@@ -27,20 +28,21 @@ jobs:
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - name: Extract NAR source
+      - name: Extract canonical NAR source
         run: |
           rm -rf buildsrc source.zip; mkdir -p buildsrc
           cp ILIA-SAFE-SOURCE.bin source.zip
           unzip -q source.zip -d buildsrc
           test -f buildsrc/NAR-Mix/app/src/main/assets/knowledge.js
           test -f buildsrc/NAR-Mix/app/src/main/assets/app.js
-      - name: Apply NAR Mix 4.5 base lock
+          test -f buildsrc/NAR-Mix/app/src/main/java/com/iliaperformance/narowner2026/MainActivity.java
+      - name: Apply NAR 4.5 base lock
         run: python3 nar-mix45/patch_nar_mix45.py
-      - name: Apply NAR Mix 4.6 editable flavor controls
+      - name: Apply NAR 4.6 owner flavor controls
         run: python3 nar-mix46/patch_nar_mix46.py
-      - name: Apply sophisticated NAR cover
+      - name: Apply NAR 4.6 launch cover
         run: python3 nar-mix46/patch_cover_v46.py
-      - name: Validate JS, owner controls and cover
+      - name: Validate canonical NAR
         run: |
           node --check buildsrc/NAR-Mix/app/src/main/assets/app.js
           grep -q 'function adminFlavorsModal' buildsrc/NAR-Mix/app/src/main/assets/app.js
@@ -53,17 +55,18 @@ jobs:
           grep -q 'Knowledge tastes better.' buildsrc/NAR-Mix/app/src/main/assets/app.js
           grep -q 'narLaunchV46' buildsrc/NAR-Mix/app/src/main/assets/app.css
           grep -q 'ENTER NĀR' buildsrc/NAR-Mix/app/src/main/assets/app.js
-      - name: Build NAR APK
+          grep -q 'My NĀR' buildsrc/NAR-Mix/app/src/main/assets/app.js
+      - name: Build the same NAR APK
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
-      - name: Collect APK
+      - name: Collect canonical APK
         run: |
           mkdir -p output
-          cp buildsrc/NAR-Mix/app/build/outputs/apk/debug/app-debug.apk output/NAR-MIX-4.6-EDITABLE-FLAVORS.apk
-          sha256sum output/NAR-MIX-4.6-EDITABLE-FLAVORS.apk > output/SHA256SUMS.txt
+          cp buildsrc/NAR-Mix/app/build/outputs/apk/debug/app-debug.apk output/NAR-CANONICAL-debug.apk
+          sha256sum output/NAR-CANONICAL-debug.apk > output/SHA256SUMS.txt
           ls -lh output
       - uses: actions/upload-artifact@v4
         with:
-          name: NAR-MIX-4.6-EDITABLE-FLAVORS-APK
+          name: NAR-CANONICAL-APK
           path: output/*
-          retention-days: 30
+          retention-days: 90
           if-no-files-found: error
