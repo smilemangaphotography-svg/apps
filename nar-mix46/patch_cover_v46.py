@@ -6,13 +6,13 @@ css = A / 'app.css'
 
 s = js.read_text()
 start = s.find('function age(){')
-end = s.find('function app(){', start)
+end = s.find('\nfunction ', start + 1)
 if start < 0 or end < 0:
-    raise SystemExit('age/app hook missing')
+    raise SystemExit('age function hook missing')
 
 new_age = r'''function age(){document.getElementById('app').innerHTML=`<div class="narLaunchV46" id="narLaunchEnter" role="button" tabindex="0" aria-label="Enter NĀR"><div class="launchGlow"></div><div class="launchSmoke launchSmokeA"></div><div class="launchSmoke launchSmokeB"></div><div class="launchWordmark"><div class="launchNar">NĀR</div><div class="launchSub">HOOKAH KNOWLEDGE · MIXOLOGY</div><div class="launchRule"></div><div class="launchSlogan">Knowledge tastes better.</div></div><div class="launchBowl" aria-hidden="true"><div class="launchEmbers"></div><div class="launchBowlBody"></div><div class="launchStem"></div></div><button class="launchEnter" id="enter">ENTER NĀR <span>→</span></button><div class="launchLegal">LEGAL SMOKING AGE ONLY · TOBACCO CARRIES HEALTH RISKS</div></div>`;const enter=()=>{state.age=true;save();app()};$('#enter').onclick=e=>{e.stopPropagation();enter()};$('#narLaunchEnter').onclick=enter;$('#narLaunchEnter').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();enter()}}}'''
 
-s = s[:start] + new_age + '\n' + s[end:]
+s = s[:start] + new_age + s[end:]
 js.write_text(s)
 
 c = css.read_text()
