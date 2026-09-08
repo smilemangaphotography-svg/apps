@@ -34,9 +34,13 @@ jobs:
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - name: Reconstruct bundled UI
+      - name: Validate and reconstruct bundled UI
         shell: bash
         run: |
+          node --check personal-trainer/android-beta/app/src/main/assets/fallback.js
+          test -s personal-trainer/android-beta/app/src/main/assets/fallback.js
+          grep -q "safe-fallback" personal-trainer/android-beta/app/src/main/assets/fallback.js
+          grep -q "fallback.js" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           cat personal-trainer/android-beta/app/src/main/assets/index.part* \
               > personal-trainer/android-beta/app/src/main/assets/index.html
           test -s personal-trainer/android-beta/app/src/main/assets/index.html
@@ -52,12 +56,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p release
-          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/Personal-Trainer-Beta-1.3.apk
+          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/Personal-Trainer-Beta-1.4.apk
           sha256sum release/*.apk > release/SHA256SUMS.txt
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: PERSONAL-TRAINER-BETA-1.3
+          name: PERSONAL-TRAINER-BETA-1.4
           path: release/*
           if-no-files-found: error
           retention-days: 30
