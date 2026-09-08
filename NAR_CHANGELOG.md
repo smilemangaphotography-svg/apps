@@ -10,6 +10,29 @@ This file separates **verified Git history** from **requested/pending work**. A 
 
 ## Canonical updates after baseline
 
+### 2026-09-09 — NĀR 4.7 approved 10-screen mockup lock
+
+**Build commit `23e4c4766cfea3a1837be0ad1594df609bebc3c5` — Build canonical NAR with approved 10-screen mockup lock**
+- Updated the existing `nar-main` application only; no replacement app, package identity or storage lineage was created.
+- Applied the approved mockup direction across Launch/Cover, Home, Search, Flavor Detail, Mix Builder, NĀR GPT/AI, Learn, My NĀR, Owner Studio and Edit Flavor.
+- Launch now uses the photo-led black/gold composition, centered NĀR wordmark, `EXPLORE · LEARN · MIX · ENJOY`, pill ENTER NĀR action and conscious-experience footer.
+- Home now contains quick-access cards, preferred brands, tobacco-line shortcuts, Start Here and favorite-flavor cards matching the approved information hierarchy.
+- Search now uses the compact brand/line filtering hierarchy and dense result cards shown in the approved mockup.
+- Flavor Detail is promoted to a full-screen view with image, rating, tabs, flavor breakdown, official direction, community verdict and persistent actions.
+- Mix Builder now supports editable percentages, 100% validation, add/remove flavor, bowl type, target strength, cooling level, notes and saved mix preferences.
+- NĀR GPT/AI now has Photo and Chat modes matching the mockup while preserving the secure owner-configured backend connection.
+- Fixed the pre-existing GPT/AI scope defect by relocating the AI implementation inside the canonical NĀR application scope; CI now rejects the regression if it escapes that scope again.
+- Learn now uses the approved visual list for Killer Bowl, Phunnel Bowl, Quasar Bowl, Heat Management, Mixing Basics, Tobacco Strength, Cooling and Technique while retaining the canonical Learn router.
+- My NĀR now exposes Favorite Flavors, Saved Flavors, Saved Mixes, My Tobacco Lines, Uploaded Photos, AI Recognized, Personal Notes and Recently Viewed with functional destinations.
+- Owner Studio now matches the approved management-list layout and includes functional Export / Import in addition to admin mode, brands/lines, flavors, layout, bowls and GPT/AI.
+- Edit Flavor now uses the approved full-screen editor hierarchy with Change Image, brand, line, flavor name, tag controls, descriptions, verdict, Save Changes and Restore Original while retaining advanced gallery/camera/strength controls.
+- Existing catalog data, custom images, saved flavors, saved mixes, owner overrides, layout controls and local-storage identity are preserved.
+- Patch payload commits: `caa1e91dd10ecb99a8379735218a9882a4583100`, `4f550a6401246552437073ecd92be6eefaccb4ed`, `e72614c3d58cac14d7043e2ffe15c0faa1448df8`, `604fbde51e934c8d84b72b65416de3c705fe0e76`; loader commit `84298eef428398e741cb252f0bb29d0758bd820a`.
+- Canonical GitHub Actions run #7 completed successfully, including JavaScript syntax validation, 10-screen lock checks, Learn regression checks, GPT scope validation, Android APK compilation and artifact upload.
+- Artifact: `NAR-CANONICAL-APK`; workflow artifact digest: `sha256:4fcea3a77656d76f39969e3913abffe2f3a31fcf6aa4c59de9838cb14fedd1fe`.
+- Built APK: `NAR-CANONICAL-debug.apk`; APK SHA-256: `a2c6797bdc6ad7cbfcb700dca3d7deb7ba784634101badcd8675e24222da1198`.
+- Known limitation: automated structural/build validation passed, but photographic asset/crop fidelity should still be judged on-device against the supplied mockup; future visual corrections must continue on `nar-main`.
+
 ### 2026-09-09 — Learn navigation repair
 
 **`7dee4993276fa28cc9a7e550e2ae3dc7abd95bfa` — Fix NAR Learn navigation on canonical app**
@@ -78,9 +101,9 @@ This file separates **verified Git history** from **requested/pending work**. A 
 
 ## Requested / pending work
 
-These are requirements that should be implemented only by updating `nar-main`.
+These requirements continue only by updating `nar-main`.
 
-- Continue matching the approved NĀR mockups without replacing the application.
+- Perform on-device visual comparison against the approved 10-screen mockup and correct any remaining spacing, image crop, typography or physical-device rendering differences incrementally.
 - Preserve owner/admin ability to edit content, images, brands/lines, flavor data and layout visibility.
 - Preserve the approved NĀR visual direction while applying future revisions incrementally.
 - Any future bowl/anatomy or content correction must modify the canonical app rather than creating another NĀR build line.
