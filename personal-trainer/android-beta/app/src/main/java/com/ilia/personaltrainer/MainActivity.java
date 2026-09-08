@@ -17,6 +17,10 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+
 public class MainActivity extends Activity {
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
@@ -33,12 +37,9 @@ public class MainActivity extends Activity {
         webView.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
         setContentView(webView);
 
-        // Android 15 enforces edge-to-edge for target SDK 35. Apply the real
-        // system-bar/cutout insets to the WebView so the app header and bottom
-        // navigation never sit underneath Samsung/Android system UI.
         webView.setOnApplyWindowInsetsListener((v, windowInsets) -> {
-            int top = 0;
-            int bottom = 0;
+            int top;
+            int bottom;
             if (Build.VERSION.SDK_INT >= 30) {
                 Insets bars = windowInsets.getInsets(
                     WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout()
@@ -70,6 +71,11 @@ public class MainActivity extends Activity {
         WebView.setWebContentsDebuggingEnabled(true);
 
         webView.setWebViewClient(new WebViewClient() {
+            @Override public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                injectSafeRuntime(view);
+            }
+
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
                 Uri u = req.getUrl();
                 String scheme = u.getScheme() == null ? "" : u.getScheme();
@@ -106,18 +112,50 @@ public class MainActivity extends Activity {
         webView.loadUrl("file:///android_asset/index.html");
     }
 
+    private void injectSafeRuntime(WebView view) {
+        try {
+            String js = readAssetText("fallback.js");
+            view.evaluateJavascript(js, value -> {
+                view.evaluateJavascript(
+                    "(function(){return window.__PT_RUNTIME__||'unknown';})()",
+                    runtime -> {
+                        if (runtime == null || "null".equals(runtime) || "\"unknown\"".equals(runtime)) {
+                            Toast.makeText(MainActivity.this,"App controls failed to initialize",Toast.LENGTH_LONG).show();
+                        }
+                    }
+                );
+            });
+        } catch (Exception e) {
+            Toast.makeText(this,"Unable to initialize app controls",Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private String readAssetText(String name) throws Exception {
+        StringBuilder out = new StringBuilder();
+        BufferedReader reader = new BufferedReader(
+            new InputStreamReader(getAssets().open(name), StandardCharsets.UTF_8)
+        );
+        String line;
+        while ((line = reader.readLine()) != null) out.append(line).append('\n');
+        reader.close();
+        return out.toString();
+    }
+
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == FILE_CHOOSER && fileCallback != null) {
             Uri[] out = null;
             if (resultCode == RESULT_OK && data != null) {
                 if (data.getClipData() != null) {
-                    int n=data.getClipData().getItemCount(); out=new Uri[n];
-                    for(int k=0;k<n;k++) out[k]=data.getClipData().getItemAt(k).getUri();
-                } else if (data.getData() != null) out = new Uri[]{data.getData()};
+                    int n = data.getClipData().getItemCount();
+                    out = new Uri[n];
+                    for (int k = 0; k < n; k++) out[k] = data.getClipData().getItemAt(k).getUri();
+                } else if (data.getData() != null) {
+                    out = new Uri[]{data.getData()};
+                }
             }
             fileCallback.onReceiveValue(out);
-            fileCallback=null;
+            fileCallback = null;
         }
     }
 
