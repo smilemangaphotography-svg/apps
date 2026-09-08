@@ -10,6 +10,7 @@ on:
       - 'nar-mix46/**'
       - 'nar-canonical/**'
       - 'nar-mix47/**'
+      - 'nar-mix49/**'
       - '.github/workflows/build-nar-mix46.yml'
 
 permissions:
@@ -50,7 +51,9 @@ jobs:
         run: python3 nar-mix47/patch_mockup_v47.py
       - name: Apply NAR 4.8 audit fixes
         run: python3 nar-canonical/patch_audit_v48.py
-      - name: Validate canonical NAR mockup and audit locks
+      - name: Apply NAR 4.9 functional core
+        run: python3 nar-mix49/patch_functional_v49.py
+      - name: Validate canonical NAR functional core
         run: |
           JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
           CSS=buildsrc/NAR-Mix/app/src/main/assets/app.css
@@ -66,39 +69,47 @@ jobs:
           grep -q 'narLaunchV47' "$CSS"
           grep -q 'EXPLORE · LEARN · MIX · ENJOY' "$JS"
           grep -q 'ENTER NĀR' "$JS"
-          grep -q 'homeQuick' "$JS"
-          grep -q 'Flavor Search' "$JS"
           grep -q 'Build Your Mix' "$JS"
           grep -q 'aiModeTabs' "$JS"
           grep -q 'learnMockList' "$JS"
           grep -q 'My NĀR' "$JS"
           grep -q 'ownerRows' "$JS"
           grep -q 'Export / Import' "$JS"
-          grep -q 'Personal Notes' "$JS"
-          grep -q 'Recently Viewed' "$JS"
-          grep -q 'function goTab(next)' "$JS"
-          grep -q "function goLearn(topic='home')" "$JS"
           grep -q 'function bowlData(k)' "$JS"
-          grep -q "ownerMini').onclick=adminHomeModal" "$JS"
-          grep -q 'Home · Quick access' "$JS"
-          grep -q 'navHome:true' "$JS"
           grep -q 'NAR 4.8 AUDIT FIXES' "$CSS"
-          grep -q 'grid-template-columns:48px minmax(0,1fr) 42px 14px 40px' "$CSS"
-          grep -q 'left:50%!important;right:auto!important;transform:translateX(-50%)!important' "$CSS"
+          grep -q 'NAR 4.9 FUNCTIONAL CORE' "$JS"
+          grep -q 'NAR 4.9 FUNCTIONAL CORE' "$CSS"
+          grep -q 'function v49RenderSearchResults' "$JS"
+          grep -q 'function resolveFlavorRef' "$JS"
+          grep -q 'function openProfileSearch' "$JS"
+          grep -q 'function v49Similar' "$JS"
+          grep -q 'id="afSweet"' "$JS"
+          grep -q 'id="afSour"' "$JS"
+          grep -q 'id="afCooling"' "$JS"
+          grep -q 'id="afMix"' "$JS"
+          grep -q 'The six main navigation tabs are permanent' "$JS"
           if grep -q "learnTopic=b.dataset.topic;learn(p)" "$JS"; then exit 1; fi
           python3 - <<'PY'
           from pathlib import Path
           s = Path('buildsrc/NAR-Mix/app/src/main/assets/app.js').read_text()
           c = Path('buildsrc/NAR-Mix/app/src/main/assets/app.css').read_text()
-          marker = '/* ===== NAR MIX 4.5 — OWNER AI / PHOTO RECOGNITION ===== */'
-          assert marker in s, 'AI marker missing'
-          assert 'function gpt(p)' in s, 'GPT page missing'
-          assert s.index(marker) < s.rindex('})();'), 'AI code escaped canonical NAR scope'
-          assert 'NĀR CANONICAL MOCKUP LOCK 2026-09-09' in c
+          ai = '/* ===== NAR MIX 4.5 — OWNER AI / PHOTO RECOGNITION ===== */'
+          v49 = '/* ===== NAR 4.9 FUNCTIONAL CORE ===== */'
+          assert ai in s and s.index(ai) < s.rindex('})();'), 'AI scope regression'
+          assert v49 in s and s.index(v49) < s.rindex('})();'), '4.9 scope regression'
+          tail = s.split(v49, 1)[1]
+          assert "function nav(){const items=[['home','⌂','Home'],['search','⌕','Search'],['mix','✦','Mix'],['gpt','✧','GPT'],['learn','◉','Learn'],['mine','◎','My NĀR']]" in tail
+          assert "input.oninput=e=>{query=e.target.value;v49RenderSearchResults(p)}" in tail, 'Search focus-safe renderer missing'
+          assert "DB.brands.map(b=>`<button data-home-brand" in tail, 'All-brand Home shortcuts missing'
+          assert "allBrands.map(b=>`<button data-b" in tail, 'All-brand Search filters missing'
+          assert "function detail(id,active='details')" in tail
+          for tab in ['details','mixes','reviews','photos','similar']:
+              assert f"['{tab}'" in tail or f"'{tab}'" in tail
+          for fn in ['v49PairingButtons','bindV49Pairings','openProfileSearch','openIngredientSearch','v49Similar','v49FeelRows']:
+              assert f'function {fn}' in tail
+          assert all(x in s for x in ['id="afSweet"','id="afSour"','id="afCooling"','id="afIntensity"','id="afMix"'])
+          assert 'NAR 4.9 FUNCTIONAL CORE' in c
           assert 'NAR 4.8 AUDIT FIXES' in c
-          assert 'function bowlData(k)' in s
-          assert "$('.ownerMini').onclick=adminHomeModal" in s
-          assert all(x in s for x in ['navHome:true','navSearch:true','navMix:true','navGpt:true','navLearn:true','navMine:true'])
           PY
       - name: Build the same NAR APK
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
