@@ -120,6 +120,7 @@ jobs:
           SERVER_PID=$!
           trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
           sleep 1
+          node nar-beta50/debug_state_51.mjs
           node nar-beta50/debug_detail.mjs
           node nar-beta50/test_beta50.mjs
           node nar-beta50/test_beta504_mobile_ui.mjs
