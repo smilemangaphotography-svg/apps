@@ -28,7 +28,6 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import org.json.JSONObject;
-
 import java.util.Locale;
 
 public class MainActivity extends Activity {
@@ -58,7 +57,7 @@ public class MainActivity extends Activity {
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
         webView = new WebView(this);
-        webView.setBackgroundColor(Color.rgb(244,241,233));
+        webView.setBackgroundColor(Color.rgb(7,16,11));
         webView.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
         root.addView(webView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(root);
@@ -108,14 +107,11 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                view.evaluateJavascript(
-                    "(function(){return [(window.__PT_BETA2__||'missing'),(window.__PT_STYLE25__||'missing'),(window.__PT_STYLE26__||'missing')].join('|');})()",
-                    value -> {
-                        if (value == null || value.contains("missing")) {
-                            Toast.makeText(MainActivity.this, "Personal Trainer Beta 2.6 runtime failed to initialize", Toast.LENGTH_LONG).show();
-                        }
+                view.evaluateJavascript("(function(){return window.__ILIA_COACH_27__||'missing';})()", value -> {
+                    if (value == null || value.contains("missing")) {
+                        Toast.makeText(MainActivity.this, "ILIA COACH Beta 2.7 runtime failed to initialize", Toast.LENGTH_LONG).show();
                     }
-                );
+                });
             }
 
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
@@ -152,7 +148,7 @@ public class MainActivity extends Activity {
             }
         });
 
-        webView.loadUrl("file:///android_asset/index2.html");
+        webView.loadUrl("file:///android_asset/index27.html");
     }
 
     private class PTBridge {
@@ -161,7 +157,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void speak(String text) {
             if (text == null || text.trim().isEmpty()) return;
             runOnUiThread(() -> {
-                if (ttsReady) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "pt25-coach");
+                if (ttsReady) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "ilia-coach-27");
             });
         }
         @JavascriptInterface public boolean hasLocationPermission() {
@@ -206,14 +202,14 @@ public class MainActivity extends Activity {
     private void sendLocation(Location l) {
         if (webView == null || l == null) return;
         final String js = String.format(Locale.US,
-            "window.PT25&&window.PT25.onLocation(%1$.7f,%2$.7f,%3$.4f,%4$.2f,%5$d)",
+            "window.PT27&&window.PT27.onLocation(%1$.7f,%2$.7f,%3$.4f,%4$.2f,%5$d)",
             l.getLatitude(), l.getLongitude(), l.hasSpeed() ? l.getSpeed() : 0f, l.hasAccuracy() ? l.getAccuracy() : 0f, System.currentTimeMillis());
         runOnUiThread(() -> webView.evaluateJavascript(js, null));
     }
 
     private void sendGpsStatus(String status) {
         if (webView == null) return;
-        final String js = "window.PT25&&window.PT25.onGpsStatus(" + JSONObject.quote(status) + ")";
+        final String js = "window.PT27&&window.PT27.onGpsStatus(" + JSONObject.quote(status) + ")";
         runOnUiThread(() -> webView.evaluateJavascript(js, null));
     }
 
@@ -254,9 +250,8 @@ public class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
-        webView.evaluateJavascript(
-            "(function(){try{var c=document.getElementById('style2Cover');if(c&&!c.classList.contains('hidden'))return 'exit';return window.ptHandleBack?window.ptHandleBack():'exit'}catch(e){return 'exit'}})()",
-            value -> { if ("\"exit\"".equals(value) || "null".equals(value)) MainActivity.super.onBackPressed(); }
-        );
+        webView.evaluateJavascript("(function(){try{return window.ptHandleBack?window.ptHandleBack():'exit'}catch(e){return 'exit'}})()", value -> {
+            if ("\"exit\"".equals(value) || "null".equals(value)) MainActivity.super.onBackPressed();
+        });
     }
 }
