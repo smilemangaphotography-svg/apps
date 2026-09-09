@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#070a07">
+<title>Personal Trainer Beta 2.0</title>
+<link rel="stylesheet" href="app-v2.css">
+</head>
+<body>
+<div id="app">
+  <section id="builder" class="builder hidden">
+    <div class="builder-progress" id="builderProgress"></div>
+    <div id="builderBody"></div>
+    <div class="builder-footer">
+      <button id="builderBack" class="btn ghost">← BACK</button>
+      <button id="builderNext" class="btn lime">CONTINUE <span>→</span></button>
+    </div>
+  </section>
+
+  <main id="mainApp" class="main-app hidden">
+    <header class="app-topbar">
+      <div>
+        <div class="tiny-label" id="topLabel">PERSONAL TRAINER</div>
+        <div class="top-title" id="topTitle">Athlete</div>
+      </div>
+      <button id="topProfile" class="icon-btn" aria-label="Profile">⚙</button>
+    </header>
+
+    <section id="pageHome" class="page active" data-page="home"></section>
+    <section id="pagePlan" class="page" data-page="plan"></section>
+    <section id="pageLibrary" class="page" data-page="library"></section>
+    <section id="pageProfile" class="page" data-page="profile"></section>
+
+    <button id="driveButton" class="drive">♫ <span>DRIVE</span></button>
+
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-nav="home"><span class="nav-icon">⌂</span><small>HOME</small></button>
+      <button class="nav-btn" data-nav="plan"><span class="nav-icon">▦</span><small>PLAN</small></button>
+      <button class="nav-btn" data-nav="library"><span class="nav-icon">◉</span><small>LIBRARY</small></button>
+      <button class="nav-btn" data-nav="profile"><span class="nav-icon">⚙</span><small>PROFILE</small></button>
+    </nav>
+  </main>
+
+  <section id="exerciseDetail" class="overlay hidden"></section>
+  <section id="workoutOverlay" class="overlay workout hidden"></section>
+  <section id="restOverlay" class="overlay rest hidden"></section>
+  <section id="sheet" class="sheet hidden"><div id="sheetCard" class="sheet-card"></div></section>
+  <div id="toast" class="toast"></div>
+
+  <input id="audioPicker" class="hidden" type="file" accept="audio/*">
+  <audio id="audioPlayer"></audio>
+  <input id="activityPicker" class="hidden" type="file" accept=".gpx,.tcx,.csv,text/*">
+</div>
+<script src="app-v2.js"></script>
+</body>
+</html>
