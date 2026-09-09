@@ -29,13 +29,13 @@ assert(parseFloat(home.topMargin)>=8,'Header was not lowered into safer Android 
 assert(home.pad>=140&&home.pad<=190,'Bottom content clearance is unreasonable '+JSON.stringify(home));
 assert(home.spacer<=1,'Old giant bottom spacer still exists '+JSON.stringify(home));
 await page.click('.nar507AllBrands');await wait(120);
-assert(!!(await page.$('.nar507PinsModal')),'All Brands selector did not open');
+assert(!!(await page.$('.nar507PinsPage')),'All Brands page did not open');
 const pinCount=await page.$$eval('[data-pin-brand]',xs=>xs.length);
 assert(pinCount>=3,'All Brands selector missing active brands');
-await page.evaluate(()=>{const c=[...document.querySelectorAll('[data-pin-brand]')];c.forEach(x=>x.checked=true);c[0]?.dispatchEvent(new Event('change',{bubbles:true}))});
+await page.evaluate(()=>{const c=[...document.querySelectorAll('[data-pin-brand]')];for(let i=0;i<c.length;i++){if(i<6&&!c[i].checked)c[i].click();}});
 await wait(80);
 const checked=await page.$$eval('[data-pin-brand]:checked',xs=>xs.length);
-assert(checked<=6,'All Brands allows more than 6 Home pins');
+assert(checked>=3&&checked<=6,'All Brands must maintain 3 to 6 Home pins');
 await page.click('#nar507PinsBack');await wait(120);
 
 await nav('Search');
