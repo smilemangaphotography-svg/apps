@@ -19,16 +19,19 @@ async function noOverflow(where){const r=await page.evaluate(()=>({w:innerWidth,
 await page.goto(url,{waitUntil:'networkidle0'});await enter();
 
 // 5.1 Home must be driven by the canonical Owner Studio active-line state,
-// not the retired public 5.0.7 pin list.
+// not the retired public 5.0.7 pin list. betaActiveLines is a per-brand API.
 const home=await page.evaluate(()=>{
-  const active=(typeof betaActiveLines==='function'?betaActiveLines():[]).map(x=>({brand:x.b?.name||'',line:(typeof lineAlias==='function'?lineAlias(x.b.id,x.line):x.line)}));
+  if(typeof ensureBetaState==='function')ensureBetaState();
+  const brands=typeof beta50RealBrands==='function'?beta50RealBrands():(DB.brands||[]).filter(b=>b&&b.id!=='shishalove');
+  const active=brands.flatMap(b=>(typeof betaActiveLines==='function'?betaActiveLines(b):[]).map(line=>({brand:b.name||'',line:(typeof lineAlias==='function'?lineAlias(b.id,line):line)})));
   const visible=[...document.querySelectorAll('.beta50LineGrid>*')].filter(x=>getComputedStyle(x).display!=='none').map(x=>(x.innerText||'').replace(/\s+/g,' ').trim());
-  return {active,visible,allBrands:[...document.querySelectorAll('#page button,#page a')].some(x=>(x.innerText||'').trim()==='All Brands'&&getComputedStyle(x).display!=='none'),pinKey:localStorage.getItem('nar_beta507_pinned_brands'),top:document.querySelector('.beta50TopBar')?.getBoundingClientRect().top||0};
+  return {active,visible,allBrands:[...document.querySelectorAll('#page button,#page a')].some(x=>(x.innerText||'').trim()==='All Brands'&&getComputedStyle(x).display!=='none'),pinKey:localStorage.getItem('nar_beta507_pinned_brands'),stateKeys:Object.keys(state.storeActiveLines||{}),top:document.querySelector('.beta50TopBar')?.getBoundingClientRect().top||0};
 });
 assert(!home.allBrands,'Retired public All Brands selector remains on Home');
 assert(home.pinKey===null,'Retired nar_beta507_pinned_brands state was not removed');
+assert(home.stateKeys.length>0,'Owner active-line state was not initialized');
 assert(home.visible.length===home.active.length,'Home visible active-line count does not match Owner state '+JSON.stringify(home));
-for(const a of home.active){assert(home.visible.some(v=>v.toLowerCase().includes(a.brand.toLowerCase())),'Owner-active line missing from Home: '+JSON.stringify(a))}
+for(const a of home.active){assert(home.visible.some(v=>v.toLowerCase().includes(a.brand.toLowerCase())&&(!a.line||v.toLowerCase().includes(a.line.toLowerCase()))),'Owner-active line missing from Home: '+JSON.stringify(a))}
 assert(home.top>=8,'Top header still collides with Android safe area '+JSON.stringify(home));
 await noOverflow('Home');
 
