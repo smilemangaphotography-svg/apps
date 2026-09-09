@@ -157,3 +157,45 @@ The Android mockup set was revised around the locked Essential Professional dire
 **SMART ANDROID MOCKUP V2: DRAFTED**
 
 This revision is the current visual reference for the next review. It is not yet the implementation lock; each page still needs individual approval before beta implementation.
+
+## 2026-09-09 — Smart Workflow V2 refinement
+
+The next refinement pass was accepted conceptually and documented in `docs/SMART_WORKFLOW_V2.md`.
+
+### Core workflow locked
+**Analyze → Recommend → Recipe Preview → Apply → Compare → Refine**
+
+### New requirements
+- Detection chips show confidence percentages for people, skin, architecture, weather, sky, wedding dress and highlight risk.
+- Highlight Guard gains three explicit states: `Protected`, `At Risk`, `Source Clipped`.
+- Skin protection becomes a global visible state when a reliable person is detected.
+- Preset recommendations must explain why they were selected.
+- Smart Portrait uses adjustable strengths rather than simple on/off switches.
+- Smart Architecture becomes a dedicated specialist mode.
+- Smart Wedding becomes a dedicated specialist mode.
+- Smart Product / E-shop becomes a dedicated specialist mode.
+- Smart Recipe Preview is mandatory before Smart Apply.
+- Every recipe line exposes amount, scope and enable/disable state.
+- GPT Rate V2 separates Technical Score and Creative Score and adds `Potential After Edit`.
+- Before/After is accessible everywhere by long press and split compare.
+- Preset catalog gains search and subject/occasion filters.
+- Optional My Style learning may personalize future recommendations while remaining visible and resettable.
+
+### Current product status
+**VISUAL BASE: LOCKED — ESSENTIAL PROFESSIONAL**
+**SMART WORKFLOW V2: SPECIFIED**
+**ANDROID SMART MOCKUPS: REVISION REQUIRED**
+
+### Immediate next milestone
+Redraw the key Android Smart screens to reflect Workflow V2:
+1. Editor with protection/detection chips
+2. Smart Analyze with confidence detections
+3. Ranked preset recommendations with reasons
+4. Smart Portrait with strength sliders
+5. Smart Architecture
+6. Smart Wedding
+7. Recipe Preview
+8. GPT Rate V2
+9. Compare
+
+After review, freeze them as the Smart interaction lock before implementation.
