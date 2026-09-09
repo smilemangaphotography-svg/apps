@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Calendar frame -->
+    <path
+        android:pathData="M31,30 H77 C81,30 84,33 84,37 V76 C84,80 81,83 77,83 H31 C27,83 24,80 24,76 V37 C24,33 27,30 31,30 Z"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@color/launcher_icon_gold"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Header line -->
+    <path
+        android:pathData="M24,43 H84"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@color/launcher_icon_gold"
+        android:strokeWidth="4"
+        android:strokeLineCap="round" />
+
+    <!-- Binding rings -->
+    <path
+        android:pathData="M38,24 V35 M70,24 V35"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@color/launcher_icon_gold"
+        android:strokeWidth="5"
+        android:strokeLineCap="round" />
+
+    <!-- Schedule rows -->
+    <path
+        android:pathData="M36,55 H66 M36,65 H61"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@color/launcher_icon_gold"
+        android:strokeWidth="4"
+        android:strokeLineCap="round" />
+
+    <!-- Row bullets -->
+    <path
+        android:pathData="M30,55 m-2,0 a2,2 0,1 0,4 0 a2,2 0,1 0,-4 0 M30,65 m-2,0 a2,2 0,1 0,4 0 a2,2 0,1 0,-4 0"
+        android:fillColor="@color/launcher_icon_gold" />
+
+    <!-- Check badge -->
+    <path
+        android:pathData="M72,70 m-13,0 a13,13 0,1 0,26 0 a13,13 0,1 0,-26 0"
+        android:fillColor="#14171A"
+        android:strokeColor="@color/launcher_icon_gold"
+        android:strokeWidth="4" />
+    <path
+        android:pathData="M65,70 L70,75 L79,65"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@color/launcher_icon_gold"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
