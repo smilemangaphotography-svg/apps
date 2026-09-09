@@ -10,23 +10,41 @@ def one(label, pattern, radius=420, flags=re.I|re.S):
         return
     a=max(0,m.start()-radius); b=min(len(s),m.end()+radius)
     chunk=re.sub(r'\s+',' ',s[a:b]).strip()
-    print(f'{label}: {chunk[:1200]}')
+    print(f'{label}: {chunk[:1600]}')
+
+def function_body(name):
+    m=re.search(r'function\s+'+re.escape(name)+r'\s*\([^)]*\)\s*\{',s)
+    if not m:
+        print(f'FUNC_{name}: NOT_FOUND')
+        return
+    start=m.start(); i=m.end()-1; depth=0; quote=None; esc=False
+    while i < len(s):
+        ch=s[i]
+        if quote:
+            if esc: esc=False
+            elif ch=='\\': esc=True
+            elif ch==quote: quote=None
+        else:
+            if ch in "'\"`": quote=ch
+            elif ch=='{': depth+=1
+            elif ch=='}':
+                depth-=1
+                if depth==0:
+                    body=re.sub(r'\s+',' ',s[start:i+1]).strip()
+                    print(f'FUNC_{name}: {body[:3000]}')
+                    return
+        i+=1
+    print(f'FUNC_{name}: UNTERMINATED')
 
 print('NAR_51_COMPACT_START')
 props=sorted(set(re.findall(r'\bstate\.([A-Za-z_$][A-Za-z0-9_$]*)',s)))
 interesting=[x for x in props if re.search(r'admin|store|brand|line|shisha|flavor|layout|gallery|owner',x,re.I)]
 print('STATE_PROPS:',','.join(interesting))
+for fn in ['ensureBetaState','betaActiveLines','betaLineActive','betaSetLineActive','lineNamesForBrand','lineAlias','save']:
+    function_body(fn)
 for label,pat in [
- ('CHECKED_FLAVORS',r'Only checked flavors appear in this Tobacco Store subcategory\.'),
- ('SHISHA_STATE',r'state\.shishaLoveStore'),
- ('STORE_SETUP',r'Tobacco Store setup'),
- ('ACTIVE_LINES',r'activeLines'),
- ('STORE_FN',r'function\s+beta50Store\s*\('),
- ('SHISHA_FN',r'function\s+beta50ShishaStore\s*\('),
- ('ADMIN_STORE_FN',r'function\s+[A-Za-z0-9_$]*(?:Store|Brand|Line)[A-Za-z0-9_$]*\s*\('),
- ('STATE_SAVE',r'localStorage\.setItem\([^\n]{0,180}(?:admin|store|brand|line|shisha|flavor)'),
- ('STATE_LOAD',r'localStorage\.getItem\([^\n]{0,180}(?:admin|store|brand|line|shisha|flavor)')
-]: one(label,pat)
-funcs=sorted(set(re.findall(r'function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(',s)))
-print('FUNCS:',','.join(f for f in funcs if re.search(r'store|brand|line|shisha|admin|owner|flavor',f,re.I)))
+ ('STORE_ACTIVE_ASSIGN',r'state\.storeActiveLines\s*='),
+ ('STORE_LINE_TOGGLE',r'data-store-line-toggle'),
+ ('STORE_SETUP',r'Tobacco Store setup')
+]: one(label,pat,650)
 print('NAR_51_COMPACT_END')
