@@ -10,13 +10,16 @@ page.setDefaultTimeout(12000);
 await page.setViewport({width:390,height:844,deviceScaleFactor:1});
 await page.goto('http://127.0.0.1:8765/index.html',{waitUntil:'networkidle0'});
 if(await page.$('#enter')){await page.click('#enter');await new Promise(r=>setTimeout(r,150));}
-const funcs=await page.evaluate(()=>({
- detail:typeof detail==='function'?detail.toString().slice(0,6000):'MISSING',
- search:typeof search==='function'?search.toString().slice(0,5000):'MISSING',
- openFlavor:typeof openFlavor==='function'?openFlavor.toString().slice(0,3000):'MISSING',
- betaOpenFlavor:typeof betaOpenFlavor==='function'?betaOpenFlavor.toString().slice(0,3000):'MISSING'
-}));
-console.log('DETAIL_DEBUG_FUNCTIONS',JSON.stringify(funcs));
+const source=await page.evaluate(async()=>await (await fetch('app.js')).text());
+for(const needle of ['function detail(','data-open','querySelectorAll(\'[data-open]\')','[data-open]','detail(','openFlavor','data-detail-tab']){
+  let start=0,count=0;
+  while(count<6){
+    const i=source.indexOf(needle,start);
+    if(i<0)break;
+    console.log(`SOURCE_HOOK ${needle} #${count+1} @${i}\n${source.slice(Math.max(0,i-1200),Math.min(source.length,i+4200))}\nEND_SOURCE_HOOK`);
+    start=i+needle.length;count++;
+  }
+}
 await page.evaluate(()=>{const b=[...document.querySelectorAll('.betaNav button')].find(x=>x.textContent.includes('Search'));b?.click()});
 await new Promise(r=>setTimeout(r,150));
 await page.focus('#q');
@@ -29,9 +32,7 @@ if(e){await e.click();await new Promise(r=>setTimeout(r,180));}
 const after=await page.evaluate(()=>({
   tabs:[...document.querySelectorAll('[data-detail-tab]')].map(x=>({tag:x.tagName,tab:x.dataset.detailTab,text:x.textContent.trim(),outer:x.outerHTML})),
   pageText:(document.querySelector('#page')?.innerText||'').slice(0,3000),
-  pageHtml:(document.querySelector('#page')?.innerHTML||'').slice(0,7000),
-  modalText:(document.querySelector('#modal')?.innerText||'').slice(0,3000),
-  modalHtml:(document.querySelector('#modal')?.innerHTML||'').slice(0,7000)
+  modalText:(document.querySelector('#modal')?.innerText||'').slice(0,3000)
 }));
 console.log('DETAIL_DEBUG_AFTER',JSON.stringify(after));
 await browser.close();
