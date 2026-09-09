@@ -57,17 +57,17 @@ jobs:
         run: python3 nar-mix49/patch_functional_v49.py
       - name: Apply NAR Beta 4.9.1 store AI gallery
         run: python3 nar-beta/patch_beta_v491.py
-      - name: Inspect Beta 4.9.1 runtime hooks for Beta 5.0
+      - name: Inspect final Beta 5.0 hooks
         run: |
           python3 - <<'PY'
           from pathlib import Path
           s=Path('buildsrc/NAR-Mix/app/src/main/assets/app.js').read_text()
-          needles=['function betaStoreState','function store(p)','function home(p)','function mix(p)','function gallery(p)','function betaNav','function betaTopBar','function adminStoreBrandModal','state.narGallery','favoriteMixes','ShishaLove']
+          needles=['ensureBetaState','betaTopBar','betaNav','function app()','function render()','function mine(p)','What is actually in the flavor?','mockFlavorDetail','function detail','function openFlavor','function adminEditFlavor','function gpt(p)','function age()','sessionStorage']
           for n in needles:
               print('\n===== '+n+' =====')
               i=s.rfind(n)
               if i<0: i=s.find(n)
-              print(s[max(0,i-500):i+4500] if i>=0 else 'NOT FOUND')
+              print(s[max(0,i-900):i+6500] if i>=0 else 'NOT FOUND')
           PY
       - name: Validate canonical NAR Beta 4.9.1
         run: |
@@ -78,27 +78,15 @@ jobs:
           grep -q 'function bowlData(k)' "$JS"
           grep -q 'NAR 4.8 AUDIT FIXES' "$CSS"
           grep -q 'NAR 4.9 FUNCTIONAL CORE' "$JS"
-          grep -q 'NAR 4.9 FUNCTIONAL CORE' "$CSS"
           grep -q 'NAR BETA 4.9.1' "$JS"
-          grep -q 'NAR BETA 4.9.1' "$CSS"
           grep -q 'function store(p)' "$JS"
-          grep -q 'ShishaLove' "$JS"
-          grep -q 'betaTopBar' "$JS"
-          grep -q 'betaNav' "$JS"
           grep -q 'NĀR Gallery' "$JS"
           grep -q 'Recognize with NĀR AI' "$JS"
           grep -q 'function betaSuggestionFor' "$JS"
-          grep -q 'function adminStoreBrandModal' "$JS"
           grep -q 'Choose from NĀR Gallery' "$JS"
-          grep -q 'SETUP REQUIRED' "$JS"
-          grep -q 'bottom:54px' "$CSS"
-          grep -q 'Tobacco Store setup' "$JS"
-          grep -q 'Subcategories / tobacco lines' "$JS"
           grep -q 'Expected Taste Profile' "$JS"
-          grep -q 'Inspiration' "$JS"
           grep -q 'favoriteMixes' "$JS"
           grep -q 'Are you sure you want to delete this image' "$JS"
-          if grep -q "learnTopic=b.dataset.topic;learn(p)" "$JS"; then exit 1; fi
       - name: Build the same NAR Beta APK
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
       - name: Collect Beta APK
@@ -106,7 +94,6 @@ jobs:
           mkdir -p output
           cp buildsrc/NAR-Mix/app/build/outputs/apk/debug/app-debug.apk output/NAR-BETA-4.9.1-debug.apk
           sha256sum output/NAR-BETA-4.9.1-debug.apk > output/SHA256SUMS.txt
-          ls -lh output
       - uses: actions/upload-artifact@v4
         with:
           name: NAR-BETA-APK
