@@ -12,38 +12,51 @@ const url='http://127.0.0.1:8765/index.html';
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const assert=(c,m)=>{if(!c)throw new Error(m)};
 const bodyText=()=>page.evaluate(()=>document.body.innerText);
+const norm=s=>String(s||'').replace(/\s+/g,' ').trim().toLowerCase();
 async function enter(){if(await page.$('#enter')){await page.click('#enter');await wait(220)}}
 async function nav(label){await page.evaluate(l=>{const b=[...document.querySelectorAll('.betaNav button,.pixelNarNav button')].find(x=>(x.innerText||'').includes(l));if(!b)throw new Error('Missing root nav '+l);b.click()},label);await wait(180)}
 async function noOverflow(where){const r=await page.evaluate(()=>({w:innerWidth,doc:document.documentElement.scrollWidth,page:document.querySelector('#page')?.scrollWidth||0,nav:(()=>{const n=document.querySelector('.betaNav,.pixelNarNav');if(!n)return null;const b=n.getBoundingClientRect();return{left:b.left,right:b.right,bottom:innerHeight-b.bottom}})()}));assert(r.doc<=r.w+2&&r.page<=r.w+2,where+' horizontal overflow '+JSON.stringify(r));if(r.nav)assert(r.nav.left>=-1&&r.nav.right<=r.w+1&&r.nav.bottom>=50,where+' unsafe bottom nav '+JSON.stringify(r.nav))}
 
 await page.goto(url,{waitUntil:'networkidle0'});await enter();
 
-// 5.1 Home must be driven by the canonical persisted Owner Studio storeActiveLines state,
-// not the retired public 5.0.7 pin list. Treat application JS as private/module-scoped:
-// locate the persisted app state rather than reaching into private symbols.
-const home=await page.evaluate(()=>{
-  const records=[];
-  for(let i=0;i<localStorage.length;i++){
-    const key=localStorage.key(i), raw=localStorage.getItem(key);let value=raw;
-    try{value=JSON.parse(raw)}catch(e){}
-    records.push({key,value});
-  }
-  const rec=records.find(x=>x.value&&typeof x.value==='object'&&x.value.storeActiveLines&&typeof x.value.storeActiveLines==='object');
-  const activeMap=rec?.value?.storeActiveLines||{};
-  const active=Object.entries(activeMap)
-    .filter(([key,on])=>on===true&&!key.startsWith('shishalove|'))
-    .map(([key])=>{const cut=key.indexOf('|');return{brandId:cut>=0?key.slice(0,cut):key,line:cut>=0?key.slice(cut+1):''}});
-  const visible=[...document.querySelectorAll('.beta50LineGrid>*')].filter(x=>getComputedStyle(x).display!=='none').map(x=>(x.innerText||'').replace(/\s+/g,' ').trim());
-  return {stateKey:rec?.key||null,active,visible,allBrands:[...document.querySelectorAll('#page button,#page a')].some(x=>(x.innerText||'').trim()==='All Brands'&&getComputedStyle(x).display!=='none'),pinKey:localStorage.getItem('nar_beta507_pinned_brands'),stateKeys:Object.keys(activeMap),top:document.querySelector('.beta50TopBar')?.getBoundingClientRect().top||0,localKeys:records.map(x=>x.key)};
-});
+// 5.1 Home must be driven by the same checked lines visible in Owner Studio →
+// Tobacco Store setup. This is a black-box user contract: no private DB/state symbols
+// and no assumption that a fresh in-memory default has already been persisted.
+const home=await page.evaluate(()=>({
+  visible:[...document.querySelectorAll('.beta50LineGrid>*')].filter(x=>getComputedStyle(x).display!=='none').map(x=>(x.innerText||'').replace(/\s+/g,' ').trim()),
+  allBrands:[...document.querySelectorAll('#page button,#page a')].some(x=>(x.innerText||'').trim()==='All Brands'&&getComputedStyle(x).display!=='none'),
+  pinKey:localStorage.getItem('nar_beta507_pinned_brands'),
+  top:document.querySelector('.beta50TopBar')?.getBoundingClientRect().top||0
+}));
 assert(!home.allBrands,'Retired public All Brands selector remains on Home');
 assert(home.pinKey===null,'Retired nar_beta507_pinned_brands state was not removed');
-assert(!!home.stateKey,'Persisted Owner state containing storeActiveLines was not found '+JSON.stringify(home.localKeys));
-assert(home.stateKeys.length>0,'Owner active-line state was not initialized');
-assert(home.visible.length===home.active.length,'Home visible active-line count does not match Owner state '+JSON.stringify(home));
-for(const a of home.active){assert(home.visible.some(v=>!a.line||v.toLowerCase().includes(a.line.toLowerCase())),'Owner-active line missing from Home: '+JSON.stringify(a))}
+assert(home.visible.length>0,'Fresh Home has no active tobacco lines');
 assert(home.top>=8,'Top header still collides with Android safe area '+JSON.stringify(home));
 await noOverflow('Home');
+
+// Read the canonical checked-line state through the real Owner UI.
+await page.click('.betaAdminDots');await wait(140);
+assert(!!(await page.$('#adminStore')),'Owner Studio Tobacco Store entry missing');
+await page.click('#adminStore');await wait(120);
+assert(/Tobacco Store setup/i.test(await bodyText()),'Tobacco Store setup did not open');
+const ownerBrands=await page.$$eval('[data-admin-store-brand]',xs=>xs.map(x=>({id:x.dataset.adminStoreBrand,name:(x.querySelector('b')?.textContent||'').trim()})).filter(x=>x.id&&x.id!=='shishalove'));
+assert(ownerBrands.length>=3,'Owner Store setup is missing real tobacco brands');
+const ownerActive=[];
+for(const b of ownerBrands){
+  await page.evaluate(id=>{const x=[...document.querySelectorAll('[data-admin-store-brand]')].find(e=>e.dataset.adminStoreBrand===id);if(!x)throw new Error('Owner brand route missing '+id);x.click()},b.id);
+  await wait(75);
+  const checked=await page.$$eval('[data-store-line-toggle]',xs=>xs.filter(x=>x.checked).map(x=>({line:(x.closest('label')?.querySelector('span')?.textContent||x.dataset.storeLineToggle||'').trim()})));
+  checked.forEach(x=>ownerActive.push({brand:b.name,line:x.line}));
+  assert(!!(await page.$('#adminStoreBrandBack')),'Owner brand back route missing for '+b.name);
+  await page.click('#adminStoreBrandBack');await wait(65);
+}
+assert(ownerActive.length===home.visible.length,'Home active-line count differs from Owner Store setup '+JSON.stringify({home:home.visible,owner:ownerActive}));
+for(const a of ownerActive){
+  assert(home.visible.some(v=>norm(v).includes(norm(a.brand))&&norm(v).includes(norm(a.line))),'Owner-active tobacco line missing from Home '+JSON.stringify(a));
+}
+await page.click('#adminStoreBack');await wait(75);
+assert(!!(await page.$('#adminClose')),'Owner Studio close action missing after Store setup');
+await page.click('#adminClose');await wait(100);
 
 // Visible customer-facing catalog labels are English/Latin, while internal aliases may remain.
 let t=await bodyText();
