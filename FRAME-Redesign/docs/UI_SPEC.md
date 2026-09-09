@@ -1,5 +1,17 @@
 # FRAME UI Specification
 
+## Design lock
+**FRAME V1 uses Variation 1 — Essential Professional as the canonical visual direction.**
+
+Characteristics:
+- professional editing workspace
+- large image canvas
+- compact controls
+- logical Lightroom-style tool grouping
+- no decorative dashboard clutter inside the editor
+- collapsible panels may be used to recover canvas space
+- guided UX is reserved for Smart/AI workflows only
+
 ## Global shell
 
 ### Safe areas
@@ -10,7 +22,7 @@ All interactive controls must respect Android/iOS status/navigation safe areas. 
 - Opening an image pushes the Editor.
 - Editor back returns to Library after saving current non-destructive state automatically.
 - Export opens as a sheet/screen above Editor.
-- AI Studio is a tool panel inside Editor, not a separate bottom-navigation destination.
+- Smart/AI is a tool panel inside Editor, not a separate bottom-navigation destination.
 
 ## Screen 01 — Library
 
@@ -31,15 +43,12 @@ Right: Search, multi-select, overflow
 
 Cards use image-first thumbnails. Metadata stays secondary.
 
-### Bottom navigation
-None required. Library should feel like the photo entry point, not a multi-tab social app.
-
 ## Screen 02 — Editor default
 
 ### Top bar
 Left to right:
 - Back
-- File/project name (tap for metadata)
+- File/project name
 - Undo
 - Redo
 - Before/After
@@ -51,7 +60,15 @@ Left to right:
 - Double tap to fit / 100%
 - Two-finger pan when zoomed
 - Long press = original preview
-- Optional clipping warnings
+- optional clipping warnings
+
+### Smart status strip
+A compact strip appears only when Smart analysis has useful information.
+
+Example:
+`People · Cloudy · Highlight Risk · Architecture`
+
+Tap opens diagnosis.
 
 ### Bottom tool dock
 Horizontally scrollable, persistent:
@@ -63,16 +80,52 @@ Horizontally scrollable, persistent:
 6. Crop
 7. Mask
 8. Heal
-9. AI
+9. Smart
 
-Tool dock labels remain visible; do not rely on icon recognition alone.
+Tool labels remain visible.
 
-## Screen 03 — Light panel
+## Screen 03 — Presets
 
-Panel occupies lower 35–42% of screen, leaving the image visible.
+### Smart Recommendations first
+Before the full preset catalog, show:
+- Best Match
+- Safer Alternative
+- Creative Alternative
+
+Each recommendation includes:
+- preview thumbnail
+- match percentage
+- short reason
+- intensity control after selection
+
+Example:
+`Cloudy Clean · 92%`
+`Portrait Natural · 86%`
+`Cloudy Cinematic · 81%`
+
+### Full catalog
+Category chips:
+- Recommended
+- Natural
+- Weather
+- Wedding
+- Portrait
+- Editorial
+- Architecture
+- Travel
+- Night
+- B&W
+- Product
+- My Presets
+
+Presets remain adaptive rather than fixed slider dumps.
+
+## Screen 04 — Light panel
+
+Panel occupies lower 35–42% of screen, leaving image visible.
 
 Header:
-`Light` | Reset
+`Light` | Reset | Smart
 
 Controls:
 - Exposure
@@ -82,46 +135,75 @@ Controls:
 - Whites
 - Blacks
 
-Slider behavior:
-- current number visible
-- center/default tick
-- haptic feedback at zero/default
-- tap numeric value for direct entry
-- double tap label to reset
+### Highlight Guard
+When Smart is enabled:
+- highlight-clipping protection indicator is visible
+- risky exposure increases show a warning state
+- Smart may compensate with Highlights/Whites/local masks instead of raw Exposure
+- irrecoverable source clipping is labeled rather than hidden
 
 Canvas updates continuously while dragging.
 
-## Screen 04 — Color panel
+## Screen 05 — Color panel
 
 Top controls:
-- WB selector: As Shot / Auto / Custom
+- WB selector: As Shot / Auto / Skin Priority / Custom
 - Temp
 - Tint
 - Vibrance
 - Saturation
 
+If a reliable person is detected, `Skin Priority` becomes the default Smart recommendation.
+
+### Skin Priority state
+Show:
+- `Skin detected`
+- correction confidence
+- optional `View Skin Mask`
+
+If the scene atmosphere should remain warm/cool, FRAME may keep global WB and propose a local skin correction instead.
+
 Secondary mode selector:
 - Mix
 - Grading
 
-Color Mix opens compact H/S/L controls for selected color family.
+## Screen 06 — Effects
 
-## Screen 05 — Presets
+Controls:
+- Texture
+- Clarity
+- Dehaze
+- Vignette
+- Grain
 
-Layout:
-- thumbnail strip or compact grid
-- category chips: My / FRAME / Imported / Recent / Favorites
-- selected preset gets a clear active outline
-- amount slider appears only after selection
+Smart safety rails limit haloing and excessive HDR-like rendering.
 
-Long press preset:
-- preview full-screen
-- favorite
-- rename if owned
+## Screen 07 — Detail
 
-## Screen 06 — Mask workspace
+Controls:
+- Sharpening
+- Radius
+- Detail
+- Masking
+- Luminance NR
+- Color NR
 
-On entry, canvas remains full-sized and a mask launcher appears above the bottom edge.
+Smart mode should reduce face oversharpening and adapt denoise to low-light images.
+
+## Screen 08 — Crop / Geometry
+
+Controls:
+- Free crop
+- fixed aspect ratios
+- Rotate
+- Straighten
+- Vertical
+- Horizontal
+- Flip
+
+When architecture is detected, show `Fix Verticals` as a Smart suggestion.
+
+## Screen 09 — Mask workspace
 
 Create Mask options:
 - Subject
@@ -134,15 +216,17 @@ Create Mask options:
 - Luminance
 - Color
 
-Once a mask exists:
-- mask thumbnail stack appears in a compact floating strip
-- selected mask overlay is visible
-- add/subtract controls are always reachable
-- Light/Color/Detail subcontrols are accessible below
+Smart quick selections may expose:
+- Face
+- Skin
+- Teeth
+- Eyes
+- Building
+- Sky
 
-No hidden mask state: user must always know which mask is active.
+Selected mask overlay must always be visible on request.
 
-## Screen 07 — Heal workspace
+## Screen 10 — Heal workspace
 
 Modes:
 - Remove
@@ -154,50 +238,78 @@ Controls:
 - Feather
 - Opacity
 
-Canvas interaction:
-- user taps or paints target
-- source/processing indicator appears immediately
-- final result replaces temporary overlay
-- individual repair spots can be selected and deleted
+Smart Remove may detect distracting objects, but every removal requires preview and remains reversible.
 
-## Screen 08 — AI Studio
+## Screen 11 — Smart panel
 
-AI opens as a lower sheet with the image still visible.
+Smart opens as a lower sheet while keeping the image visible.
 
-Primary actions:
-- Analyze Scene
-- GPT Rate
-- Auto Fix
-- Ask FRAME
+### Header
+`Smart Edit`
 
-### Analyze Scene result
-Compact diagnostic cards:
-- Light
-- Color
-- Detail
-- Composition
-- Scene context
+### Diagnosis card
+Example:
+- Subject: Person + Architecture
+- Light: Overcast
+- Highlight risk: Medium
+- Skin cast: Slightly cool
+- Sharpness: Good
+- Scene: Travel portrait
 
-Each recommendation has:
-- issue
-- reason
-- proposed adjustment
-- Apply button
+### Recommended Look
+Show 3 ranked adaptive presets.
 
-### GPT Rate result
-Large overall score plus smaller category scores. Top 3 fixes appear first. User can expand full report.
+### Smart Actions
+- Protect Highlights
+- Skin WB
+- Soft Skin
+- White Teeth
+- Eye Enhance
+- Pop Person
+- Pop Building
+- Remove Distraction
 
-### Auto Fix
-Before applying, FRAME shows an edit recipe. User can:
+Only relevant actions appear.
+
+### Why?
+Opens an explainable analysis including what was detected and why a change is recommended.
+
+## Screen 12 — Smart Apply
+
+Before applying, show an explicit recipe.
+
+Example:
+- Exposure +0.15
+- Highlights -34
+- Whites -10
+- Skin Temp +220K local
+- Face Exposure +0.12 local
+- Background Contrast -5 local
+- Soft Skin 18%
+
+Controls:
+- Preview
 - Apply All
-- apply individual adjustments
-- preview before/after
-- revert entire AI recipe
+- toggle individual changes
+- master strength
+- Revert Smart Edit
 
-### Ask FRAME
-Compact chat overlay for editing questions. It can propose edit values but may not silently apply them.
+## Screen 13 — GPT Rate
 
-## Screen 09 — Export
+Overall score plus:
+- Exposure
+- Color
+- Composition
+- Sharpness
+- Subject separation
+- Technical cleanliness
+- Editing potential
+
+Top 3 fixes appear first.
+
+Suggested fixes can jump directly to the relevant tool or be added to Smart Apply.
+
+## Screen 14 — Export
 
 Sections:
 - Format
@@ -217,12 +329,12 @@ Quick presets:
 Primary action: Export Copy
 Secondary: Share
 
-## Screen 10 — Project recovery
+## Screen 15 — Project recovery
 
 If app closes mid-edit:
 - reopening FRAME returns to Library
 - Continue Editing card shows last project
-- opening it restores exact slider/mask/crop history state
+- opening restores slider/mask/crop/Smart state
 
 ## Interaction quality bar
 - No dead buttons.
@@ -231,4 +343,5 @@ If app closes mid-edit:
 - Loading operations never blank the editor.
 - System Back has a deterministic destination.
 - Every control has pressed/selected/disabled states.
-- Minimum touch target should remain comfortable even when visual icons are compact.
+- Smart actions must produce real editable changes, not text-only suggestions.
+- Minimum touch target remains comfortable even when visual icons are compact.
