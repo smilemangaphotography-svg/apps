@@ -37,24 +37,26 @@ await noOverflow('Home');
 // Read the canonical checked-line state through the real Owner UI.
 await page.click('.betaAdminDots');await wait(140);
 assert(!!(await page.$('#adminStore')),'Owner Studio Tobacco Store entry missing');
-await page.click('#adminStore');await wait(120);
+await page.click('#adminStore');await page.waitForSelector('[data-admin-store-brand]');
 assert(/Tobacco Store setup/i.test(await bodyText()),'Tobacco Store setup did not open');
 const ownerBrands=await page.$$eval('[data-admin-store-brand]',xs=>xs.map(x=>({id:x.dataset.adminStoreBrand,name:(x.querySelector('b')?.textContent||'').trim()})).filter(x=>x.id&&x.id!=='shishalove'));
 assert(ownerBrands.length>=3,'Owner Store setup is missing real tobacco brands');
 const ownerActive=[];
 for(const b of ownerBrands){
   await page.evaluate(id=>{const x=[...document.querySelectorAll('[data-admin-store-brand]')].find(e=>e.dataset.adminStoreBrand===id);if(!x)throw new Error('Owner brand route missing '+id);x.click()},b.id);
-  await wait(75);
+  await page.waitForSelector('#adminStoreBrandBack');
   const checked=await page.$$eval('[data-store-line-toggle]',xs=>xs.filter(x=>x.checked).map(x=>({line:(x.closest('label')?.querySelector('span')?.textContent||x.dataset.storeLineToggle||'').trim()})));
   checked.forEach(x=>ownerActive.push({brand:b.name,line:x.line}));
-  assert(!!(await page.$('#adminStoreBrandBack')),'Owner brand back route missing for '+b.name);
-  await page.click('#adminStoreBrandBack');await wait(65);
+  await page.click('#adminStoreBrandBack');
+  await page.waitForSelector('[data-admin-store-brand]');
 }
 assert(ownerActive.length===home.visible.length,'Home active-line count differs from Owner Store setup '+JSON.stringify({home:home.visible,owner:ownerActive}));
 for(const a of ownerActive){
   assert(home.visible.some(v=>norm(v).includes(norm(a.brand))&&norm(v).includes(norm(a.line))),'Owner-active tobacco line missing from Home '+JSON.stringify(a));
 }
-await page.click('#adminStoreBack');await wait(75);
+await page.waitForSelector('#adminStoreBack');
+await page.click('#adminStoreBack');
+await page.waitForSelector('#adminClose');
 assert(!!(await page.$('#adminClose')),'Owner Studio close action missing after Store setup');
 await page.click('#adminClose');await wait(100);
 
