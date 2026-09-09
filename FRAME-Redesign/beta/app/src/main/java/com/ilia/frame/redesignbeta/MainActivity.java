@@ -1,6 +1,7 @@
 package com.ilia.frame.redesignbeta;
 
 import android.app.Activity;
+import android.content.ClipData;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
@@ -19,6 +20,7 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import java.io.OutputStream;
+import java.util.ArrayList;
 
 public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 6001;
@@ -38,6 +40,7 @@ public class MainActivity extends Activity {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
         settings.setBuiltInZoomControls(false);
@@ -46,22 +49,16 @@ public class MainActivity extends Activity {
 
         WebView.setWebContentsDebuggingEnabled(true);
         webView.addJavascriptInterface(new AndroidBridge(this), "FrameAndroid");
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                String loader = "(function(){var s=document.createElement('script');s.src='file:///android_asset/fixes.js';document.body.appendChild(s);})();";
-                view.evaluateJavascript(loader, null);
-            }
-        });
+        webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
-            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
                 if (fileCallback != null) fileCallback.onReceiveValue(null);
-                fileCallback = filePathCallback;
+                fileCallback = callback;
                 try {
-                    Intent intent = fileChooserParams.createIntent();
+                    Intent intent = params.createIntent();
                     intent.setType("image/*");
+                    intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
                     startActivityForResult(intent, FILE_CHOOSER_REQUEST);
                     return true;
                 } catch (Exception e) {
@@ -78,23 +75,41 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == FILE_CHOOSER_REQUEST && fileCallback != null) {
-            Uri[] results = null;
-            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
-                results = new Uri[]{data.getData()};
+        if (requestCode != FILE_CHOOSER_REQUEST || fileCallback == null) return;
+
+        Uri[] results = null;
+        if (resultCode == RESULT_OK && data != null) {
+            ArrayList<Uri> uris = new ArrayList<>();
+            ClipData clipData = data.getClipData();
+            if (clipData != null) {
+                for (int i = 0; i < clipData.getItemCount(); i++) {
+                    Uri uri = clipData.getItemAt(i).getUri();
+                    if (uri != null) uris.add(uri);
+                }
+            } else if (data.getData() != null) {
+                uris.add(data.getData());
             }
-            fileCallback.onReceiveValue(results);
-            fileCallback = null;
+            if (!uris.isEmpty()) results = uris.toArray(new Uri[0]);
         }
+        fileCallback.onReceiveValue(results);
+        fileCallback = null;
     }
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-        } else {
+        if (webView == null) {
             super.onBackPressed();
+            return;
         }
+        String js = "(function(){var a=document.querySelector('.screen.active');" +
+                "if(a&&a.id==='editor'){document.getElementById('editorBack').click();return 'handled';}" +
+                "if(a&&a.id==='admin'){document.querySelector('#admin [data-go=\"settings\"]').click();return 'handled';}" +
+                "if(a&&a.id==='settings'){document.querySelector('#settings [data-go=\"library\"]').click();return 'handled';}" +
+                "if(a&&a.id==='onboarding'){document.querySelector('#onboarding [data-go=\"library\"]').click();return 'handled';}" +
+                "return 'exit';})()";
+        webView.evaluateJavascript(js, value -> {
+            if (value == null || value.contains("exit")) MainActivity.super.onBackPressed();
+        });
     }
 
     public static class AndroidBridge {
@@ -117,9 +132,7 @@ public class MainActivity extends Activity {
                 String fileName = (requestedName == null || requestedName.trim().isEmpty())
                         ? "FRAME_Edit_" + System.currentTimeMillis() + ".jpg"
                         : requestedName.replaceAll("[^a-zA-Z0-9._-]", "_");
-                if (!fileName.toLowerCase().endsWith(".jpg") && !fileName.toLowerCase().endsWith(".jpeg")) {
-                    fileName += ".jpg";
-                }
+                if (!fileName.toLowerCase().endsWith(".jpg") && !fileName.toLowerCase().endsWith(".jpeg")) fileName += ".jpg";
 
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
@@ -131,19 +144,16 @@ public class MainActivity extends Activity {
 
                 Uri uri = context.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
                 if (uri == null) return false;
-
                 try (OutputStream stream = context.getContentResolver().openOutputStream(uri)) {
                     if (stream == null) return false;
                     stream.write(bytes);
                     stream.flush();
                 }
-
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     ContentValues done = new ContentValues();
                     done.put(MediaStore.Images.Media.IS_PENDING, 0);
                     context.getContentResolver().update(uri, done, null, null);
                 }
-
                 ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Saved to Pictures / FRAME Beta", Toast.LENGTH_LONG).show());
                 return true;
             } catch (Exception e) {
