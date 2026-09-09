@@ -18,24 +18,27 @@ async function noOverflow(where){const r=await page.evaluate(()=>({w:innerWidth,
 
 await page.goto(url,{waitUntil:'networkidle0'});await enter();
 
-// 5.1 Home must be driven by the canonical Owner Studio storeActiveLines state,
-// not the retired public 5.0.7 pin list. Read the persisted authority directly;
-// do not depend on private/non-global catalog symbols such as DB.
+// 5.1 Home must be driven by the canonical persisted Owner Studio storeActiveLines state,
+// not the retired public 5.0.7 pin list. Treat application JS as private/module-scoped:
+// locate the persisted app state rather than reaching into private symbols.
 const home=await page.evaluate(()=>{
-  if(typeof ensureBetaState==='function')ensureBetaState();
-  const active=Object.entries(state.storeActiveLines||{})
+  const records=[];
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i), raw=localStorage.getItem(key);let value=raw;
+    try{value=JSON.parse(raw)}catch(e){}
+    records.push({key,value});
+  }
+  const rec=records.find(x=>x.value&&typeof x.value==='object'&&x.value.storeActiveLines&&typeof x.value.storeActiveLines==='object');
+  const activeMap=rec?.value?.storeActiveLines||{};
+  const active=Object.entries(activeMap)
     .filter(([key,on])=>on===true&&!key.startsWith('shishalove|'))
-    .map(([key])=>{
-      const cut=key.indexOf('|');
-      const brandId=cut>=0?key.slice(0,cut):key;
-      const rawLine=cut>=0?key.slice(cut+1):'';
-      return {brandId,line:(typeof lineAlias==='function'?lineAlias(brandId,rawLine):rawLine)};
-    });
+    .map(([key])=>{const cut=key.indexOf('|');return{brandId:cut>=0?key.slice(0,cut):key,line:cut>=0?key.slice(cut+1):''}});
   const visible=[...document.querySelectorAll('.beta50LineGrid>*')].filter(x=>getComputedStyle(x).display!=='none').map(x=>(x.innerText||'').replace(/\s+/g,' ').trim());
-  return {active,visible,allBrands:[...document.querySelectorAll('#page button,#page a')].some(x=>(x.innerText||'').trim()==='All Brands'&&getComputedStyle(x).display!=='none'),pinKey:localStorage.getItem('nar_beta507_pinned_brands'),stateKeys:Object.keys(state.storeActiveLines||{}),top:document.querySelector('.beta50TopBar')?.getBoundingClientRect().top||0};
+  return {stateKey:rec?.key||null,active,visible,allBrands:[...document.querySelectorAll('#page button,#page a')].some(x=>(x.innerText||'').trim()==='All Brands'&&getComputedStyle(x).display!=='none'),pinKey:localStorage.getItem('nar_beta507_pinned_brands'),stateKeys:Object.keys(activeMap),top:document.querySelector('.beta50TopBar')?.getBoundingClientRect().top||0,localKeys:records.map(x=>x.key)};
 });
 assert(!home.allBrands,'Retired public All Brands selector remains on Home');
 assert(home.pinKey===null,'Retired nar_beta507_pinned_brands state was not removed');
+assert(!!home.stateKey,'Persisted Owner state containing storeActiveLines was not found '+JSON.stringify(home.localKeys));
 assert(home.stateKeys.length>0,'Owner active-line state was not initialized');
 assert(home.visible.length===home.active.length,'Home visible active-line count does not match Owner state '+JSON.stringify(home));
 for(const a of home.active){assert(home.visible.some(v=>!a.line||v.toLowerCase().includes(a.line.toLowerCase())),'Owner-active line missing from Home: '+JSON.stringify(a))}
