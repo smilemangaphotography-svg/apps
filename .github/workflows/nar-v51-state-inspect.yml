@@ -1,0 +1,44 @@
+name: NAR 5.1 State Contract Inspect
+
+on:
+  push:
+    branches: [ nar-main ]
+    paths:
+      - '.github/workflows/nar-v51-state-inspect.yml'
+      - 'nar-beta51/inspect_v51_state.py'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract canonical NAR source
+        run: |
+          rm -rf buildsrc source.zip; mkdir -p buildsrc
+          cp ILIA-SAFE-SOURCE.bin source.zip
+          unzip -q source.zip -d buildsrc
+      - name: Apply canonical patches through 5.0.7
+        run: |
+          python3 nar-mix45/patch_nar_mix45.py
+          python3 nar-mix46/patch_nar_mix46.py
+          python3 nar-mix46/patch_cover_v46.py
+          python3 nar-canonical/patch_navigation.py
+          python3 nar-mix47/patch_mockup_v47.py
+          python3 nar-canonical/patch_audit_v48.py
+          python3 nar-mix49/patch_functional_v49.py
+          python3 nar-beta/patch_beta_v491.py
+          python3 nar-beta50/patch_beta_v50.py
+          python3 nar-beta50/patch_beta_v501_safe_nav.py
+          python3 nar-beta50/patch_beta_v502_detail_route.py
+          python3 nar-beta50/patch_beta_v503_version.py
+          python3 nar-beta50/patch_beta_v504_mobile_ui.py
+          python3 nar-beta50/patch_beta_v504_ai_route.py
+          python3 nar-beta50/patch_beta_v505_safe_bulk.py
+          python3 nar-beta50/patch_beta_v506_opaque_nav.py
+          python3 nar-beta50/patch_beta_v507_architecture.py
+          python3 nar-beta50/patch_beta_v5071_allbrands_guard.py
+      - name: Print active-line state contract
+        run: python3 nar-beta51/inspect_v51_state.py
