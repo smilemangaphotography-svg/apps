@@ -8,28 +8,30 @@ s=p.read_text()
 marker='NAR BETA 5.0.4 — OWNER AI ROUTE FIX'
 if marker in s:
     raise SystemExit('NAR Beta 5.0.4 AI route fix already applied')
+if 'function beta504AdminAiModal(){' not in s:
+    raise SystemExit('Isolated Beta 5.0.4 AI function missing')
 
-# Later Beta wrappers retained the original admin AI function under aliases/listeners.
-# Rebind direct onclick hooks where possible, then install one capture-phase guard
-# INSIDE the canonical app closure. The guard stops any retained legacy listener
-# before it can reopen the old bottom sheet.
+# Later Beta wrappers retain older adminAiModal declarations. Never route through
+# that overloaded name. Bind the visible Owner Studio row to the unique 5.0.4
+# function and add one capture guard so retained listeners cannot reopen the old sheet.
 patterns=[
     r"(\$\(\s*['\"]#adminAi['\"]\s*\)\.onclick\s*=\s*)[^;]+;",
     r"(document\.querySelector\(\s*['\"]#adminAi['\"]\s*\)\.onclick\s*=\s*)[^;]+;",
 ]
 count=0
 for pat in patterns:
-    s,n=re.subn(pat, r'\1adminAiModal;', s)
+    s,n=re.subn(pat, r'\1beta504AdminAiModal;', s)
     count+=n
 
 legacy_aliases=[
     'beta491BaseAdminAiModal',
     'beta50BaseAdminAiModal',
     'beta47BaseAdminAiModal',
+    'adminAiModal',
 ]
 for alias in legacy_aliases:
     pat=rf'(\.onclick\s*=\s*){re.escape(alias)}\s*;'
-    s,n=re.subn(pat, r'\1adminAiModal;', s)
+    s,n=re.subn(pat, r'\1beta504AdminAiModal;', s)
     count+=n
 
 anchor=s.find('function aiBrandId(')
@@ -46,11 +48,11 @@ if(!window.__narBeta504OwnerAiRoute){
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
-    adminAiModal();
+    beta504AdminAiModal();
   },true);
 }
 '''
 s=s[:anchor]+guard+s[anchor:]
 
 p.write_text(s)
-print(f'Applied NAR Beta 5.0.4 Owner AI route fix: {count} direct binding(s) plus capture guard')
+print(f'Applied NAR Beta 5.0.4 isolated Owner AI route: {count} direct binding(s) plus capture guard')
