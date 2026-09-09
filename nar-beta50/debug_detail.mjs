@@ -10,6 +10,13 @@ page.setDefaultTimeout(12000);
 await page.setViewport({width:390,height:844,deviceScaleFactor:1});
 await page.goto('http://127.0.0.1:8765/index.html',{waitUntil:'networkidle0'});
 if(await page.$('#enter')){await page.click('#enter');await new Promise(r=>setTimeout(r,150));}
+const funcs=await page.evaluate(()=>({
+ detail:typeof detail==='function'?detail.toString().slice(0,6000):'MISSING',
+ search:typeof search==='function'?search.toString().slice(0,5000):'MISSING',
+ openFlavor:typeof openFlavor==='function'?openFlavor.toString().slice(0,3000):'MISSING',
+ betaOpenFlavor:typeof betaOpenFlavor==='function'?betaOpenFlavor.toString().slice(0,3000):'MISSING'
+}));
+console.log('DETAIL_DEBUG_FUNCTIONS',JSON.stringify(funcs));
 await page.evaluate(()=>{const b=[...document.querySelectorAll('.betaNav button')].find(x=>x.textContent.includes('Search'));b?.click()});
 await new Promise(r=>setTimeout(r,150));
 await page.focus('#q');
