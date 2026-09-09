@@ -70,6 +70,59 @@ The redesigned FRAME concept now has an Android phone mockup sequence covering:
 
 The page sequence is now the working Android mockup structure. Individual page assets were exported for review outside the repository; the canonical branch stores the screen sequence and design decisions.
 
+## 2026-09-09 — Essential Professional selected + Smart Edit expansion
+
+### Visual direction locked
+**Variation 1 — Essential Professional** is the selected FRAME V1 design direction.
+
+Use it as the base for all subsequent Android mockups and implementation. Borrow only limited behavior from other concepts where it improves usability, such as collapsible editing panels for a larger image canvas and guided AI flows inside Smart tools.
+
+### Smart Edit requirements added
+- Highlight Guard always active in Smart mode.
+- Per-channel clipping analysis; never sacrifice important highlight detail for a brighter global exposure.
+- Skin-priority white balance whenever a reliable person/face is detected.
+- Skin-local correction preferred when global WB would damage scene atmosphere.
+- Smart Soft Skin with pore/edge preservation.
+- Smart White Teeth with conservative saturation/luminance limits.
+- Smart Eye Enhance.
+- Smart Pop Person.
+- Smart Pop Building with perspective, facade and sky-aware corrections.
+- Smart Pop Product/Object.
+- Scene classification and ranked preset recommendations.
+- Explainable `Why?` diagnostics.
+- Smart Apply must generate a visible, reversible edit recipe.
+
+### Adaptive preset library V1 added
+Preset families now cover:
+- Natural Clean
+- Cloudy Clean / Cloudy Cinematic
+- Sunny Crisp / Sunny Soft Film
+- Dark Recovery / Night Clean
+- Sunset Natural / Sunset Dream
+- Blue Hour Cinema
+- Magical Church Exterior / Interior
+- Wedding Air / Editorial / Reception
+- Portrait Natural / Editorial / Soft Beauty
+- Street Editorial
+- Architecture Clean / Drama
+- Travel Postcard / Pastel Coast / Rain-Fog Mood
+- Black & White Character / Architecture
+- Editorial Deep
+- Clean E-Shop
+
+### Photographer reference-board rule
+FRAME may study established photographers for general photographic principles such as lighting, tonal restraint, composition, natural skin, atmosphere and geometry. Public preset names remain FRAME-original and must not imply endorsement or exact reproduction.
+
+Initial reference board:
+- José Villa — fine-art wedding light, organic narrative, restrained postproduction.
+- Peter Lindbergh — natural facial texture, portrait restraint, monochrome tonality.
+- Annie Leibovitz — environmental/editorial portrait presence and controlled dramatic lighting.
+- Gregory Crewdson — cinematic lighting, scene hierarchy and atmosphere.
+
+### Repository documents added
+- `docs/SMART_ENGINE.md`
+- `docs/PRESET_LIBRARY.md`
+
 ### Not yet locked
 - exact visual geometry per page
 - exact typography sizes
@@ -81,7 +134,7 @@ The page sequence is now the working Android mockup structure. Individual page a
 - production UI implementation
 
 ### Next milestone
-Review the Android pages one by one, approve or modify each screen, then mark the approved set as **ANDROID MOCKUP LOCK V1**. Only after that should implementation begin.
+Redraw the Android mockups page-by-page using **Essential Professional** as the single visual base and integrate the new Smart layer directly into Presets, Light/Color, Mask, Heal and AI pages. Then approve the set as **ANDROID MOCKUP LOCK V1** before implementation begins.
 
 ### Rule for future sessions
 All new FRAME redesign decisions, mockups and implementation notes should continue under `FRAME-Redesign/` on `frame-redesign-main` until explicitly promoted. Do not replace or erase the existing packaged FRAME source while this redesign is under review.
