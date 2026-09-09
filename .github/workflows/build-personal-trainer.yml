@@ -9,15 +9,17 @@ on:
       - '.github/workflows/build-personal-trainer.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: personal-trainer-main
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -34,24 +36,46 @@ jobs:
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - name: Bundle anatomy and Style 2 cover artwork
+      - name: Bundle local anatomy and Style 2 artwork
         shell: bash
         run: |
           set -euo pipefail
           D=personal-trainer/android-beta/app/src/main/assets/media
           mkdir -p "$D"
-          curl -L --fail --retry 3 -o "$D/v21-pushup.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_4deb921c-44dc-4fa9-8814-b063f9e26e58_min.webp'
-          curl -L --fail --retry 3 -o "$D/v21-incline.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_193aae58-1b4c-4f79-bba2-1b7753a91884_min.webp'
-          curl -L --fail --retry 3 -o "$D/v21-lat.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_7cdaaeb6-2c71-4f4f-96a6-c712a4464756_min.webp'
-          curl -L --fail --retry 3 -o "$D/v21-rdl.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_52beceb0-0575-4124-820d-a5e950cf4194_min.webp'
-          curl -L --fail --retry 3 -o "$D/v21-row.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_bc8f007b-ad22-405c-b9d8-f032cf94463a_min.webp'
-          curl -L --fail --retry 3 -o "$D/v21-goblet.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_765c595a-03f1-4b6f-927f-08172f931e92_min.webp'
-          curl -L --fail --retry 3 -o "$D/v21-legpress.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_eed7ef0a-22f9-4d70-be93-5e64fe6ae883_min.webp'
-          curl -L --fail --retry 3 -o "$D/v21-calf.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_ec8d883c-0199-439c-a0a0-2172b930e127_min.webp'
-          curl -L --fail --retry 3 -o "$D/v21-split.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_7a651802-0f83-4e05-a6df-e7e6cec66270_min.webp'
-          curl -L --fail --retry 3 -o "$D/v21-hamcurl.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_26a33724-ab9b-4cf4-b575-92b752d7428c_min.webp'
-          curl -L --fail --retry 3 -o "$D/style2-cover.jpg" 'https://images.unsplash.com/photo-1530143311094-34d807799e8f?auto=format&fit=crop&w=1080&h=1920&q=82&fm=jpg'
-      - name: Validate Style 2 Beta 2.2 runtime
+          fetch_if_missing() { local out="$1"; local url="$2"; if [ ! -s "$out" ]; then curl -L --fail --retry 3 --retry-delay 2 -o "$out" "$url"; fi; }
+          fetch_if_missing "$D/v21-pushup.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_4deb921c-44dc-4fa9-8814-b063f9e26e58_min.webp'
+          fetch_if_missing "$D/v21-incline.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_193aae58-1b4c-4f79-bba2-1b7753a91884_min.webp'
+          fetch_if_missing "$D/v21-lat.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_7cdaaeb6-2c71-4f4f-96a6-c712a4464756_min.webp'
+          fetch_if_missing "$D/v21-rdl.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_52beceb0-0575-4124-820d-a5e950cf4194_min.webp'
+          fetch_if_missing "$D/v21-row.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_bc8f007b-ad22-405c-b9d8-f032cf94463a_min.webp'
+          fetch_if_missing "$D/v21-goblet.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_765c595a-03f1-4b6f-927f-08172f931e92_min.webp'
+          fetch_if_missing "$D/v21-legpress.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_eed7ef0a-22f9-4d70-be93-5e64fe6ae883_min.webp'
+          fetch_if_missing "$D/v21-calf.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_ec8d883c-0199-439c-a0a0-2172b930e127_min.webp'
+          fetch_if_missing "$D/v21-split.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_7a651802-0f83-4e05-a6df-e7e6cec66270_min.webp'
+          fetch_if_missing "$D/v21-hamcurl.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_26a33724-ab9b-4cf4-b575-92b752d7428c_min.webp'
+          fetch_if_missing "$D/style2-cover.jpg" 'https://images.unsplash.com/photo-1530143311094-34d807799e8f?auto=format&fit=crop&w=1080&h=1920&q=82&fm=jpg'
+          fetch_if_missing "$D/motion-pushup-alt.png" 'https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3-pro-image/images/f36b41a6-20a1-4284-8435-788c4346fa8c/0a18aff9-609f-48e5-b0bf-5063139d06d5/_exercise_same_anatomical_fitness_illustration__same_male_su.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiNDJkZWI2ZDUzNzJhZDliZiIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc4OTA3Mjg1M30.HUlz1H98i8VrjPqNBOAWZd2HUhRRq_Uv_LsGvW9iLoY'
+          fetch_if_missing "$D/motion-incline-alt.jpg" 'https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-lite-image/images/b0d4d45e-72a1-4ee7-b878-ae17b92da4a6/fad99686-28a0-4c1b-ac1a-b4ae9ab18bc8/_exercise_preserve_the_same_hand_drawn_anatomical_male__crea.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiY2FiODBiZDYxZjNhNTRmZSIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc4OTA5NDQ4Nn0.gssbc8bpjLWK5slqJptMqbIND_O604zNijYiG2pgS-0'
+          fetch_if_missing "$D/motion-lat-alt.jpg" 'https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-lite-image/images/b1f261bb-f3d3-42a5-80f6-77dbe4b37a59/99fdf6a7-0175-4196-ac6e-7c5495ad3b42/_exercise_preserve_the_same_anatomical_illustration_style__s.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiNDViODQ2ODE0MDdhNmQxMyIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc4OTEwNjE3N30.LLDgzEjO9nkPmsUC5QmU7e7pseVTdt61ll4lO2QVhSo'
+          fetch_if_missing "$D/motion-rdl-alt.jpg" 'https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-lite-image/images/d3ad649a-3406-4ae5-9228-af8ef0dd0fbe/3d5966a2-62f4-4cd0-9b31-c720900edddc/_exercise_preserve_the_same_anatomical_illustration_style__s.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiNzg3YWM0MDcwNGUxYjY0OSIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc4OTA2ODI5NX0.9PYtr_IsVZFrsC8fWmBPPnXiRi3MyhAKctdvBkrWD04'
+          fetch_if_missing "$D/motion-row-alt.jpg" 'https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-lite-image/images/6365854c-bea2-4e67-bfad-7a8d7cf45d66/ab2f080c-4e02-40a4-95c8-94d41365e468/_exercise_preserve_the_same_hand_drawn_anatomical_male__crea.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiZTg0NzE5Yjg5YWQwNjk3MyIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc4OTA3Mjk1Mn0.gZGaEO1px5IY2fk-NZa1hGI0qADXnSXJOx1hpCddl1c'
+          fetch_if_missing "$D/motion-goblet-alt.jpg" 'https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-lite-image/images/cd79045f-8525-4c69-b5da-a23066c72ce8/bcde16a3-96bf-47f1-9677-3b0e1357b329/_exercise_preserve_the_same_anatomical_illustration_style__s.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiOTJmYmY0MDM3YWUwNjk4ZiIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc4OTEyNzkzOX0.iNOYfOPVGHaqeHtCgK2fjXmIo-VLCe3REMYPP9Fr2Ag'
+          fetch_if_missing "$D/motion-legpress-alt.jpg" 'https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-lite-image/images/2a0e95d6-ebf4-4266-a543-8f666c32ce4e/4536a73c-5adf-40f5-b169-3862ea2d1677/_exercise_preserve_the_same_hand_drawn_anatomical_male__crea.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiNzEzYjAyZjkxZGNjZTYyYSIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc4OTEwMDc5M30.aJSLippKBUSeJqocloyDX8X0FJODwhn22wF0PMAh-64'
+          fetch_if_missing "$D/motion-calf-alt.jpg" 'https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-lite-image/images/3ce541c0-9c57-4161-91b3-0dce3515c96c/781228fe-f1f8-4095-ab51-45450d5d9523/_exercise_preserve_the_same_anatomical_illustration_style__s.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiMzAzZGFhMGIxOTQ5MWEyMCIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc4OTEyMzU5NX0.SfvQbpDeKaEIoHlf7RX3BPURlAOplzXoyfbDaOEDjG0'
+          fetch_if_missing "$D/motion-split-alt.jpg" 'https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-lite-image/images/97364d26-9577-4808-99a0-d3c895351bee/b5441827-072c-47be-9b5f-73305c937608/_exercise_preserve_the_same_anatomical_illustration_style__s.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiN2FjZGIzYWYwY2YzN2FiYiIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc4OTA5MTYzMX0.jmOcYE9D9XPuEGYduETQtK5g7iA6Y3t02Ad_xccpjpE'
+          fetch_if_missing "$D/motion-hamcurl-alt.jpg" 'https://dnznrvs05pmza.cloudfront.net/gemini/gemini-3.1-flash-lite-image/images/51e84b1b-cbb6-432b-abf2-c29cedb5989f/80be4826-bdc0-4406-8947-33cdbb1c36ab/Single_standalone_anatomical_exercise_illustration_on_a_warm.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiOTUyMzQ1YTVkNThlMDc1YSIsImJ1Y2tldCI6InJ1bndheS10YXNrLWFydGlmYWN0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc4OTA1NzU3M30.TWLg3E1uwrb72U9EfPtbqic9o_ELVtM2dBep_-w5OGM'
+      - name: Persist local media in canonical branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "personal-trainer-build"
+          git config user.email "actions@users.noreply.github.com"
+          git add personal-trainer/android-beta/app/src/main/assets/media
+          if ! git diff --cached --quiet; then
+            git commit -m "Bundle Personal Trainer anatomy motion assets"
+            git push origin HEAD:personal-trainer-main
+          fi
+      - name: Validate Style 2 Beta 2.3 runtime
         shell: bash
         run: |
           set -euo pipefail
@@ -63,34 +87,38 @@ jobs:
           test -s "$A/visual-v21.js"
           test -s "$A/style2-v22.css"
           test -s "$A/style2-v22.js"
+          test -s "$A/style2-v23.css"
+          test -s "$A/style2-v23.js"
           test -s "$A/media/style2-cover.jpg"
           node --check "$A/app-v2.js"
           node --check "$A/visual-v21.js"
           node --check "$A/style2-v22.js"
-          grep -q "style2-v22.css" "$A/index2.html"
-          grep -q "style2-v22.js" "$A/index2.html"
+          node --check "$A/style2-v23.js"
+          grep -q "style2-v23.css" "$A/index2.html"
+          grep -q "style2-v23.js" "$A/index2.html"
           grep -q "__PT_BETA2__='ready'" "$A/app-v2.js"
           grep -q "__PT_V21__='anatomy-ui-v21'" "$A/visual-v21.js"
           grep -q "__PT_STYLE2__='minimal-pro-2.2'" "$A/style2-v22.js"
-          grep -q "Marathon" "$A/style2-v22.js"
-          grep -q "Sub 2:30" "$A/style2-v22.js"
-          grep -q "Machines / Cables" "$A/style2-v22.js"
-          grep -q "FrameLayout" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q "__PT_STYLE2__" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q "versionName '2.2-beta'" personal-trainer/android-beta/app/build.gradle
-          for f in v21-pushup v21-incline v21-lat v21-rdl v21-row v21-goblet v21-legpress v21-calf v21-split v21-hamcurl; do test -s "$A/media/$f.webp"; done
+          grep -q "__PT_STYLE23__='motion-ui-2.3'" "$A/style2-v23.js"
+          grep -q "START ↔ END" "$A/style2-v23.js"
+          grep -q "2-WEEK BLOCKS" "$A/style2-v23.js"
+          grep -q "__PT_STYLE23__" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q "versionName '2.3-beta'" personal-trainer/android-beta/app/build.gradle
+          for f in pushup incline lat rdl row goblet legpress calf split hamcurl; do test -s "$A/media/v21-$f.webp"; done
+          test -s "$A/media/motion-pushup-alt.png"
+          for f in incline lat rdl row goblet legpress calf split hamcurl; do test -s "$A/media/motion-$f-alt.jpg"; done
       - name: Build Personal Trainer APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
       - name: Package APK
         shell: bash
         run: |
           mkdir -p release
-          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/Personal-Trainer-Style2-Beta-2.2.apk
+          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/Personal-Trainer-Style2-Beta-2.3.apk
           sha256sum release/*.apk > release/SHA256SUMS.txt
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: PERSONAL-TRAINER-STYLE2-BETA-2.2
+          name: PERSONAL-TRAINER-STYLE2-BETA-2.3
           path: release/*
           if-no-files-found: error
           retention-days: 30
