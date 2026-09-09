@@ -46,7 +46,14 @@ public class MainActivity extends Activity {
 
         WebView.setWebContentsDebuggingEnabled(true);
         webView.addJavascriptInterface(new AndroidBridge(this), "FrameAndroid");
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                String loader = "(function(){var s=document.createElement('script');s.src='file:///android_asset/fixes.js';document.body.appendChild(s);})();";
+                view.evaluateJavascript(loader, null);
+            }
+        });
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
