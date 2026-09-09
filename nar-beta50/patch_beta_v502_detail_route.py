@@ -7,11 +7,10 @@ marker = 'NAR BETA 5.0.2 — SEARCH DETAIL ROUTE FIX'
 if marker in s:
     raise SystemExit('NAR Beta 5.0.2 detail route fix already applied')
 
-# Beta 5.0 Search replaces #results while typing. Some legacy direct card
-# handlers survive on the new cards but are stale and do not open the current
-# five-tab detail view. Route Search result taps through the canonical detail()
-# function at capture time, while leaving ingredient/profile/pairing controls
-# alone. This is intentionally scoped to #results only.
+# Beta 5.0 Search replaces #results while typing. Route result-card taps through
+# the canonical detail() function after the current click dispatch has finished.
+# Deferring by one task avoids stale legacy card/document click handlers from
+# immediately undoing the newly-created full-screen detail modal.
 fix = r'''
 
 /* NAR BETA 5.0.2 — SEARCH DETAIL ROUTE FIX */
@@ -21,9 +20,13 @@ document.addEventListener('click',function(e){
   const card=target.closest('#results [data-open]');
   if(!card)return;
   if(target.closest('[data-profile-key],[data-ingredient],[data-pairing-ref]'))return;
+  const id=card.dataset.open;
   e.preventDefault();
-  e.stopPropagation();
-  detail(card.dataset.open);
+  e.stopImmediatePropagation();
+  setTimeout(function(){
+    try{ detail(id); }
+    catch(err){ console.error('NAR_DETAIL_ROUTE_ERROR',err&&err.stack?err.stack:err); }
+  },0);
 },true);
 '''
 
