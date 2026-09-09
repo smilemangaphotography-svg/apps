@@ -13,6 +13,7 @@ on:
       - 'nar-mix49/**'
       - 'nar-beta/**'
       - 'nar-beta50/**'
+      - 'nar-beta51/**'
       - '.github/workflows/build-nar-mix46.yml'
 
 permissions:
@@ -77,25 +78,26 @@ jobs:
         run: python3 nar-beta50/patch_beta_v507_architecture.py
       - name: Apply NAR Beta 5.0.7 All Brands route guard
         run: python3 nar-beta50/patch_beta_v5071_allbrands_guard.py
-      - name: Validate canonical NAR Beta 5.0.7
+      - name: Apply NAR Beta 5.1.0 owner data and layout foundation
+        run: python3 nar-beta51/patch_beta_v510.py
+      - name: Validate canonical NAR Beta 5.1.0
         run: |
           JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
           CSS=buildsrc/NAR-Mix/app/src/main/assets/app.css
           node --check "$JS"
-          grep -q 'NAR BETA 5.0 — APPROVED 10-SCREEN LOCK' "$JS"
-          grep -q 'NAR BETA 5.0.4 — MOBILE OWNER/AI FIX' "$JS"
-          grep -q 'NAR BETA 5.0.5 — SAFE CONTENT + BULK CHECKLIST' "$JS"
-          grep -q 'NAR BETA 5.0.6 — OPAQUE ANDROID NAV SHELF' "$CSS"
-          grep -q 'NAR BETA 5.0.7 — ROOT NAV + PROFILE ARCHITECTURE' "$JS"
-          grep -q 'NAR BETA 5.0.7 — ROOT NAV + PROFILE ARCHITECTURE' "$CSS"
-          grep -q 'NAR BETA 5.0.7 — ALL BRANDS CAPTURE GUARD' "$JS"
-          grep -q 'nar_beta507_pinned_brands' "$JS"
-          grep -q 'All Brands' "$JS"
-          grep -q 'Creamy' "$JS"
-          grep -q 'nar507RankBar' "$JS"
-          grep -q 'function beta50ShishaStore' "$JS"
+          grep -q 'NAR BETA 5.1.0 — OWNER DATA + LAYOUT FOUNDATION' "$JS"
+          grep -q 'NAR BETA 5.1.0 — OWNER DATA + LAYOUT FOUNDATION' "$CSS"
+          grep -q 'betaActiveLines' "$JS"
+          grep -q 'storeActiveLines' "$JS"
           grep -q 'state.shishaLoveStore' "$JS"
-          grep -q 'ShishaLove is managed separately as a store' "$JS"
+          grep -q 'Tobacco Brands & Subcategories' "$JS"
+          grep -q 'Taste Profiles' "$JS"
+          grep -q 'nar_owner_layout_v1' "$JS"
+          grep -q 'PREVIEW — NOT LIVE' "$JS"
+          grep -q 'Apply these changes to Home?' "$JS"
+          grep -q 'Design & Layout' "$JS"
+          grep -q 'profileChips51' "$JS"
+          grep -q 'flavorIngredients' "$JS"
           grep -q 'function beta50GenerateInspiration' "$JS"
           grep -q 'Expected Taste Profile' "$JS"
           grep -q 'Choose from NĀR Gallery' "$JS"
@@ -111,8 +113,9 @@ jobs:
           grep -q "\['details','mixes','reviews','photos','similar'\]" "$JS"
           grep -q 'function gpt(p)' "$JS"
           grep -q 'function adminFlavorsModal' "$JS"
+          if grep -q "exec(Path('nar-beta51/inspect_v51_state.py').read_text())" nar-beta50/patch_beta_v5071_allbrands_guard.py; then exit 1; fi
           if grep -q "learnTopic=b.dataset.topic;learn(p)" "$JS"; then exit 1; fi
-      - name: Browser regression audit for NAR Beta 5.0.7
+      - name: Browser regression audit for NAR Beta 5.1.0
         run: |
           rm -rf /tmp/nar-ui
           npm install --prefix /tmp/nar-ui puppeteer-core@24.16.0 --silent
@@ -120,11 +123,8 @@ jobs:
           SERVER_PID=$!
           trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
           sleep 1
-          node nar-beta50/debug_state_51.mjs
-          node nar-beta50/debug_detail.mjs
-          node nar-beta50/test_beta50.mjs
           node nar-beta50/test_beta504_mobile_ui.mjs
-          node nar-beta50/test_beta507_architecture.mjs
+          node nar-beta51/test_beta510.mjs
       - name: Build the same NAR Beta APK
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
       - name: Verify package/signing identity and collect Beta APK
@@ -138,10 +138,10 @@ jobs:
           "$AAPT" dump badging "$APK" | tee output/APK_BADGING.txt
           "$APKSIGNER" verify --print-certs "$APK" | tee output/APK_CERT.txt
           grep -q "package: name='com.iliaperformance.narowner2026'" output/APK_BADGING.txt
-          grep -q "versionCode='557'" output/APK_BADGING.txt
-          grep -q "versionName='5.0.7-beta'" output/APK_BADGING.txt
-          cp "$APK" output/NAR-BETA-5.0.7-debug.apk
-          sha256sum output/NAR-BETA-5.0.7-debug.apk > output/SHA256SUMS.txt
+          grep -q "versionCode='560'" output/APK_BADGING.txt
+          grep -q "versionName='5.1.0-beta'" output/APK_BADGING.txt
+          cp "$APK" output/NAR-BETA-5.1.0-debug.apk
+          sha256sum output/NAR-BETA-5.1.0-debug.apk > output/SHA256SUMS.txt
           ls -lh output
       - uses: actions/upload-artifact@v4
         with:
