@@ -71,6 +71,8 @@ jobs:
         run: python3 nar-beta50/patch_beta_v504_ai_route.py
       - name: Apply NAR Beta 5.0.5 safe content and bulk checklist
         run: python3 nar-beta50/patch_beta_v505_safe_bulk.py
+      - name: Apply NAR Beta 5.0.6 opaque Android navigation shelf
+        run: python3 nar-beta50/patch_beta_v506_opaque_nav.py
       - name: Validate canonical NAR Beta 5.0
         run: |
           JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
@@ -85,6 +87,7 @@ jobs:
           grep -q 'NAR BETA 5.0.4 — OWNER AI ROUTE FIX' "$JS"
           grep -q 'NAR BETA 5.0.5 — SAFE CONTENT + BULK CHECKLIST' "$JS"
           grep -q 'NAR BETA 5.0.5 — SAFE CONTENT + BULK CHECKLIST' "$CSS"
+          grep -q 'NAR BETA 5.0.6 — OPAQUE ANDROID NAV SHELF' "$CSS"
           grep -q 'beta505BulkControls' "$JS"
           grep -q 'beta505BottomSpacer' "$JS"
           grep -q 'function beta50ShishaStore' "$JS"
@@ -123,6 +126,7 @@ jobs:
           node nar-beta50/test_beta50.mjs
           node nar-beta50/test_beta504_mobile_ui.mjs
           node nar-beta50/test_beta505_safe_bulk.mjs
+          node nar-beta50/test_beta506_opaque_nav.mjs
       - name: Build the same NAR Beta APK
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
       - name: Verify package/signing identity and collect Beta APK
@@ -136,10 +140,10 @@ jobs:
           "$AAPT" dump badging "$APK" | tee output/APK_BADGING.txt
           "$APKSIGNER" verify --print-certs "$APK" | tee output/APK_CERT.txt
           grep -q "package: name='com.iliaperformance.narowner2026'" output/APK_BADGING.txt
-          grep -q "versionCode='555'" output/APK_BADGING.txt
-          grep -q "versionName='5.0.5-beta'" output/APK_BADGING.txt
-          cp "$APK" output/NAR-BETA-5.0.5-debug.apk
-          sha256sum output/NAR-BETA-5.0.5-debug.apk > output/SHA256SUMS.txt
+          grep -q "versionCode='556'" output/APK_BADGING.txt
+          grep -q "versionName='5.0.6-beta'" output/APK_BADGING.txt
+          cp "$APK" output/NAR-BETA-5.0.6-debug.apk
+          sha256sum output/NAR-BETA-5.0.6-debug.apk > output/SHA256SUMS.txt
           ls -lh output
       - uses: actions/upload-artifact@v4
         with:
