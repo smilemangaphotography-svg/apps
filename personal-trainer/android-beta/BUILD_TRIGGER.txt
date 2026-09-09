@@ -1,1 +1,2 @@
-Personal Trainer Android Beta 1.2 build trigger.
+Personal Trainer diagnostic rebuild after Style 2 lock — 2026-09-09.
+This triggers the existing Beta 2.1 Android pipeline for verification only; it is not a Style 2 release.
