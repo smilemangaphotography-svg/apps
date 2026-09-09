@@ -35,11 +35,17 @@ jobs:
       - name: Validate Beta 0.9 settings
         working-directory: work-schedule
         run: python3 beta9_validate.py
+      - name: Apply Beta 0.10 interaction fix
+        working-directory: work-schedule
+        run: python3 beta10_patch.py
+      - name: Validate Beta 0.10
+        working-directory: work-schedule
+        run: python3 beta10_validate.py
       - name: Build debug APK
         working-directory: work-schedule
         run: gradle :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: Work-Schedule-Beta-0.9-Settings-Fix-APK
+          name: Work-Schedule-Beta-0.10-Logo-Only-Settings-APK
           path: work-schedule/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
