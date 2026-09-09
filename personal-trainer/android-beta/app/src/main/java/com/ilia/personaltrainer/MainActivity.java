@@ -109,10 +109,10 @@ public class MainActivity extends Activity {
             @Override public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 view.evaluateJavascript(
-                    "(function(){return [(window.__PT_BETA2__||'missing'),(window.__PT_STYLE2__||'missing'),(window.__PT_STYLE25__||'missing')].join('|');})()",
+                    "(function(){return [(window.__PT_BETA2__||'missing'),(window.__PT_STYLE25__||'missing'),(window.__PT_STYLE26__||'missing')].join('|');})()",
                     value -> {
                         if (value == null || value.contains("missing")) {
-                            Toast.makeText(MainActivity.this, "Personal Trainer Beta 2.5 runtime failed to initialize", Toast.LENGTH_LONG).show();
+                            Toast.makeText(MainActivity.this, "Personal Trainer Beta 2.6 runtime failed to initialize", Toast.LENGTH_LONG).show();
                         }
                     }
                 );
