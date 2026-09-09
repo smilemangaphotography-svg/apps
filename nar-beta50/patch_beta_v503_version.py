@@ -1,24 +1,58 @@
 from pathlib import Path
 import re
 
-app = Path('buildsrc/NAR-Mix/app')
-candidates = [app / 'build.gradle', app / 'build.gradle.kts']
-files = [p for p in candidates if p.exists()]
+root = Path('buildsrc/NAR-Mix')
+if not root.exists():
+    raise SystemExit('Extracted NAR project not found')
+
+# The canonical source/earlier patches may express Android version metadata in
+# Gradle or the manifest. Search only Android build metadata files and update
+# the existing version string in place; package/application identity is not touched.
+files = []
+for pattern in ('**/build.gradle', '**/build.gradle.kts', '**/AndroidManifest.xml'):
+    files.extend(root.glob(pattern))
+files = list(dict.fromkeys(files))
 if not files:
-    raise SystemExit('NAR app Gradle file not found')
+    raise SystemExit('NAR Android metadata files not found')
 
 changed = False
+found_version = False
 for p in files:
-    s = p.read_text()
+    try:
+        s = p.read_text()
+    except UnicodeDecodeError:
+        continue
     original = s
-    # Keep one canonical package/install lineage while making the visible Beta
-    # version agree with the tested release name.
-    s = re.sub(r'(?m)^(\s*versionCode\s*[= ]\s*)\d+', r'\g<1>550', s)
-    s = re.sub(r'(?m)^(\s*versionName\s*[= ]\s*)["\'][^"\']*["\']', r'\g<1>"5.0.0-beta"', s)
+
+    # Groovy/Kotlin DSL forms: versionName "x", versionName 'x', versionName = "x".
+    s, n1 = re.subn(
+        r'(?m)(\bversionName\s*(?:=\s*)?)["\'][^"\']+["\']',
+        r'\g<1>"5.0.0-beta"',
+        s,
+    )
+    # Manifest form: android:versionName="x".
+    s, n2 = re.subn(
+        r'(android:versionName\s*=\s*)["\'][^"\']+["\']',
+        r'\g<1>"5.0.0-beta"',
+        s,
+    )
+    # Fallback for the known prior Beta string if a plugin generated unusual syntax.
+    if '4.9.1-beta' in s:
+        s = s.replace('4.9.1-beta', '5.0.0-beta')
+        n1 += 1
+
+    # Preserve/increment canonical install lineage to versionCode 550.
+    s, _ = re.subn(r'(?m)(\bversionCode\s*(?:=\s*)?)\d+', r'\g<1>550', s)
+    s, _ = re.subn(r'(android:versionCode\s*=\s*)["\']\d+["\']', r'\g<1>"550"', s)
+
+    if '5.0.0-beta' in s:
+        found_version = True
     if s != original:
         p.write_text(s)
         changed = True
+        print(f'Updated Beta version metadata in {p}')
 
-if not changed:
-    raise SystemExit('NAR Beta version metadata hook not found')
-print('Applied NAR Beta 5.0.3 version metadata: versionCode 550, versionName 5.0.0-beta')
+if not found_version:
+    raise SystemExit('NAR Beta versionName metadata hook not found')
+
+print('Applied NAR Beta 5.0.3 metadata: versionCode 550, versionName 5.0.0-beta' + (' (updated)' if changed else ' (already correct)'))
