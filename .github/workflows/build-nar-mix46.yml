@@ -75,6 +75,8 @@ jobs:
         run: python3 nar-beta50/patch_beta_v506_opaque_nav.py
       - name: Apply NAR Beta 5.0.7 root navigation and profile architecture
         run: python3 nar-beta50/patch_beta_v507_architecture.py
+      - name: Apply NAR Beta 5.0.7 All Brands route guard
+        run: python3 nar-beta50/patch_beta_v5071_allbrands_guard.py
       - name: Validate canonical NAR Beta 5.0.7
         run: |
           JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
@@ -86,6 +88,7 @@ jobs:
           grep -q 'NAR BETA 5.0.6 — OPAQUE ANDROID NAV SHELF' "$CSS"
           grep -q 'NAR BETA 5.0.7 — ROOT NAV + PROFILE ARCHITECTURE' "$JS"
           grep -q 'NAR BETA 5.0.7 — ROOT NAV + PROFILE ARCHITECTURE' "$CSS"
+          grep -q 'NAR BETA 5.0.7 — ALL BRANDS CAPTURE GUARD' "$JS"
           grep -q 'nar_beta507_pinned_brands' "$JS"
           grep -q 'All Brands' "$JS"
           grep -q 'Creamy' "$JS"
