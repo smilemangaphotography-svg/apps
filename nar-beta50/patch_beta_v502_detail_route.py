@@ -7,11 +7,11 @@ marker = 'NAR BETA 5.0.2 — SEARCH DETAIL ROUTE FIX'
 if marker in s:
     raise SystemExit('NAR Beta 5.0.2 detail route fix already applied')
 
-# The Beta 5.0 Search renderer replaces #results while the user types.  The
-# rendered cards keep data-open but the final renderer does not always rebind
-# the direct card handler after that replacement.  Use a narrowly-scoped
-# delegated route for Search results only.  If a direct handler is present,
-# leave it in control so other canonical screens are unchanged.
+# Beta 5.0 Search replaces #results while typing. Some legacy direct card
+# handlers survive on the new cards but are stale and do not open the current
+# five-tab detail view. Route Search result taps through the canonical detail()
+# function at capture time, while leaving ingredient/profile/pairing controls
+# alone. This is intentionally scoped to #results only.
 fix = r'''
 
 /* NAR BETA 5.0.2 — SEARCH DETAIL ROUTE FIX */
@@ -21,8 +21,8 @@ document.addEventListener('click',function(e){
   const card=target.closest('#results [data-open]');
   if(!card)return;
   if(target.closest('[data-profile-key],[data-ingredient],[data-pairing-ref]'))return;
-  if(typeof card.onclick==='function')return;
   e.preventDefault();
+  e.stopPropagation();
   detail(card.dataset.open);
 },true);
 '''
