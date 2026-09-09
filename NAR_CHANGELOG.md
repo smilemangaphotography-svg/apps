@@ -10,6 +10,29 @@ This file separates **verified Git history** from **requested/pending work**. A 
 
 ## Canonical updates after baseline
 
+### 2026-09-09 — NĀR Beta 5.0.7 — root navigation + profile architecture
+
+**Successful build head `ebdb84aa2bd08e7bd253e10e536b74a0783307ea` — canonical Beta 5.0.7 build on `nar-main`**
+- Continued the same permanent NĀR application only. No replacement app, package, data lineage, or alternate development branch was used for the release.
+- Preserved Android package `com.iliaperformance.narowner2026`, app label `NĀR Mix`, local app-data lineage, and the established owner signing certificate.
+- Home now shows exactly three pinned active tobacco brands/lines by default and supports 3–6 Home pins through a dedicated **All Brands** page. Public `Edit` was removed from Home; brand/line activation remains an Owner Studio function through the top-right `⋮` control.
+- Reworked the six bottom destinations as root navigation targets so Home / Search / Store / Mix / Gallery / My NĀR close an open transient detail/modal before switching instead of requiring Android Back to escape a previously stacked page.
+- Lowered the NĀR top bar for safer physical-device spacing below the Android status/camera area.
+- Replaced the excessive 5.0.6 bottom-content spacer with a bounded navigation clearance while retaining the opaque Android-safe NĀR navigation shelf.
+- Owner/Admin context hides the six public root tabs and uses a focused full-screen management context to prevent background-page interaction while editing.
+- Visible catalog normalization now prefers English/Latin labels such as `Baza`, `Severny`, `Sarma`, `Main`, `Classic`, and `Lighter`; original non-Latin names may remain internally for matching/search rather than being shown in the main UI.
+- Tobacco brand pages now expose **All / Sweet / Sour / Cooling / Creamy / Rating** ranking controls.
+- Flavor cards expose Sweet, Sour, Cooling and Creamy profile values and receive a dominant-profile outline: Sweet berry/red, Sour green, Cooling blue, Creamy beige, balanced gold. Labels and numeric values remain visible so color is never the only signal.
+- Where the existing catalog has no explicit Creamy value, this Beta uses a conservative descriptor-based inferred value for presentation/ranking. These inferred values are not manufacturer or HTReviews scores and should be replaced by verified/owner-managed data during the catalog audit.
+- Preserved ShishaLove as a separate store rather than a tobacco manufacturer, NĀR Gallery persistence, Flavor Detail five-tab contract, Search focus behavior, Mix Builder/Expected Taste Profile/Inspiration, NĀR AI secure-endpoint architecture, and the Check all / Uncheck all flavor activation controls.
+- The first two 5.0.7 regression attempts (runs #67 and #69) correctly rejected an `All Brands` modal route that conflicted with a retained legacy Home handler. Neither failed run produced a release APK. `All Brands` was then converted to a normal root-safe NĀR page and the regression contract was updated.
+- Canonical GitHub Actions **run #71** (`34386406400`) completed successfully: all sequential patches, static validation, legacy Beta regressions, the new 5.0.7 architecture regression, Android compilation, package/version/signature verification, and artifact upload passed.
+- Verified release metadata: `versionCode 557`, `versionName 5.0.7-beta`, package `com.iliaperformance.narowner2026`.
+- Workflow artifact: `NAR-BETA-APK`; artifact digest: `sha256:d6f0fc6bff461d6103003fcedb2016b81fa14fa70714f7bd6093e2d788a92e2c`.
+- Built APK: `NAR-BETA-5.0.7-debug.apk`; APK SHA-256: `6d462446cb4fa1bffd843e46fa9f010d3f16b486781b5694972e2a821af51000`.
+- Verified signer certificate SHA-256: `4d7cd06f969d9c4b1e3e361440544a27dc187a125851655aa45796453d50c3a8`.
+- Known limitation: Beta 5.0.7 completes the requested UI/navigation/profile architecture, but it does **not** yet claim an exhaustive current-manufacturer catalog synchronization for every tobacco brand/line/flavor. Official-site active/discontinued verification and sourced community-rating import remain a separate data-audit pass.
+
 ### 2026-09-09 — NĀR Beta 5.0 — automated Beta gate passed
 
 **Successful build head `1fdeaed3b304ea1b1118556716148861ec04a3b8` — canonical Beta 5.0 build on `nar-main`**
@@ -172,7 +195,7 @@ This file separates **verified Git history** from **requested/pending work**. A 
 - Added build pipeline for NĀR 4.5 Owner + AI.
 - Validated NĀR UI, GPT/AI hooks, My NĀR and catalog integration before producing the APK.
 
-**`b0020005e74015a3ee6bcfa53a5bb53ad784972f` — Add NAR Mix 4.5 approved UI, Owner AI scan/chat and My NAR save flow**
+**`b0020005e74015c3ee6bcfa53a5bb53ad784972f` — Add NAR Mix 4.5 approved UI, Owner AI scan/chat and My NAR save flow**
 - Switched the app to the advanced offline NĀR database/app assets.
 - Updated the NĀR header and bottom navigation.
 - Navigation included Home, Search, Mix, GPT, Learn and My NĀR with owner-controlled visibility.
@@ -191,11 +214,13 @@ This file separates **verified Git history** from **requested/pending work**. A 
 
 These requirements continue only by updating `nar-main`.
 
-- Perform a physical-device Beta test of launch-cover recurrence, Android safe areas, camera/gallery picker behavior, NĀR Gallery persistence, Store/ShishaLove editing, Mix Inspiration interactions, and update-over-existing-app installation.
+- Perform a physical-device Beta test of launch-cover recurrence, Android safe areas, camera/gallery picker behavior, NĀR Gallery persistence, Store/ShishaLove editing, Mix Inspiration interactions, root-tab page replacement, Home pin persistence, and update-over-existing-app installation.
+- Perform an exhaustive current official-manufacturer catalog audit for every supported brand/line/flavor, excluding products verified as discontinued; keep source and last-checked metadata.
+- Add/verify sourced community aggregate ratings (for example HTReviews where appropriate) separately from NĀR Sweet/Sour/Cooling/Creamy profile values; do not copy individual review text or misrepresent inferred profile values as official ratings.
+- Replace inferred Creamy values with verified or Owner-managed values as source data becomes available.
 - Configure and test a real secure HTTPS OpenAI backend for NĀR AI if live recognition/chat is required; never embed an OpenAI secret in the APK and do not attempt to attach a consumer ChatGPT subscription directly.
 - Continue replacing inaccurate/fake Learn bowl/tobacco visuals with accurate, owned/permitted, or appropriately created photographic assets for Killer, Phunnel, Quasar, heat, packing, cooling, and technique.
 - Perform on-device comparison against the approved visual reference and correct remaining spacing, image crop, typography, and physical-device rendering differences incrementally.
-- Expand/correct catalog content as needed while preserving the 4.9 functional relationship model.
 - Preserve owner/admin ability to edit content, images, brands/lines, flavor data and store visibility.
 - Any future correction must modify the canonical app rather than creating another NĀR build line.
 
