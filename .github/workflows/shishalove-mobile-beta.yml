@@ -1,0 +1,56 @@
+name: Build ShishaLove Mobile Beta
+
+on:
+  push:
+    branches:
+      - shishalove-mobile-beta
+    paths:
+      - 'shishalove-mobile/**'
+      - '.github/workflows/shishalove-mobile-beta.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: |
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build both beta APKs
+        working-directory: shishalove-mobile
+        run: gradle :customer:assembleDebug :merchant:assembleDebug --stacktrace
+
+      - name: Collect APKs
+        run: |
+          mkdir -p dist
+          cp shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk dist/ShishaLove-Customer-Beta.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/ShishaLove-Merchant-Beta.apk
+          sha256sum dist/*.apk > dist/SHA256SUMS.txt
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-mobile-beta-apks
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
