@@ -1,4 +1,4 @@
-name: Build Work Schedule Beta
+name: Build Work Schedule Final
 
 on:
   push:
@@ -41,11 +41,24 @@ jobs:
       - name: Validate Beta 0.10
         working-directory: work-schedule
         run: python3 beta10_validate.py
-      - name: Build debug APK
+      - name: Apply Final 1.0 production patch
         working-directory: work-schedule
-        run: gradle :app:assembleDebug --stacktrace
+        run: python3 final1_patch.py
+      - name: Validate Final 1.0
+        working-directory: work-schedule
+        run: python3 final1_validate.py
+      - name: Build final APKs
+        working-directory: work-schedule
+        run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
+      - name: Prepare final artifacts
+        working-directory: work-schedule
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk Work-Schedule-1.0.0-install.apk
+          cp app/build/outputs/apk/release/app-release-unsigned.apk Work-Schedule-1.0.0-release-unsigned.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Work-Schedule-Beta-0.10-Logo-Only-Settings-APK
-          path: work-schedule/app/build/outputs/apk/debug/app-debug.apk
+          name: Work-Schedule-Final-1.0.0
+          path: |
+            work-schedule/Work-Schedule-1.0.0-install.apk
+            work-schedule/Work-Schedule-1.0.0-release-unsigned.apk
           if-no-files-found: error
