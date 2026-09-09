@@ -123,19 +123,6 @@ Initial reference board:
 - `docs/SMART_ENGINE.md`
 - `docs/PRESET_LIBRARY.md`
 
-### Not yet locked
-- exact visual geometry per page
-- exact typography sizes
-- exact icon set
-- exact accent color
-- final image-to-toolbar proportions
-- final Android safe-area spacing
-- final Light/Color/Mask/Heal control density
-- production UI implementation
-
-### Next milestone
-Redraw the Android mockups page-by-page using **Essential Professional** as the single visual base and integrate the new Smart layer directly into Presets, Light/Color, Mask, Heal and AI pages. Then approve the set as **ANDROID MOCKUP LOCK V1** before implementation begins.
-
 ## 2026-09-09 — Smart Android mockup revision V2
 
 The Android mockup set was revised around the locked Essential Professional direction and the Smart Edit requirements.
@@ -155,8 +142,6 @@ The Android mockup set was revised around the locked Essential Professional dire
 
 ### Mockup status
 **SMART ANDROID MOCKUP V2: DRAFTED**
-
-This revision is the current visual reference for the next review. It is not yet the implementation lock; each page still needs individual approval before beta implementation.
 
 ## 2026-09-09 — Smart Workflow V2 refinement
 
@@ -181,21 +166,78 @@ The next refinement pass was accepted conceptually and documented in `docs/SMART
 - Preset catalog gains search and subject/occasion filters.
 - Optional My Style learning may personalize future recommendations while remaining visible and resettable.
 
+## 2026-09-09 — Live canvas correction lock
+
+User review identified that Presets and Light mockups hid the photograph and that Before/After should not be permanently visible.
+
+### Locked correction
+- Presets, Light and Color always retain a live image canvas.
+- Slider/preset changes must visibly update the image immediately.
+- Pressing/holding the image reveals the original.
+- Side-by-side Before/After is OFF by default and appears only after the user taps Compare.
+- Leaving Compare restores the normal single live canvas.
+
+## 2026-09-09 — FRAME Redesign Beta 0.1.0 built
+
+### Source lineage
+- Canonical branch: `frame-redesign-main`
+- Source folder: `FRAME-Redesign/beta/`
+- Existing packaged `FRAME-Studio` remains untouched.
+- Separate test package allows side-by-side installation with the existing app.
+
+### Verified Android identity
+- Application ID: `com.ilia.frame.redesignbeta.debug`
+- Version: `0.1.0-beta1-debug`
+- Version code: `1`
+- Compile / target SDK: `35`
+- Minimum SDK: `26`
+
+### CI verification
+GitHub Actions workflow `Build FRAME Redesign Beta` completed successfully:
+- Android compilation passed.
+- APK identity verification passed.
+- APK artifact collection passed.
+- SHA-256 generation passed.
+- Artifact upload passed.
+
+### Implemented testable beta behavior
+- Android photo picker import.
+- Essential Professional dark editor shell.
+- Always-visible live canvas in Presets / Light / Color.
+- Live pixel adjustments for core Light and Color controls.
+- Highlight Guard.
+- Skin Priority color heuristic.
+- Adaptive preset families.
+- Local technical analysis and ranked Smart recommendations.
+- Optional user-confirmed scene context.
+- Smart Recipe Preview / Apply Selected.
+- Smart Portrait adjustable strengths.
+- Smart Architecture beta control.
+- Manual brush mask + local exposure.
+- Beta Heal / Remove patch operation.
+- Undo / redo hardening.
+- Press-for-original.
+- Optional side-by-side Compare only when requested.
+- WYSIWYG JPEG export to `Pictures/FRAME Beta`.
+
+### Explicit beta limitations
+This build does NOT claim the following are production-complete:
+- semantic cloud/GPT vision scene detection
+- segmentation-grade face/eye/teeth detection
+- semantic person/building masks
+- real perspective/vertical geometry correction
+- RAW/color-managed render pipeline
+- full-resolution export
+- production content-aware removal
+- production denoise / edge-aware sharpening
+
+Beta 0.1.0 exports the exact live preview (up to ~1200 px long edge) so the saved JPEG matches what the user saw. High-resolution non-destructive rendering is the next engine milestone after interaction testing.
+
 ### Current product status
 **VISUAL BASE: LOCKED — ESSENTIAL PROFESSIONAL**
 **SMART WORKFLOW V2: SPECIFIED**
-**ANDROID SMART MOCKUPS: REVISION REQUIRED**
+**LIVE CANVAS BEHAVIOR: LOCKED**
+**ANDROID BETA 0.1.0: BUILT + CI VERIFIED**
 
-### Immediate next milestone
-Redraw the key Android Smart screens to reflect Workflow V2:
-1. Editor with protection/detection chips
-2. Smart Analyze with confidence detections
-3. Ranked preset recommendations with reasons
-4. Smart Portrait with strength sliders
-5. Smart Architecture
-6. Smart Wedding
-7. Recipe Preview
-8. GPT Rate V2
-9. Compare
-
-After review, freeze them as the Smart interaction lock before implementation.
+### Next milestone
+Install Beta 0.1.0 on the Samsung test phone and run the real-device regression sequence documented in `FRAME-Redesign/beta/README.md`. Fix observed interaction/rendering defects in the same canonical branch before advancing to Beta 0.2.0.
