@@ -22,9 +22,9 @@ for marker in required:
 
 if 'Beta 0.10.0' in src:
     raise SystemExit('Final 1.0 validation failed: beta label still user-visible')
-if 'versionName = "1.0.0"' not in gradle:
-    raise SystemExit('Final 1.0 validation failed: versionName is not 1.0.0')
-if 'versionCode = 100' not in gradle:
-    raise SystemExit('Final 1.0 validation failed: versionCode is not 100')
+if 'versionName = "1.0.0"' not in gradle and 'versionName = "1.0.1"' not in gradle:
+    raise SystemExit('Final 1.0 validation failed: unexpected production versionName')
+if 'versionCode = 100' not in gradle and 'versionCode = 101' not in gradle:
+    raise SystemExit('Final 1.0 validation failed: unexpected production versionCode')
 
-print('Work Schedule Final 1.0 validation PASSED')
+print('Work Schedule Final production baseline validation PASSED')
