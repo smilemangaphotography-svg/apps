@@ -90,13 +90,28 @@ jobs:
           grep -q 'function adminFlavorsModal' "$JS"
           grep -q 'function bowlData(k)' "$JS"
           if grep -q "learnTopic=b.dataset.topic;learn(p)" "$JS"; then exit 1; fi
+      - name: Browser regression audit for all Beta 5.0 screens
+        run: |
+          rm -rf /tmp/nar-ui
+          npm install --prefix /tmp/nar-ui puppeteer-core@24.16.0 --silent
+          python3 -m http.server 8765 --directory buildsrc/NAR-Mix/app/src/main/assets >/tmp/nar-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          sleep 1
+          node nar-beta50/test_beta50.mjs
       - name: Build the same NAR Beta APK
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
-      - name: Verify package identity and collect Beta APK
+      - name: Verify package/signing identity and collect Beta APK
         run: |
           APK=buildsrc/NAR-Mix/app/build/outputs/apk/debug/app-debug.apk
-          aapt dump badging "$APK" | grep "package: name='com.iliaperformance.narowner2026'"
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          test -x "$AAPT"
+          test -x "$APKSIGNER"
           mkdir -p output
+          "$AAPT" dump badging "$APK" | tee output/APK_BADGING.txt
+          "$APKSIGNER" verify --print-certs "$APK" | tee output/APK_CERT.txt
+          grep -q "package: name='com.iliaperformance.narowner2026'" output/APK_BADGING.txt
           cp "$APK" output/NAR-BETA-5.0-debug.apk
           sha256sum output/NAR-BETA-5.0-debug.apk > output/SHA256SUMS.txt
           ls -lh output
