@@ -25,6 +25,6 @@ jobs:
         run: gradle :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
-          name: Work-Schedule-Beta-0.5-APK
+          name: Work-Schedule-Beta-0.6-APK
           path: work-schedule/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
