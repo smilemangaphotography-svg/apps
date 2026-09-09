@@ -13,14 +13,17 @@ css = css_path.read_text()
 JS_MARK = 'NAR BETA 5.0.4 — MOBILE OWNER/AI FIX'
 CSS_MARK = 'NAR BETA 5.0.4 — MOBILE OWNER/AI FIX'
 
+# adminAiModal lives inside the canonical app closure. Replace it in-place rather
+# than appending a global override, otherwise WebView/browser scope cannot see it.
 if JS_MARK not in js:
-    js += r'''
-
-/* NAR BETA 5.0.4 — MOBILE OWNER/AI FIX */
-const beta504BaseAdminAiModal = adminAiModal;
-adminAiModal = function(){
+    start = js.find('function adminAiModal(){')
+    end = js.find('function aiBrandId(', start)
+    if start < 0 or end < 0:
+        raise SystemExit('Canonical adminAiModal hook not found')
+    replacement = r'''/* NAR BETA 5.0.4 — MOBILE OWNER/AI FIX */
+function adminAiModal(){
   ensureAiState();
-  const ready = !!(state.admin.aiEndpoint || '').trim();
+  const ready=!!((state.admin.aiEndpoint||'').trim());
   modal(`<div class="sheethead beta504AiHead"><button id="aiAdminBack" class="backbtn">← Owner Studio</button><span>NĀR AI</span></div>
     <div class="aiAdminHero beta504AiHero">
       <div class="beta504AiStatus ${ready?'ready':'setup'}"><i></i>${ready?'BACKEND CONFIGURED':'NOT CONNECTED'}</div>
@@ -62,8 +65,9 @@ adminAiModal = function(){
       toast(r.answer||r.message?'AI connection works':'Endpoint responded');
     }catch(e){toast(e.message)}finally{b.disabled=false;b.textContent='Test connection'}
   };
-};
+}
 '''
+    js = js[:start] + replacement + js[end:]
 
 if CSS_MARK not in css:
     css += r'''
