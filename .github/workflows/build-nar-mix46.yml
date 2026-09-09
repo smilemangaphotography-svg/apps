@@ -67,6 +67,8 @@ jobs:
         run: python3 nar-beta50/patch_beta_v503_version.py
       - name: Apply NAR Beta 5.0.4 mobile Owner/AI fix
         run: python3 nar-beta50/patch_beta_v504_mobile_ui.py
+      - name: Apply NAR Beta 5.0.4 Owner AI route fix
+        run: python3 nar-beta50/patch_beta_v504_ai_route.py
       - name: Validate canonical NAR Beta 5.0
         run: |
           JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
@@ -78,6 +80,7 @@ jobs:
           grep -q 'NAR BETA 5.0.2 — SEARCH DETAIL ROUTE FIX' "$JS"
           grep -q 'NAR BETA 5.0.4 — MOBILE OWNER/AI FIX' "$JS"
           grep -q 'NAR BETA 5.0.4 — MOBILE OWNER/AI FIX' "$CSS"
+          grep -q 'NAR BETA 5.0.4 — OWNER AI ROUTE FIX' "$JS"
           grep -q 'function beta50ShishaStore' "$JS"
           grep -q 'state.shishaLoveStore' "$JS"
           grep -q 'ShishaLove Store' "$JS"
