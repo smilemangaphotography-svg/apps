@@ -26,7 +26,7 @@ if(!safe.spacer) throw new Error('Bottom clearance spacer missing');
 if(safe.spacerH<180) throw new Error('Bottom clearance spacer too small '+JSON.stringify(safe));
 if(safe.paddingBottom<180) throw new Error('Page bottom padding too small '+JSON.stringify(safe));
 
-// Exercise the actual Tobacco Store setup path and verify bulk controls if flavor checklist is available.
+// Exercise the actual Tobacco Store setup path and verify the flavor checklist controls.
 await page.click('.betaAdminDots');await wait(120);
 const clickedSetup=await page.evaluate(()=>{
   const b=[...document.querySelectorAll('#modal button')].find(x=>/Tobacco Store setup/i.test(x.innerText||''));
@@ -35,33 +35,41 @@ const clickedSetup=await page.evaluate(()=>{
 if(!clickedSetup) throw new Error('Tobacco Store setup button missing');
 await wait(140);
 
-// Pick DARKSIDE, then Core, using visible user labels.
+// DARKSIDE can open its only active line (Core) directly. If a line chooser is shown,
+// follow Core explicitly; both are valid real-user paths.
 let clicked=await page.evaluate(()=>{
   const b=[...document.querySelectorAll('#modal button')].find(x=>/DARKSIDE/i.test((x.innerText||'').trim()));
   if(!b)return false;b.click();return true;
 });
 if(!clicked) throw new Error('DARKSIDE setup entry missing');
-await wait(140);
-clicked=await page.evaluate(()=>{
-  const b=[...document.querySelectorAll('#modal button')].find(x=>/^Core(?:\s|$)/i.test((x.innerText||'').trim()));
-  if(!b)return false;b.click();return true;
-});
-if(!clicked) throw new Error('Core setup entry missing');
 await wait(180);
+
+let atChecklist=await page.evaluate(()=>/Only checked flavors appear in this Tobacco Store subcategory/i.test(document.querySelector('#modal')?.innerText||''));
+if(!atChecklist){
+  clicked=await page.evaluate(()=>{
+    const nodes=[...document.querySelectorAll('#modal button,#modal [role="button"],#modal [data-line],#modal [data-store-line]')];
+    const b=nodes.find(x=>/^Core(?:\s|$)/i.test((x.innerText||x.textContent||'').trim()));
+    if(!b)return false;b.click();return true;
+  });
+  if(!clicked) throw new Error('Core line chooser missing and checklist did not open');
+  await wait(180);
+  atChecklist=await page.evaluate(()=>/Only checked flavors appear in this Tobacco Store subcategory/i.test(document.querySelector('#modal')?.innerText||''));
+}
+if(!atChecklist) throw new Error('Flavor checklist screen did not open');
 
 const bulk=await page.evaluate(()=>({
   helper:/Only checked flavors appear in this Tobacco Store subcategory/i.test(document.querySelector('#modal')?.innerText||''),
   controls:[...document.querySelectorAll('.beta505BulkControls button')].map(b=>b.textContent.trim()),
   count:document.querySelectorAll('#modal input[type="checkbox"]').length
 }));
-if(!bulk.helper) throw new Error('Flavor checklist screen did not open');
+if(!bulk.helper) throw new Error('Flavor checklist helper missing');
 if(bulk.count<2) throw new Error('Flavor checklist unexpectedly empty');
 if(JSON.stringify(bulk.controls)!==JSON.stringify(['✓ Check all','□ Uncheck all'])) throw new Error('Bulk checklist controls missing '+JSON.stringify(bulk));
 
-await page.click('[data-bulk-check="all"]');await wait(120);
+await page.click('[data-bulk-check="all"]');await wait(150);
 let state=await page.$$eval('#modal input[type="checkbox"]',xs=>xs.filter(x=>!x.disabled).every(x=>x.checked));
 if(!state) throw new Error('Check all did not activate every flavor');
-await page.click('[data-bulk-check="none"]');await wait(120);
+await page.click('[data-bulk-check="none"]');await wait(150);
 state=await page.$$eval('#modal input[type="checkbox"]',xs=>xs.filter(x=>!x.disabled).every(x=>!x.checked));
 if(!state) throw new Error('Uncheck all did not clear every flavor');
 
