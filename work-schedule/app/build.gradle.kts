@@ -12,8 +12,8 @@ android {
         applicationId = "com.ilia.workschedule"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.7.0-beta"
+        versionCode = 8
+        versionName = "0.8.0-beta"
     }
 
     buildTypes {
