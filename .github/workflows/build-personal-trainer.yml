@@ -122,7 +122,9 @@ jobs:
           set -euo pipefail
           APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
-          aapt dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='25' versionName='2.5-beta'"
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          test -x "$AAPT"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='25' versionName='2.5-beta'"
           unzip -l "$APK" | grep -q 'assets/style2-v25.js'
           unzip -l "$APK" | grep -q 'assets/pt-v25-core.js'
           unzip -l "$APK" | grep -q 'assets/media/motion-machinepress-loop.mp4'
