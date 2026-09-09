@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 root=Path('buildsrc/NAR-Mix/app')
 js_path=root/'src/main/assets/app.js'
@@ -65,3 +66,20 @@ if MARK not in js:
 '''
 js_path.write_text(js)
 print('Applied NAR Beta 5.0.7 All Brands full-page route guard')
+
+# Temporary 5.1 diagnostic: print compact source contexts for the true
+# tobacco-line/store state model. This changes no application behavior.
+s=js_path.read_text()
+print('NAR_51_SOURCE_INSPECT_START')
+terms=['activeLines','active lines','Tobacco Store setup','state.shishaLoveStore','shishaLoveStore','beta50Store','adminStore','storeMeta','activeBrands','subcategories','Only checked flavors','state.admin']
+for term in terms:
+    print('\n=== TERM',term,'===')
+    for m in list(re.finditer(re.escape(term),s,re.I))[:8]:
+        a=max(0,m.start()-450); b=min(len(s),m.end()+900)
+        print(s[a:b].replace('\r',''))
+        print('\n---')
+props=sorted(set(re.findall(r'\bstate\.([A-Za-z_$][A-Za-z0-9_$]*)',s)))
+print('\nSTATE_PROPERTIES',props)
+funcs=sorted(set(re.findall(r'function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(',s)))
+print('\nSTORE_ADMIN_FUNCTIONS',[f for f in funcs if re.search(r'store|brand|line|shisha|admin|owner|flavor',f,re.I)])
+print('NAR_51_SOURCE_INSPECT_END')
