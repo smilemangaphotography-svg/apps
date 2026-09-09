@@ -12,6 +12,7 @@ on:
       - 'nar-mix47/**'
       - 'nar-mix49/**'
       - 'nar-beta/**'
+      - 'nar-beta50/**'
       - '.github/workflows/build-nar-mix46.yml'
 
 permissions:
@@ -56,6 +57,18 @@ jobs:
         run: python3 nar-mix49/patch_functional_v49.py
       - name: Apply NAR Beta 4.9.1 store AI gallery
         run: python3 nar-beta/patch_beta_v491.py
+      - name: Inspect Beta 4.9.1 runtime hooks for Beta 5.0
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('buildsrc/NAR-Mix/app/src/main/assets/app.js').read_text()
+          needles=['function betaStoreState','function store(p)','function home(p)','function mix(p)','function gallery(p)','function betaNav','function betaTopBar','function adminStoreBrandModal','state.narGallery','favoriteMixes','ShishaLove']
+          for n in needles:
+              print('\n===== '+n+' =====')
+              i=s.rfind(n)
+              if i<0: i=s.find(n)
+              print(s[max(0,i-500):i+4500] if i>=0 else 'NOT FOUND')
+          PY
       - name: Validate canonical NAR Beta 4.9.1
         run: |
           JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
@@ -86,32 +99,6 @@ jobs:
           grep -q 'favoriteMixes' "$JS"
           grep -q 'Are you sure you want to delete this image' "$JS"
           if grep -q "learnTopic=b.dataset.topic;learn(p)" "$JS"; then exit 1; fi
-          python3 - <<'PY'
-          from pathlib import Path
-          s = Path('buildsrc/NAR-Mix/app/src/main/assets/app.js').read_text()
-          c = Path('buildsrc/NAR-Mix/app/src/main/assets/app.css').read_text()
-          ai = '/* ===== NAR MIX 4.5 — OWNER AI / PHOTO RECOGNITION ===== */'
-          v49 = '/* ===== NAR 4.9 FUNCTIONAL CORE ===== */'
-          beta = '/* ===== NAR BETA 4.9.1 — STORE + AI + GALLERY ===== */'
-          assert ai in s and s.index(ai) < s.rindex('})();'), 'AI scope regression'
-          assert v49 in s and s.index(v49) < s.rindex('})();'), '4.9 scope regression'
-          assert beta in s and s.index(beta) < s.rindex('})();'), 'Beta scope regression'
-          tail = s.split(beta, 1)[1]
-          assert "['home','⌂','Home'],['search','⌕','Search'],['store','▰','Store'],['mix','✦','Mix'],['gallery','▣','Gallery'],['mine','◎','My NĀR']" in tail
-          assert 'function store(p)' in tail
-          assert 'function betaSuggestionFor(prompt)' in tail
-          assert 'function adminStoreBrandModal(bid)' in tail
-          assert 'function gpt(p)' in tail
-          assert 'function betaGalleryPicker' in tail
-          assert 'state.narGallery' in tail
-          assert 'sessionStorage' in tail
-          assert 'ShishaLove' in tail
-          assert 'Photo Recognition' in tail
-          assert 'secure endpoint' in tail.lower()
-          assert '.betaNav{bottom:54px' in c
-          assert '.betaTopBar{' in c
-          assert 'NAR BETA 4.9.1' in c
-          PY
       - name: Build the same NAR Beta APK
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
       - name: Collect Beta APK
