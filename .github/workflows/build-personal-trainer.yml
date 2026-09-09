@@ -34,33 +34,53 @@ jobs:
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - name: Validate Beta 2.0 UI runtime
+      - name: Bundle Beta 2.1 anatomy artwork
         shell: bash
         run: |
-          test -s personal-trainer/android-beta/app/src/main/assets/index2.html
-          test -s personal-trainer/android-beta/app/src/main/assets/app-v2.css
-          test -s personal-trainer/android-beta/app/src/main/assets/app-v2.js
-          node --check personal-trainer/android-beta/app/src/main/assets/app-v2.js
-          grep -q "app-v2.css" personal-trainer/android-beta/app/src/main/assets/index2.html
-          grep -q "app-v2.js" personal-trainer/android-beta/app/src/main/assets/index2.html
-          grep -q "__PT_BETA2__='ready'" personal-trainer/android-beta/app/src/main/assets/app-v2.js
-          grep -q "index2.html" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q "versionName '2.0-beta'" personal-trainer/android-beta/app/build.gradle
-          test -s personal-trainer/android-beta/app/src/main/assets/media/goblet.webp
-          test -s personal-trainer/android-beta/app/src/main/assets/media/legpress.webp
-          ! grep -q "cdn.jsdelivr.net" personal-trainer/android-beta/app/src/main/assets/index2.html
+          set -euo pipefail
+          D=personal-trainer/android-beta/app/src/main/assets/media
+          mkdir -p "$D"
+          curl -L --fail --retry 3 -o "$D/v21-pushup.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_4deb921c-44dc-4fa9-8814-b063f9e26e58_min.webp'
+          curl -L --fail --retry 3 -o "$D/v21-incline.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_193aae58-1b4c-4f79-bba2-1b7753a91884_min.webp'
+          curl -L --fail --retry 3 -o "$D/v21-lat.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_7cdaaeb6-2c71-4f4f-96a6-c712a4464756_min.webp'
+          curl -L --fail --retry 3 -o "$D/v21-rdl.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_52beceb0-0575-4124-820d-a5e950cf4194_min.webp'
+          curl -L --fail --retry 3 -o "$D/v21-row.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_bc8f007b-ad22-405c-b9d8-f032cf94463a_min.webp'
+          curl -L --fail --retry 3 -o "$D/v21-goblet.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011423_765c595a-03f1-4b6f-927f-08172f931e92_min.webp'
+          curl -L --fail --retry 3 -o "$D/v21-legpress.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_eed7ef0a-22f9-4d70-be93-5e64fe6ae883_min.webp'
+          curl -L --fail --retry 3 -o "$D/v21-calf.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_ec8d883c-0199-439c-a0a0-2172b930e127_min.webp'
+          curl -L --fail --retry 3 -o "$D/v21-split.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_7a651802-0f83-4e05-a6df-e7e6cec66270_min.webp'
+          curl -L --fail --retry 3 -o "$D/v21-hamcurl.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_26a33724-ab9b-4cf4-b575-92b752d7428c_min.webp'
+      - name: Validate Beta 2.1 visual runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          A=personal-trainer/android-beta/app/src/main/assets
+          test -s "$A/index2.html"
+          test -s "$A/app-v2.css"
+          test -s "$A/app-v2.js"
+          test -s "$A/visual-v21.css"
+          test -s "$A/visual-v21.js"
+          node --check "$A/app-v2.js"
+          node --check "$A/visual-v21.js"
+          grep -q "visual-v21.css" "$A/index2.html"
+          grep -q "visual-v21.js" "$A/index2.html"
+          grep -q "__PT_BETA2__='ready'" "$A/app-v2.js"
+          grep -q "__PT_V21__='anatomy-ui-v21'" "$A/visual-v21.js"
+          grep -q "FrameLayout" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q "versionName '2.1-beta'" personal-trainer/android-beta/app/build.gradle
+          for f in v21-pushup v21-incline v21-lat v21-rdl v21-row v21-goblet v21-legpress v21-calf v21-split v21-hamcurl; do test -s "$A/media/$f.webp"; done
       - name: Build Personal Trainer APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
       - name: Package APK
         shell: bash
         run: |
           mkdir -p release
-          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/Personal-Trainer-Beta-2.0.apk
+          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/Personal-Trainer-Beta-2.1.apk
           sha256sum release/*.apk > release/SHA256SUMS.txt
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: PERSONAL-TRAINER-BETA-2.0
+          name: PERSONAL-TRAINER-BETA-2.1
           path: release/*
           if-no-files-found: error
           retention-days: 30
