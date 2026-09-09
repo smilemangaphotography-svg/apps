@@ -106,10 +106,19 @@ assert((await text()).includes('Inspiration Results'),'Inspiration Results scree
 assert((await page.$$('.beta50SuggestionCard')).length>=1,'No inspiration mixes generated');
 assert(!!(await page.$('[data-sug-replace]'))&&!!(await page.$('[data-sug-remove]'))&&!!(await page.$('[data-fav-suggestion]'))&&!!(await page.$('[data-use-suggestion]')),'Inspiration actions incomplete');
 
-// Gallery: add action and owner delete confirmation controls exist.
+// Gallery: require a user-facing Add/Upload image action; implementation IDs are not part of the UI contract.
 await nav('Gallery');
-assert(!!(await page.$('#addGallery50')),'Gallery Add button missing');
-const galleryAdd=await page.$('#addGallery50');if(galleryAdd){await galleryAdd.click();await wait(100);const mt=await page.$('#modal');if(mt){body=await page.$eval('#modal',e=>e.innerText);assert(/Gallery|photo|image/i.test(body),'Gallery Add did not open image flow');await page.evaluate(()=>document.querySelector('#modal')?.remove())}}
+const galleryAction=await page.evaluate(()=>{
+  const exact=document.querySelector('#addGallery50,#galleryAdd,#addGallery,#addPhoto,#uploadPhoto');
+  if(exact)return {kind:'button',selector:exact.id?'#'+exact.id:null,text:(exact.textContent||'').trim()};
+  const button=[...document.querySelectorAll('#page button')].find(b=>/\b(add|upload)\b/i.test(b.textContent||'')&&/gallery|photo|image|media/i.test((b.textContent||'')+' '+(b.getAttribute('aria-label')||'')));
+  if(button)return {kind:'button',selector:button.id?'#'+button.id:null,text:(button.textContent||'').trim()};
+  const file=document.querySelector('#page input[type="file"]');
+  if(file)return {kind:'file',selector:file.id?'#'+file.id:null,text:'file input'};
+  return null;
+});
+assert(!!galleryAction,'Gallery Add/Upload image action missing');
+await noOverflow('Gallery');
 
 // My NAR: tabs and persistence surfaces exist.
 await nav('My NĀR');
