@@ -10,6 +10,39 @@ This file separates **verified Git history** from **requested/pending work**. A 
 
 ## Canonical updates after baseline
 
+### 2026-09-09 — NĀR Beta 4.9.1 — Store + AI + Gallery
+
+**Successful build head `80a00cd329163a24d89e19717fdb2bafc89dc698` — canonical Beta build on `nar-main`**
+- Continued the same permanent NĀR application, Android package, storage/signing lineage, and `nar-main` branch. No replacement app was created.
+- Restored a dedicated NĀR launch/cover experience for each fresh app/WebView session before entering Home.
+- Reworked the internal Android-safe header so NĀR sits on the left, `HOOKAH KNOWLEDGE · MIXOLOGY` is centered, and the three-dot Owner/Admin control is on the right below the Android status/camera area.
+- Raised the NĀR bottom navigation above Android system navigation (`bottom:54px`) to avoid interference with the device Home/Back controls.
+- Beta navigation is focused to Home, Search, Store, Mix, Gallery, and My NĀR.
+- Simplified Home by removing Curated Flavors, Focused Brands, My Flavors, Learn bowls, and Orange Team verdict quick tiles; Home now prioritizes active tobacco lines, favorite flavors, Tobacco Store, and AI access.
+- Search keeps the typed query and live results while removing the unnecessary horizontal brand-chip strip beneath the search field.
+- Added a dedicated **Tobacco Store** screen with round Instagram-style brand avatars/logos, active-line subcategories, active flavors, favorites, and Owner-editable store metadata.
+- Added **ShishaLove** as a full Store brand rather than a decorative shortcut. Owner Studio can edit its logo/text, create ShishaLove subcategories/tobacco lines, activate lines, and add/associate flavors under those lines.
+- Added Owner Studio → Tobacco Store setup and per-brand management, including subcategory/tobacco-line controls and logo editing hooks.
+- Reworked Build Your Mix into a focused Beta builder with live **Expected Taste Profile** output based on the selected flavor profiles.
+- Added **Inspiration** input: the user can describe a target such as tropical + subtle sourness + cooling and receive a suggested mix from the local NĀR flavor/profile data.
+- Inspiration suggestions support Favorite/star, Replace, and Remove actions so unavailable suggested flavors can be substituted without rebuilding the entire mix.
+- Added favorite-mix persistence for starred inspiration mixes.
+- Added a dedicated **NĀR Gallery** capable of storing multiple imported images as app-owned copies in NĀR storage. These copies remain available inside NĀR even if the original phone image is later deleted.
+- NĀR Gallery deletion always presents an `Are you sure you want to delete this image?` confirmation before removing the NĀR copy.
+- Added NĀR Gallery pickers so existing stored images can be reused from inside the app instead of reopening the phone gallery every time.
+- Learn/Killer Bowl Beta presentation now supports a photo-based hero and **Choose from NĀR Gallery** image replacement rather than relying only on the old vector/master-chef illustration path.
+- Added a dedicated visible **Recognize with NĀR AI** / Photo Recognition entry point and NĀR Gallery image selection on the AI screen.
+- AI setup explicitly reports **SETUP REQUIRED** when no endpoint exists instead of pretending recognition is connected.
+- Owner Studio retains secure HTTPS endpoint configuration for AI recognition/chat and includes a connection-test path.
+- Important integration rule: a consumer ChatGPT/Plus account cannot be attached directly to this custom APK. Live photo recognition/chat becomes active when Owner Studio → NĀR AI is configured with a secure HTTPS backend that calls the OpenAI API server-side; no OpenAI secret is embedded in the APK.
+- Preserved existing flavor catalog, 4.9 ingredient/profile relationships, owner edits, saved flavors/mixes, custom photos, local-storage identity, and canonical update lineage.
+- Local interaction/responsive testing passed at 360×780, 390×844, 412×915, 430×932, and 480×900 for cover, Android-safe top/bottom navigation, simplified Home, focus-safe Search, Tobacco Store/ShishaLove subcategories, Mix taste/inspiration interactions, NĀR Gallery, AI setup states, and Learn gallery-image replacement.
+- Beta patch loader/payload chain is stored under `nar-beta/**`; the loader was changed to reconstruct the verified payload from four integrity-safe parts after an earlier single-file payload produced a gzip CRC failure. The failed run did not produce an APK and was not treated as complete.
+- Canonical GitHub Actions **run #16** (`34298905322`) completed successfully. Beta patch application, JavaScript/regression validation, Android compilation, APK collection, and artifact upload all passed.
+- Workflow artifact: `NAR-BETA-APK`; artifact digest: `sha256:fc1da906386aa007cceb5389526b615bd80e0ee0d0a09d6030727ec90dcdd022`.
+- Built APK: `NAR-BETA-4.9.1-debug.apk`; APK SHA-256: `8147b1d990395d05a47d38fef9c1a5b181b7317944d6575c5bf0fcc139a2e586`.
+- Beta limitation: the AI frontend and secure endpoint workflow are present, but a real production OpenAI recognition/chat backend is not yet configured in the repository or APK. Physical-device camera/gallery behavior and final photographic fidelity should still be tested on the user's Android phone before Final.
+
 ### 2026-09-09 — NĀR 4.9 Functional Core
 
 **Build commit `6ee3b4e2fda4ffcd455cdc54b52903aa501622de` — Build NAR 4.9 functional core on canonical app**
@@ -35,7 +68,6 @@ This file separates **verified Git history** from **requested/pending work**. A 
 - Canonical GitHub Actions run #10 completed successfully. The workflow applied the full 4.5 → 4.6 → canonical nav → 4.7 mockup → 4.8 audit → 4.9 Functional Core chain, passed JavaScript/regression validation, built the same Android APK, and uploaded the canonical artifact.
 - Workflow artifact: `NAR-CANONICAL-APK`; artifact digest: `sha256:4d31002da7640fe08ce351357e3bbd646bb9bfd0498c2b53e8fc5f88f3057a5e`.
 - Built APK: `NAR-CANONICAL-debug.apk`; APK SHA-256: `b460cd0fff6f1caaab170a8b6e30c3e5e32f21cd071a84678f380066d404be26`.
-- Pending next milestone: **NĀR 4.9.1 Real Learn Content**. Replace weak/fake bowl and tobacco visuals with accurate real-world/owned-or-permitted photographic assets and rebuild the Learn detail presentation while keeping this same canonical application.
 
 ### 2026-09-09 — NĀR 4.7 approved 10-screen mockup lock
 
@@ -130,12 +162,13 @@ This file separates **verified Git history** from **requested/pending work**. A 
 
 These requirements continue only by updating `nar-main`.
 
-- **NĀR 4.9.1 Real Learn Content:** replace inaccurate/fake Master Chef bowl/tobacco graphics with accurate real-world visual material using owned, permitted, or appropriately created assets; make Learn detail pages visually trustworthy for Killer, Phunnel, Quasar, heat, packing, cooling, and technique.
-- Perform on-device comparison against the approved 10-screen reference and correct any remaining spacing, image crop, typography, or physical-device rendering differences incrementally.
+- Perform a physical-device Beta test of launch-cover recurrence, Android safe areas, camera/gallery picker behavior, NĀR Gallery persistence, Store/ShishaLove editing, Mix Inspiration interactions, and update-over-existing-app installation.
+- Configure and test a real secure HTTPS OpenAI backend for NĀR AI if live recognition/chat is required; never embed an OpenAI secret in the APK and do not attempt to attach a consumer ChatGPT subscription directly.
+- Continue replacing inaccurate/fake Learn bowl/tobacco visuals with accurate, owned/permitted, or appropriately created photographic assets for Killer, Phunnel, Quasar, heat, packing, cooling, and technique.
+- Perform on-device comparison against the approved visual reference and correct remaining spacing, image crop, typography, and physical-device rendering differences incrementally.
 - Expand/correct catalog content as needed while preserving the 4.9 functional relationship model.
-- Preserve owner/admin ability to edit content, images, brands/lines, flavor data and layout visibility.
-- Preserve the approved NĀR visual direction while applying future revisions incrementally.
-- Any future bowl/anatomy or content correction must modify the canonical app rather than creating another NĀR build line.
+- Preserve owner/admin ability to edit content, images, brands/lines, flavor data and store visibility.
+- Any future correction must modify the canonical app rather than creating another NĀR build line.
 
 ## Status rule
 
