@@ -95,10 +95,14 @@ public class MainActivity extends Activity {
         fileCallback = null;
     }
 
+    private void exitApp() {
+        super.onBackPressed();
+    }
+
     @Override
     public void onBackPressed() {
         if (webView == null) {
-            super.onBackPressed();
+            exitApp();
             return;
         }
         String js = "(function(){var a=document.querySelector('.screen.active');" +
@@ -108,7 +112,7 @@ public class MainActivity extends Activity {
                 "if(a&&a.id==='onboarding'){document.querySelector('#onboarding [data-go=\"library\"]').click();return 'handled';}" +
                 "return 'exit';})()";
         webView.evaluateJavascript(js, value -> {
-            if (value == null || value.contains("exit")) MainActivity.super.onBackPressed();
+            if (value == null || value.contains("exit")) exitApp();
         });
     }
 
