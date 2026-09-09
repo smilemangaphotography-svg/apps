@@ -52,6 +52,7 @@ public class MainActivity extends Activity {
         configureWebView();
 
         if (savedInstanceState == null) {
+            webView.clearCache(true);
             webView.loadUrl(START_URL);
         } else {
             webView.restoreState(savedInstanceState);
@@ -70,7 +71,8 @@ public class MainActivity extends Activity {
         settings.setDisplayZoomControls(false);
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchantBeta/0.1");
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchantBeta/0.3");
 
         CookieManager cookieManager = CookieManager.getInstance();
         cookieManager.setAcceptCookie(true);
@@ -92,6 +94,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                CookieManager.getInstance().flush();
                 progressBar.setVisibility(View.GONE);
             }
         });
@@ -177,6 +180,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         if (webView != null) {
+            CookieManager.getInstance().flush();
             webView.stopLoading();
             webView.destroy();
         }
