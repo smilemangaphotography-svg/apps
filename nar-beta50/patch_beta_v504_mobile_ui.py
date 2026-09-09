@@ -160,23 +160,47 @@ if CSS_MARK not in css:
 js_path.write_text(js)
 css_path.write_text(css)
 
-# Bump install version so this Beta reliably updates the already-installed 5.0.0 Beta.
-gradle_files = [root / 'build.gradle', root / 'build.gradle.kts']
-changed_version = False
-for p in gradle_files:
-    if not p.exists():
+# Bump install version after the 5.0.3 patch. Mirror the robust metadata search
+# used by v503 because this project can express version fields in several Gradle forms.
+project_root = Path('buildsrc/NAR-Mix')
+metadata_files = []
+for pattern in ('**/build.gradle', '**/build.gradle.kts', '**/AndroidManifest.xml'):
+    metadata_files.extend(project_root.glob(pattern))
+metadata_files = list(dict.fromkeys(metadata_files))
+if not metadata_files:
+    raise SystemExit('NAR Android metadata files not found')
+
+found_version = False
+for p in metadata_files:
+    try:
+        s = p.read_text()
+    except UnicodeDecodeError:
         continue
-    s = p.read_text()
     original = s
-    s = re.sub(r'(?m)^(\s*versionCode\s*=\s*)\d+', r'\g<1>554', s)
-    s = re.sub(r'(?m)^(\s*versionCode\s+)\d+', r'\g<1>554', s)
-    s = re.sub(r'(?m)^(\s*versionName\s*=\s*)["\'][^"\']*["\']', r'\g<1>"5.0.4-beta"', s)
-    s = re.sub(r'(?m)^(\s*versionName\s+)["\'][^"\']*["\']', r'\g<1>"5.0.4-beta"', s)
+
+    s, _ = re.subn(
+        r'(?m)(\bversionName\s*(?:=\s*)?)["\'][^"\']+["\']',
+        r'\g<1>"5.0.4-beta"',
+        s,
+    )
+    s, _ = re.subn(
+        r'(android:versionName\s*=\s*)["\'][^"\']+["\']',
+        r'\g<1>"5.0.4-beta"',
+        s,
+    )
+    if '5.0.0-beta' in s:
+        s = s.replace('5.0.0-beta', '5.0.4-beta')
+
+    s, _ = re.subn(r'(?m)(\bversionCode\s*(?:=\s*)?)\d+', r'\g<1>554', s)
+    s, _ = re.subn(r'(android:versionCode\s*=\s*)["\']\d+["\']', r'\g<1>"554"', s)
+
+    if '5.0.4-beta' in s:
+        found_version = True
     if s != original:
         p.write_text(s)
-        changed_version = True
+        print(f'Updated Beta 5.0.4 metadata in {p}')
 
-if not changed_version:
-    raise SystemExit('Could not bump NAR Beta 5.0.4 version metadata')
+if not found_version:
+    raise SystemExit('NAR Beta 5.0.4 versionName metadata hook not found')
 
-print('Applied NAR Beta 5.0.4 mobile Owner Studio + AI layout fixes and versionCode 554')
+print('Applied NAR Beta 5.0.4 mobile Owner Studio + AI layout fixes; versionCode 554, versionName 5.0.4-beta')
