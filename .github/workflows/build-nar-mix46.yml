@@ -63,6 +63,8 @@ jobs:
         run: python3 nar-beta50/patch_beta_v501_safe_nav.py
       - name: Apply NAR Beta 5.0.2 Search detail route fix
         run: python3 nar-beta50/patch_beta_v502_detail_route.py
+      - name: Apply NAR Beta 5.0.3 version metadata
+        run: python3 nar-beta50/patch_beta_v503_version.py
       - name: Validate canonical NAR Beta 5.0
         run: |
           JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
@@ -119,6 +121,8 @@ jobs:
           "$AAPT" dump badging "$APK" | tee output/APK_BADGING.txt
           "$APKSIGNER" verify --print-certs "$APK" | tee output/APK_CERT.txt
           grep -q "package: name='com.iliaperformance.narowner2026'" output/APK_BADGING.txt
+          grep -q "versionCode='550'" output/APK_BADGING.txt
+          grep -q "versionName='5.0.0-beta'" output/APK_BADGING.txt
           cp "$APK" output/NAR-BETA-5.0-debug.apk
           sha256sum output/NAR-BETA-5.0-debug.apk > output/SHA256SUMS.txt
           ls -lh output
