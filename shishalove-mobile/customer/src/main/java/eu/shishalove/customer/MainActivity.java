@@ -10,6 +10,7 @@ import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -19,7 +20,8 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=064";
+    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=070";
+    private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7101;
 
     private WebView webView;
@@ -34,26 +36,22 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(Color.WHITE);
 
         webView = new WebView(this);
-        FrameLayout.LayoutParams webParams = new FrameLayout.LayoutParams(
+        root.addView(webView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
-        );
-        root.addView(webView, webParams);
+        ));
 
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(100);
-        FrameLayout.LayoutParams progressParams = new FrameLayout.LayoutParams(
+        root.addView(progressBar, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 8
-        );
-        root.addView(progressBar, progressParams);
+        ));
 
         setContentView(root);
         configureWebView();
 
-        // Beta builds intentionally bypass stale WebView page assets while the
-        // WordPress customer app is changing quickly. Production can restore
-        // normal caching after the UI/API contract is locked.
+        // Beta builds intentionally bypass stale WordPress/WebView assets.
         webView.clearCache(true);
 
         if (savedInstanceState == null) {
@@ -66,6 +64,8 @@ public class MainActivity extends Activity {
     private void configureWebView() {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
+        settings.setJavaScriptCanOpenWindowsAutomatically(false);
+        settings.setSupportMultipleWindows(false);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
         settings.setLoadWithOverviewMode(false);
@@ -76,7 +76,7 @@ public class MainActivity extends Activity {
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomerBeta/0.2");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomerBeta/0.3");
 
         CookieManager cookieManager = CookieManager.getInstance();
         cookieManager.setAcceptCookie(true);
@@ -101,6 +101,14 @@ public class MainActivity extends Activity {
                 progressBar.setVisibility(View.GONE);
                 CookieManager.getInstance().flush();
             }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                if (request.isForMainFrame()) {
+                    Toast.makeText(MainActivity.this, "Unable to reach ShishaLove. Check your connection and try again.", Toast.LENGTH_LONG).show();
+                }
+            }
         });
 
         webView.setWebChromeClient(new WebChromeClient() {
@@ -116,9 +124,7 @@ public class MainActivity extends Activity {
                     ValueCallback<Uri[]> filePathCallbackNew,
                     FileChooserParams fileChooserParams
             ) {
-                if (filePathCallback != null) {
-                    filePathCallback.onReceiveValue(null);
-                }
+                if (filePathCallback != null) filePathCallback.onReceiveValue(null);
                 filePathCallback = filePathCallbackNew;
 
                 Intent intent;
@@ -146,7 +152,16 @@ public class MainActivity extends Activity {
         if (uri == null || uri.getScheme() == null) return false;
         String scheme = uri.getScheme().toLowerCase();
         if ("http".equals(scheme) || "https".equals(scheme)) {
-            return false;
+            String host = uri.getHost();
+            if (host != null && (SHOP_HOST.equalsIgnoreCase(host) || ("www." + SHOP_HOST).equalsIgnoreCase(host))) {
+                return false;
+            }
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                return true;
+            } catch (Exception ignored) {
+                return false;
+            }
         }
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, uri));
@@ -174,16 +189,14 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
-        }
+        if (webView != null && webView.canGoBack()) webView.goBack();
+        else super.onBackPressed();
     }
 
     @Override
     protected void onDestroy() {
         if (webView != null) {
+            CookieManager.getInstance().flush();
             webView.stopLoading();
             webView.destroy();
         }
