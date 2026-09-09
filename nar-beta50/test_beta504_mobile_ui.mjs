@@ -21,7 +21,10 @@ const owner=await page.evaluate(()=>{
   });
   const nav=document.querySelector('.ownerStudioFull .pixelNarNav');
   const pageWidth=window.innerWidth;
-  return {extras,navDisplay:nav?getComputedStyle(nav).display:'missing',pageWidth,docWidth:document.documentElement.scrollWidth};
+  const buttons=[...document.querySelectorAll('#modal button')].filter(b=>{
+    const r=b.getBoundingClientRect();return r.width>0&&r.height>0;
+  }).map(b=>({id:b.id,text:b.innerText.trim()}));
+  return {extras,navDisplay:nav?getComputedStyle(nav).display:'missing',pageWidth,docWidth:document.documentElement.scrollWidth,buttons};
 });
 if(owner.extras.length!==2) throw new Error('Owner Studio extension cards missing');
 for(const c of owner.extras){
@@ -32,16 +35,29 @@ for(const c of owner.extras){
 if(owner.navDisplay!=='none') throw new Error('Main navigation should be hidden in focused Owner Studio');
 if(owner.docWidth>owner.pageWidth+2) throw new Error('Owner Studio horizontal overflow');
 
-// AI setup is a full Owner Studio sub-page with compact, non-wrapping actions.
-await page.click('#adminAi');await wait(120);
+// Click the visible Owner Studio backend row by meaning, not an inherited internal ID.
+const aiTarget=await page.evaluate(()=>{
+  const candidates=[...document.querySelectorAll('#modal button')].filter(b=>{
+    const r=b.getBoundingClientRect();
+    const t=(b.innerText||'').replace(/\s+/g,' ').trim();
+    return r.width>0&&r.height>0&&(/ChatGPT backend/i.test(t)||/NĀR AI/i.test(t));
+  });
+  const b=candidates[0];
+  if(!b)return null;
+  const out={id:b.id,text:(b.innerText||'').replace(/\s+/g,' ').trim()};
+  b.click();
+  return out;
+});
+if(!aiTarget) throw new Error('Visible Owner Studio AI/backend row not found '+JSON.stringify(owner.buttons));
+await wait(160);
 const ai=await page.evaluate(()=>{
   const modal=document.querySelector('#modal');
   const sheet=document.querySelector('#modal .sheet');
   const actions=[...document.querySelectorAll('.beta504AiActions button')].map(b=>({text:b.textContent.trim(),w:b.getBoundingClientRect().width,h:b.getBoundingClientRect().height,scrollH:b.scrollHeight,clientH:b.clientHeight}));
   const r=sheet?.getBoundingClientRect();
-  return {classes:modal?.className||'',sheet:r?{left:r.left,right:r.right,top:r.top,bottom:r.bottom}:null,actions,docWidth:document.documentElement.scrollWidth,w:window.innerWidth,h:window.innerHeight,status:document.querySelector('.beta504AiStatus')?.textContent.trim()||''};
+  return {classes:modal?.className||'',text:(modal?.innerText||'').slice(0,260),sheet:r?{left:r.left,right:r.right,top:r.top,bottom:r.bottom}:null,actions,docWidth:document.documentElement.scrollWidth,w:window.innerWidth,h:window.innerHeight,status:document.querySelector('.beta504AiStatus')?.textContent.trim()||''};
 });
-if(!ai.classes.includes('aiAdminFull')||!ai.classes.includes('narFullModal')) throw new Error('AI setup is not a full Owner Studio page');
+if(!ai.classes.includes('aiAdminFull')||!ai.classes.includes('narFullModal')) throw new Error('AI setup is not a full Owner Studio page; target='+JSON.stringify(aiTarget)+' state='+JSON.stringify(ai));
 if(!ai.sheet||ai.sheet.left<0||ai.sheet.right>ai.w+1||ai.sheet.top<0||ai.sheet.bottom>ai.h+1) throw new Error('AI page outside viewport '+JSON.stringify(ai.sheet));
 if(ai.actions.length!==2) throw new Error('AI actions missing');
 for(const b of ai.actions){if(b.scrollH>b.clientH+2) throw new Error('AI action label wraps/clips '+JSON.stringify(b));}
