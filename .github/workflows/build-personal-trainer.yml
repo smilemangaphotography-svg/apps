@@ -34,7 +34,7 @@ jobs:
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - name: Bundle Beta 2.1 anatomy artwork
+      - name: Bundle anatomy and Style 2 cover artwork
         shell: bash
         run: |
           set -euo pipefail
@@ -50,7 +50,8 @@ jobs:
           curl -L --fail --retry 3 -o "$D/v21-calf.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_ec8d883c-0199-439c-a0a0-2172b930e127_min.webp'
           curl -L --fail --retry 3 -o "$D/v21-split.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_7a651802-0f83-4e05-a6df-e7e6cec66270_min.webp'
           curl -L --fail --retry 3 -o "$D/v21-hamcurl.webp" 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_011612_26a33724-ab9b-4cf4-b575-92b752d7428c_min.webp'
-      - name: Validate Beta 2.1 visual runtime
+          curl -L --fail --retry 3 -o "$D/style2-cover.jpg" 'https://images.unsplash.com/photo-1530143311094-34d807799e8f?auto=format&fit=crop&w=1080&h=1920&q=82&fm=jpg'
+      - name: Validate Style 2 Beta 2.2 runtime
         shell: bash
         run: |
           set -euo pipefail
@@ -60,14 +61,23 @@ jobs:
           test -s "$A/app-v2.js"
           test -s "$A/visual-v21.css"
           test -s "$A/visual-v21.js"
+          test -s "$A/style2-v22.css"
+          test -s "$A/style2-v22.js"
+          test -s "$A/media/style2-cover.jpg"
           node --check "$A/app-v2.js"
           node --check "$A/visual-v21.js"
-          grep -q "visual-v21.css" "$A/index2.html"
-          grep -q "visual-v21.js" "$A/index2.html"
+          node --check "$A/style2-v22.js"
+          grep -q "style2-v22.css" "$A/index2.html"
+          grep -q "style2-v22.js" "$A/index2.html"
           grep -q "__PT_BETA2__='ready'" "$A/app-v2.js"
           grep -q "__PT_V21__='anatomy-ui-v21'" "$A/visual-v21.js"
+          grep -q "__PT_STYLE2__='minimal-pro-2.2'" "$A/style2-v22.js"
+          grep -q "Marathon" "$A/style2-v22.js"
+          grep -q "Sub 2:30" "$A/style2-v22.js"
+          grep -q "Machines / Cables" "$A/style2-v22.js"
           grep -q "FrameLayout" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q "versionName '2.1-beta'" personal-trainer/android-beta/app/build.gradle
+          grep -q "__PT_STYLE2__" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q "versionName '2.2-beta'" personal-trainer/android-beta/app/build.gradle
           for f in v21-pushup v21-incline v21-lat v21-rdl v21-row v21-goblet v21-legpress v21-calf v21-split v21-hamcurl; do test -s "$A/media/$f.webp"; done
       - name: Build Personal Trainer APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
@@ -75,12 +85,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p release
-          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/Personal-Trainer-Beta-2.1.apk
+          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/Personal-Trainer-Style2-Beta-2.2.apk
           sha256sum release/*.apk > release/SHA256SUMS.txt
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: PERSONAL-TRAINER-BETA-2.1
+          name: PERSONAL-TRAINER-STYLE2-BETA-2.2
           path: release/*
           if-no-files-found: error
           retention-days: 30
