@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Insets;
 import android.net.Uri;
+import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.webkit.CookieManager;
 import android.webkit.ValueCallback;
@@ -15,10 +16,12 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
     private WebView webView;
+    private FrameLayout root;
     private ValueCallback<Uri[]> fileCallback;
     private static final int FILE_CHOOSER = 501;
 
@@ -28,16 +31,27 @@ public class MainActivity extends Activity {
         getWindow().setNavigationBarColor(Color.BLACK);
         if (Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
 
+        root = new FrameLayout(this);
+        root.setBackgroundColor(Color.BLACK);
         webView = new WebView(this);
         webView.setBackgroundColor(Color.BLACK);
         webView.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
-        setContentView(webView);
+        root.addView(webView, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        setContentView(root);
 
-        webView.setOnApplyWindowInsetsListener((v, windowInsets) -> {
+        // Apply Android status/navigation/cutout insets to the native root,
+        // shrinking the WebView viewport itself. Fixed/sticky web controls
+        // therefore cannot render underneath Samsung/Android system UI.
+        root.setOnApplyWindowInsetsListener((v, windowInsets) -> {
             int top;
             int bottom;
             if (Build.VERSION.SDK_INT >= 30) {
-                Insets bars = windowInsets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                Insets bars = windowInsets.getInsets(
+                    WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout()
+                );
                 top = bars.top;
                 bottom = bars.bottom;
             } else {
@@ -47,7 +61,7 @@ public class MainActivity extends Activity {
             v.setPadding(0, top, 0, bottom);
             return windowInsets;
         });
-        webView.requestApplyInsets();
+        root.requestApplyInsets();
 
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
@@ -67,11 +81,14 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                view.evaluateJavascript("(function(){return window.__PT_BETA2__||'missing';})()", value -> {
-                    if (value == null || "null".equals(value) || "\"missing\"".equals(value)) {
-                        Toast.makeText(MainActivity.this, "Personal Trainer controls failed to initialize", Toast.LENGTH_LONG).show();
+                view.evaluateJavascript(
+                    "(function(){return [(window.__PT_BETA2__||'missing'),(window.__PT_V21__||'missing')].join('|');})()",
+                    value -> {
+                        if (value == null || value.contains("missing")) {
+                            Toast.makeText(MainActivity.this, "Personal Trainer visual runtime failed to initialize", Toast.LENGTH_LONG).show();
+                        }
                     }
-                });
+                );
             }
 
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
