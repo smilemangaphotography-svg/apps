@@ -9,7 +9,7 @@
         android:theme="@style/Theme.WorkSchedule">
 
         <activity
-            android:name=".MainActivity"
+            android:name=".Beta4Activity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -18,11 +18,11 @@
         </activity>
 
         <receiver
-            android:name=".ReminderReceiver"
+            android:name=".Beta4ReminderReceiver"
             android:exported="false" />
 
         <receiver
-            android:name=".BootReceiver"
+            android:name=".Beta4BootReceiver"
             android:enabled="true"
             android:exported="false">
             <intent-filter>
