@@ -65,6 +65,3 @@ if MARK not in js:
 '''
 js_path.write_text(js)
 print('Applied NAR Beta 5.0.7 All Brands full-page route guard')
-
-# Temporary compact 5.1 diagnostic. The final 5.1 patch removes this hook.
-exec(Path('nar-beta51/inspect_v51_state.py').read_text())
