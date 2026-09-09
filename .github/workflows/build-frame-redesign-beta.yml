@@ -50,21 +50,21 @@ jobs:
           test -f "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee FRAME-Redesign/beta/apk-badging.txt
           grep -q "package: name='com.ilia.frame.redesignbeta.debug'" FRAME-Redesign/beta/apk-badging.txt
-          grep -q "versionName='0.1.0-beta1-debug'" FRAME-Redesign/beta/apk-badging.txt
+          grep -q "versionName='0.2.0-beta2-debug'" FRAME-Redesign/beta/apk-badging.txt
 
       - name: Collect beta artifact
         shell: bash
         run: |
           mkdir -p frame-beta-apk
-          cp FRAME-Redesign/beta/app/build/outputs/apk/debug/app-debug.apk frame-beta-apk/FRAME-Redesign-Beta-0.1.0.apk
+          cp FRAME-Redesign/beta/app/build/outputs/apk/debug/app-debug.apk frame-beta-apk/FRAME-Redesign-Beta-0.2.0.apk
           cp FRAME-Redesign/beta/apk-badging.txt frame-beta-apk/APK-IDENTITY.txt
-          sha256sum frame-beta-apk/FRAME-Redesign-Beta-0.1.0.apk | tee frame-beta-apk/SHA256SUMS.txt
+          sha256sum frame-beta-apk/FRAME-Redesign-Beta-0.2.0.apk | tee frame-beta-apk/SHA256SUMS.txt
           ls -lh frame-beta-apk
 
       - name: Upload FRAME beta APK
         uses: actions/upload-artifact@v4
         with:
-          name: FRAME-REDESIGN-BETA-0.1.0
+          name: FRAME-REDESIGN-BETA-0.2.0
           path: frame-beta-apk/*
           if-no-files-found: error
           retention-days: 30
