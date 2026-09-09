@@ -23,7 +23,7 @@ const owner=await page.evaluate(()=>{
   const pageWidth=window.innerWidth;
   const buttons=[...document.querySelectorAll('#modal button')].filter(b=>{
     const r=b.getBoundingClientRect();return r.width>0&&r.height>0;
-  }).map(b=>({id:b.id,text:b.innerText.trim()}));
+  }).map(b=>({id:b.id,text:b.innerText.trim(),onclick:b.onclick?b.onclick.toString():null,attr:b.getAttribute('onclick')}));
   return {extras,navDisplay:nav?getComputedStyle(nav).display:'missing',pageWidth,docWidth:document.documentElement.scrollWidth,buttons};
 });
 if(owner.extras.length!==2) throw new Error('Owner Studio extension cards missing');
@@ -44,7 +44,7 @@ const aiTarget=await page.evaluate(()=>{
   });
   const b=candidates[0];
   if(!b)return null;
-  const out={id:b.id,text:(b.innerText||'').replace(/\s+/g,' ').trim()};
+  const out={id:b.id,text:(b.innerText||'').replace(/\s+/g,' ').trim(),onclick:b.onclick?b.onclick.toString():null,attr:b.getAttribute('onclick')};
   b.click();
   return out;
 });
@@ -57,7 +57,7 @@ const ai=await page.evaluate(()=>{
   const r=sheet?.getBoundingClientRect();
   return {classes:modal?.className||'',text:(modal?.innerText||'').slice(0,260),sheet:r?{left:r.left,right:r.right,top:r.top,bottom:r.bottom}:null,actions,docWidth:document.documentElement.scrollWidth,w:window.innerWidth,h:window.innerHeight,status:document.querySelector('.beta504AiStatus')?.textContent.trim()||''};
 });
-if(!ai.classes.includes('aiAdminFull')||!ai.classes.includes('narFullModal')) throw new Error('AI setup is not a full Owner Studio page; target='+JSON.stringify(aiTarget)+' state='+JSON.stringify(ai));
+if(!ai.classes.includes('aiAdminFull')||!ai.classes.includes('narFullModal')) throw new Error('AI setup is not a full Owner Studio page; ownerButtons='+JSON.stringify(owner.buttons)+' target='+JSON.stringify(aiTarget)+' state='+JSON.stringify(ai));
 if(!ai.sheet||ai.sheet.left<0||ai.sheet.right>ai.w+1||ai.sheet.top<0||ai.sheet.bottom>ai.h+1) throw new Error('AI page outside viewport '+JSON.stringify(ai.sheet));
 if(ai.actions.length!==2) throw new Error('AI actions missing');
 for(const b of ai.actions){if(b.scrollH>b.clientH+2) throw new Error('AI action label wraps/clips '+JSON.stringify(b));}
