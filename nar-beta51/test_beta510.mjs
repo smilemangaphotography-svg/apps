@@ -54,9 +54,17 @@ assert(ownerActive.length===home.visible.length,'Home active-line count differs 
 for(const a of ownerActive){
   assert(home.visible.some(v=>norm(v).includes(norm(a.brand))&&norm(v).includes(norm(a.line))),'Owner-active tobacco line missing from Home '+JSON.stringify(a));
 }
-await page.waitForSelector('#adminStoreBack');
-await page.click('#adminStoreBack');
-await page.waitForSelector('#adminClose');
+// Return through whichever visible back control the final 5.1 Owner Studio renders.
+for(let i=0;i<3 && !(await page.$('#adminClose'));i++){
+  const backed=await page.evaluate(()=>{
+    const m=document.querySelector('#modal');if(!m)return false;
+    const buttons=[...m.querySelectorAll('button')].filter(x=>getComputedStyle(x).display!=='none');
+    const b=buttons.find(x=>x.classList.contains('backbtn')||/^\s*←/.test(x.innerText||''));
+    if(!b)return false;b.click();return true;
+  });
+  assert(backed,'Owner Store setup has no visible back route');
+  await wait(120);
+}
 assert(!!(await page.$('#adminClose')),'Owner Studio close action missing after Store setup');
 await page.click('#adminClose');await wait(100);
 
