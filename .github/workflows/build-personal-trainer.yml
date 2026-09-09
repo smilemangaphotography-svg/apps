@@ -46,16 +46,16 @@ jobs:
             sudo apt-get install -y ffmpeg
           fi
 
-      - name: Prepare Beta 2.5 motion pack
+      - name: Prepare Beta 2.6 motion pack
         shell: bash
         run: |
           set -euo pipefail
           D=personal-trainer/android-beta/app/src/main/assets/media
-          mkdir -p "$D" /tmp/pt25-motion
+          mkdir -p "$D" /tmp/pt26-motion
           make_new() {
             local name="$1"
             local url="$2"
-            local raw="/tmp/pt25-motion/${name}-raw.mp4"
+            local raw="/tmp/pt26-motion/${name}-raw.mp4"
             local out="$D/motion-${name}-loop.mp4"
             curl -L --fail --retry 4 --retry-delay 2 -o "$raw" "$url"
             ffmpeg -hide_banner -loglevel error -y -i "$raw" -filter_complex "[0:v]scale=640:640:force_original_aspect_ratio=decrease,pad=640:640:(ow-iw)/2:(oh-ih)/2:color=#efe9dc,split=2[f][r];[r]reverse[rr];[f][rr]concat=n=2:v=1:a=0,setpts=0.5*PTS,fps=24,format=yuv420p[v]" -map "[v]" -an -c:v libx264 -preset veryfast -crf 27 -movflags +faststart -t 6 "$out"
@@ -71,12 +71,17 @@ jobs:
           make_new deadbug 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_141556_b44ee7ca-a7d8-4b5f-ade2-8a3143ec4ae3.mp4'
           make_new pallof 'https://d8j0ntlcm91z4.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/hf_20260909_141557_4f0fc56f-5f9e-4283-8eef-c96e9def7ae7.mp4'
           for f in pushup incline lat rdl row goblet legpress calf split hamcurl; do
-            src="$D/motion-$f-loop.mp4"; test -s "$src"; tmp="/tmp/pt25-motion/${f}-optimized.mp4"
+            src="$D/motion-$f-loop.mp4"; test -s "$src"; tmp="/tmp/pt26-motion/${f}-optimized.mp4"
             ffmpeg -hide_banner -loglevel error -y -i "$src" -vf "scale=640:640:force_original_aspect_ratio=decrease,pad=640:640:(ow-iw)/2:(oh-ih)/2:color=#efe9dc,fps=24,format=yuv420p" -an -c:v libx264 -preset veryfast -crf 27 -movflags +faststart -t 6 "$tmp"
             mv "$tmp" "$src"
           done
+          files=(pushup incline lat rdl row goblet legpress calf split hamcurl machinepress chestrow shoulderpress legext hipthrust revlunge spanish seatedcalf deadbug pallof)
+          for f in "${files[@]}"; do
+            src="$D/motion-$f-loop.mp4"; test -s "$src"
+            ffmpeg -hide_banner -loglevel error -y -ss 0.6 -i "$src" -frames:v 1 -vf "scale=640:640:force_original_aspect_ratio=decrease,pad=640:640:(ow-iw)/2:(oh-ih)/2:color=#efe9dc" -q:v 5 "$D/motion-$f-poster.jpg"
+          done
 
-      - name: Validate Beta 2.5 source and plan engine
+      - name: Validate Beta 2.6 source and plan engine
         shell: bash
         run: |
           set -euo pipefail
@@ -84,14 +89,25 @@ jobs:
           node --check "$A/app-v2.js"
           node --check "$A/pt-v25-core.js"
           node --check "$A/style2-v25.js"
+          node --check "$A/style2-v26.js"
           test -s "$A/style2-v25.css"
+          test -s "$A/style2-v26.css"
           grep -q 'pt-v25-core.js' "$A/index2.html"
           grep -q 'style2-v25.js' "$A/index2.html"
-          ! grep -q 'style2-v24.js' "$A/index2.html"
-          grep -q "versionName '2.5-beta'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'style2-v26.js' "$A/index2.html"
+          ! grep -q '<script src="visual-v21.js"' "$A/index2.html"
+          ! grep -q '<script src="style2-v22.js"' "$A/index2.html"
+          ! grep -q '<script src="style2-v23.js"' "$A/index2.html"
+          ! grep -q '<script src="style2-v24.js"' "$A/index2.html"
+          grep -q "versionName '2.6-beta'" personal-trainer/android-beta/app/build.gradle
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
           grep -q 'ACCESS_FINE_LOCATION' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q 'JavascriptInterface' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q "was=race()===r" "$A/style2-v26.js"
+          grep -q 'S.exerciseEnabled' "$A/style2-v26.js"
+          grep -q 'SAVE & REBUILD PROGRAM' "$A/style2-v26.js"
+          grep -q 'WebView embedding can produce YouTube player error 153' "$A/style2-v26.js"
+          grep -q '.main-app.hidden,.builder.hidden' "$A/style2-v26.css"
           node - <<'NODE'
           const c=require('./personal-trainer/android-beta/app/src/main/assets/pt-v25-core.js');
           const tests=[
@@ -104,16 +120,17 @@ jobs:
           for(const t of tests){const p=c.createPlanBlueprint(t);if(p.length!==t.days)throw new Error('plan length failed');}
           const pace=c.paceTargets('5K','22:00');if(!pace||Math.round(pace.race)!==264)throw new Error('pace calculation failed');
           if(c.paceCue(290,264)!=='speed-up'||c.paceCue(240,264)!=='slow-down')throw new Error('voice cue logic failed');
-          console.log('Beta 2.5 plan engine PASS');
+          console.log('Beta 2.6 core plan engine PASS');
           NODE
           files=(pushup incline lat rdl row goblet legpress calf split hamcurl machinepress chestrow shoulderpress legext hipthrust revlunge spanish seatedcalf deadbug pallof)
           for f in "${files[@]}"; do
             test -s "$A/media/motion-$f-loop.mp4"
             dur=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$A/media/motion-$f-loop.mp4")
             awk -v d="$dur" 'BEGIN{exit !(d>=5.7 && d<=6.3)}'
+            test -s "$A/media/motion-$f-poster.jpg"
           done
 
-      - name: Build Personal Trainer Beta 2.5 APK
+      - name: Build Personal Trainer Beta 2.6 APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
 
       - name: Validate APK identity and contents
@@ -124,23 +141,25 @@ jobs:
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
           test -x "$AAPT"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='25' versionName='2.5-beta'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='26' versionName='2.6-beta'"
           unzip -l "$APK" | grep -q 'assets/style2-v25.js'
+          unzip -l "$APK" | grep -q 'assets/style2-v26.js'
           unzip -l "$APK" | grep -q 'assets/pt-v25-core.js'
           unzip -l "$APK" | grep -q 'assets/media/motion-machinepress-loop.mp4'
           unzip -l "$APK" | grep -q 'assets/media/motion-pallof-loop.mp4'
+          unzip -l "$APK" | grep -q 'assets/media/motion-pallof-poster.jpg'
 
-      - name: Package Beta 2.5 deliverables
+      - name: Package Beta 2.6 deliverables
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release
           APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
-          cp "$APK" release/Personal-Trainer-Style2-Beta-2.5.apk
-          cat > release/DIAGNOSTICS-BETA-2.5.txt <<'REPORT'
-          Personal Trainer Style 02 — Beta 2.5 CI Diagnostics
+          cp "$APK" release/Personal-Trainer-Style2-Beta-2.6.apk
+          cat > release/DIAGNOSTICS-BETA-2.6.txt <<'REPORT'
+          Personal Trainer Style 02 — Beta 2.6 CI Diagnostics
           Package identity: PASS — com.ilia.personaltrainer
-          Version: PASS — 2.5-beta / versionCode 25
+          Version: PASS — 2.6-beta / versionCode 26
           JavaScript syntax: PASS
           Multi-goal plan engine: PASS
           5K + Injury Recovery + Strength plan: PASS
@@ -152,23 +171,27 @@ jobs:
           Voice pace cue logic: PASS
           GPS/TTS native bridge compile: PASS
           Exercise library target: PASS — 20 strength/rehab + 8 running session types
-          Motion assets: PASS — 20 x ~6-second H.264 loops validated
+          Exercise select/unselect state + rebuild wiring: STATIC PASS
+          Race distance toggle can select, switch and clear: STATIC PASS
+          Legacy asynchronous Style 2 runtime layers removed from index: PASS
+          Builder/main hidden-state CSS collision fixed: PASS
+          Motion assets: PASS — 20 x ~6-second H.264 loops + 20 preview posters validated
           Spotify: EXCLUDED BY REQUEST
           Garmin: EXCLUDED BY REQUEST
           Strava: EXCLUDED BY REQUEST
-          YouTube/YouTube Music embedded DRIVE code: PASS; physical-device playback verification required
+          YouTube/YouTube Music: external official-app/browser launch used; broken WebView embed removed
           Android Gradle build: PASS
           APK identity/content validation: PASS
           Safe-area implementation: STATIC PASS; physical Samsung verification required
           Live GPS accuracy/voice audibility: PHYSICAL DEVICE VERIFICATION REQUIRED
           REPORT
-          sha256sum release/Personal-Trainer-Style2-Beta-2.5.apk > release/SHA256SUMS.txt
-          zip -qr release/Personal-Trainer-Style2-Beta-2.5-Source.zip personal-trainer/android-beta .github/workflows/build-personal-trainer.yml -x '*/build/*'
+          sha256sum release/Personal-Trainer-Style2-Beta-2.6.apk > release/SHA256SUMS.txt
+          zip -qr release/Personal-Trainer-Style2-Beta-2.6-Source.zip personal-trainer/android-beta .github/workflows/build-personal-trainer.yml -x '*/build/*'
 
-      - name: Upload Beta 2.5
+      - name: Upload Beta 2.6
         uses: actions/upload-artifact@v4
         with:
-          name: PERSONAL-TRAINER-STYLE2-BETA-2.5
+          name: PERSONAL-TRAINER-STYLE2-BETA-2.6
           path: release/*
           if-no-files-found: error
           retention-days: 30
