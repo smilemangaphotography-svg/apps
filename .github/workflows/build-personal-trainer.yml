@@ -34,34 +34,33 @@ jobs:
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - name: Validate and reconstruct bundled UI
+      - name: Validate Beta 2.0 UI runtime
         shell: bash
         run: |
-          node --check personal-trainer/android-beta/app/src/main/assets/fallback.js
-          test -s personal-trainer/android-beta/app/src/main/assets/fallback.js
-          grep -q "safe-fallback" personal-trainer/android-beta/app/src/main/assets/fallback.js
-          grep -q "fallback.js" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          cat personal-trainer/android-beta/app/src/main/assets/index.part* \
-              > personal-trainer/android-beta/app/src/main/assets/index.html
-          test -s personal-trainer/android-beta/app/src/main/assets/index.html
-          grep -q "<!doctype html>" personal-trainer/android-beta/app/src/main/assets/index.html
-          grep -q "</html>" personal-trainer/android-beta/app/src/main/assets/index.html
+          test -s personal-trainer/android-beta/app/src/main/assets/index2.html
+          test -s personal-trainer/android-beta/app/src/main/assets/app-v2.css
+          test -s personal-trainer/android-beta/app/src/main/assets/app-v2.js
+          node --check personal-trainer/android-beta/app/src/main/assets/app-v2.js
+          grep -q "app-v2.css" personal-trainer/android-beta/app/src/main/assets/index2.html
+          grep -q "app-v2.js" personal-trainer/android-beta/app/src/main/assets/index2.html
+          grep -q "__PT_BETA2__='ready'" personal-trainer/android-beta/app/src/main/assets/app-v2.js
+          grep -q "index2.html" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q "versionName '2.0-beta'" personal-trainer/android-beta/app/build.gradle
           test -s personal-trainer/android-beta/app/src/main/assets/media/goblet.webp
           test -s personal-trainer/android-beta/app/src/main/assets/media/legpress.webp
-          ! grep -q "cdn.jsdelivr.net/npm/@bryllim" personal-trainer/android-beta/app/src/main/assets/index.html
-          ! grep -q "Choose file" personal-trainer/android-beta/app/src/main/assets/index.html
+          ! grep -q "cdn.jsdelivr.net" personal-trainer/android-beta/app/src/main/assets/index2.html
       - name: Build Personal Trainer APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
       - name: Package APK
         shell: bash
         run: |
           mkdir -p release
-          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/Personal-Trainer-Beta-1.4.apk
+          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/Personal-Trainer-Beta-2.0.apk
           sha256sum release/*.apk > release/SHA256SUMS.txt
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: PERSONAL-TRAINER-BETA-1.4
+          name: PERSONAL-TRAINER-BETA-2.0
           path: release/*
           if-no-files-found: error
           retention-days: 30
