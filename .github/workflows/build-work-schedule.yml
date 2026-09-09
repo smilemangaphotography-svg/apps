@@ -47,18 +47,24 @@ jobs:
       - name: Validate Final 1.0
         working-directory: work-schedule
         run: python3 final1_validate.py
+      - name: Apply 1.0.1 launcher icon fix
+        working-directory: work-schedule
+        run: python3 icon101_patch.py
+      - name: Validate 1.0.1 launcher icon
+        working-directory: work-schedule
+        run: python3 icon101_validate.py
       - name: Build final APKs
         working-directory: work-schedule
         run: gradle :app:assembleDebug :app:assembleRelease --stacktrace
       - name: Prepare final artifacts
         working-directory: work-schedule
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk Work-Schedule-1.0.0-install.apk
-          cp app/build/outputs/apk/release/app-release-unsigned.apk Work-Schedule-1.0.0-release-unsigned.apk
+          cp app/build/outputs/apk/debug/app-debug.apk Work-Schedule-1.0.1-install.apk
+          cp app/build/outputs/apk/release/app-release-unsigned.apk Work-Schedule-1.0.1-release-unsigned.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Work-Schedule-Final-1.0.0
+          name: Work-Schedule-Final-1.0.1-Icon-Fix
           path: |
-            work-schedule/Work-Schedule-1.0.0-install.apk
-            work-schedule/Work-Schedule-1.0.0-release-unsigned.apk
+            work-schedule/Work-Schedule-1.0.1-install.apk
+            work-schedule/Work-Schedule-1.0.1-release-unsigned.apk
           if-no-files-found: error
