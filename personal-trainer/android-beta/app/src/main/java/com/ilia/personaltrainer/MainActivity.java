@@ -17,10 +17,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-
 public class MainActivity extends Activity {
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
@@ -41,9 +37,7 @@ public class MainActivity extends Activity {
             int top;
             int bottom;
             if (Build.VERSION.SDK_INT >= 30) {
-                Insets bars = windowInsets.getInsets(
-                    WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout()
-                );
+                Insets bars = windowInsets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
                 top = bars.top;
                 bottom = bars.bottom;
             } else {
@@ -73,7 +67,11 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                injectSafeRuntime(view);
+                view.evaluateJavascript("(function(){return window.__PT_BETA2__||'missing';})()", value -> {
+                    if (value == null || "null".equals(value) || "\"missing\"".equals(value)) {
+                        Toast.makeText(MainActivity.this, "Personal Trainer controls failed to initialize", Toast.LENGTH_LONG).show();
+                    }
+                });
             }
 
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
@@ -81,7 +79,7 @@ public class MainActivity extends Activity {
                 String scheme = u.getScheme() == null ? "" : u.getScheme();
                 if ("http".equals(scheme) || "https".equals(scheme) || "spotify".equals(scheme)) {
                     try { startActivity(new Intent(Intent.ACTION_VIEW, u)); }
-                    catch (Exception e) { Toast.makeText(MainActivity.this,"No app can open this link",Toast.LENGTH_SHORT).show(); }
+                    catch (Exception e) { Toast.makeText(MainActivity.this, "No app can open this link", Toast.LENGTH_SHORT).show(); }
                     return true;
                 }
                 return false;
@@ -102,43 +100,14 @@ public class MainActivity extends Activity {
                 try { startActivityForResult(i, FILE_CHOOSER); }
                 catch (Exception e) {
                     fileCallback = null;
-                    Toast.makeText(MainActivity.this,"File picker unavailable",Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "File picker unavailable", Toast.LENGTH_SHORT).show();
                     return false;
                 }
                 return true;
             }
         });
 
-        webView.loadUrl("file:///android_asset/index.html");
-    }
-
-    private void injectSafeRuntime(WebView view) {
-        try {
-            String js = readAssetText("fallback.js");
-            view.evaluateJavascript(js, value -> {
-                view.evaluateJavascript(
-                    "(function(){return window.__PT_RUNTIME__||'unknown';})()",
-                    runtime -> {
-                        if (runtime == null || "null".equals(runtime) || "\"unknown\"".equals(runtime)) {
-                            Toast.makeText(MainActivity.this,"App controls failed to initialize",Toast.LENGTH_LONG).show();
-                        }
-                    }
-                );
-            });
-        } catch (Exception e) {
-            Toast.makeText(this,"Unable to initialize app controls",Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private String readAssetText(String name) throws Exception {
-        StringBuilder out = new StringBuilder();
-        BufferedReader reader = new BufferedReader(
-            new InputStreamReader(getAssets().open(name), StandardCharsets.UTF_8)
-        );
-        String line;
-        while ((line = reader.readLine()) != null) out.append(line).append('\n');
-        reader.close();
-        return out.toString();
+        webView.loadUrl("file:///android_asset/index2.html");
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -163,9 +132,7 @@ public class MainActivity extends Activity {
         webView.evaluateJavascript(
             "(function(){try{return window.ptHandleBack?window.ptHandleBack():'exit'}catch(e){return 'exit'}})()",
             value -> {
-                if ("\"exit\"".equals(value) || "null".equals(value)) {
-                    MainActivity.super.onBackPressed();
-                }
+                if ("\"exit\"".equals(value) || "null".equals(value)) MainActivity.super.onBackPressed();
             }
         );
     }
