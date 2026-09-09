@@ -19,7 +19,7 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-app/";
+    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=064";
     private static final int FILE_CHOOSER_REQUEST = 7101;
 
     private WebView webView;
@@ -51,6 +51,11 @@ public class MainActivity extends Activity {
         setContentView(root);
         configureWebView();
 
+        // Beta builds intentionally bypass stale WebView page assets while the
+        // WordPress customer app is changing quickly. Production can restore
+        // normal caching after the UI/API contract is locked.
+        webView.clearCache(true);
+
         if (savedInstanceState == null) {
             webView.loadUrl(START_URL);
         } else {
@@ -70,7 +75,8 @@ public class MainActivity extends Activity {
         settings.setDisplayZoomControls(false);
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomerBeta/0.1");
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomerBeta/0.2");
 
         CookieManager cookieManager = CookieManager.getInstance();
         cookieManager.setAcceptCookie(true);
@@ -93,6 +99,7 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 progressBar.setVisibility(View.GONE);
+                CookieManager.getInstance().flush();
             }
         });
 
