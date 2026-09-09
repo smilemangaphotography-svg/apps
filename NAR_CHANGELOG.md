@@ -10,6 +10,35 @@ This file separates **verified Git history** from **requested/pending work**. A 
 
 ## Canonical updates after baseline
 
+### 2026-09-09 — NĀR Beta 5.0 — automated Beta gate passed
+
+**Successful build head `1fdeaed3b304ea1b1118556716148861ec04a3b8` — canonical Beta 5.0 build on `nar-main`**
+- Continued the same permanent NĀR application only. No replacement app, alternate package, source lineage, or storage reset was created.
+- Preserved Android package identity `com.iliaperformance.narowner2026`, app label `NĀR Mix`, local app-data lineage, and the established owner signing certificate.
+- Applied the approved Beta 5.0 screen lock on top of the existing 4.5 → 4.6 → canonical navigation → 4.7 → 4.8 → 4.9 → 4.9.1 chain.
+- Kept the six Beta navigation destinations: Home, Search, Store, Mix, Gallery, My NĀR.
+- Hardened Android-safe bottom navigation positioning so the app controls remain above Android system navigation.
+- Hardened Search → Flavor Detail routing while preserving embedded Sweet/Sour/Cooling profile controls as separate actions.
+- Verified the full five-tab Flavor Detail contract: Details, Mixes, Reviews, Photos, Similar.
+- Verified the real Flavor Detail back/close path returns to the same six-tab app shell without losing navigation state.
+- Verified Home hierarchy, active tobacco lines, Favorites/ShishaLove entry points, and the dedicated NĀR AI shortcut.
+- Verified Search typing retains input focus while results update and returns relevant flavor results for `Pink grapefruit` / Pinkman.
+- Verified Tobacco Store contains real tobacco brands and keeps ShishaLove separate from manufacturer/tobacco-line metadata.
+- Verified ShishaLove Store opens independently with Categories and All Flavors.
+- Verified Mix Builder Expected Taste Profile, Inspiration generation, and Replace / Remove / Favorite / Use suggestion actions.
+- Verified Gallery exposes a user-facing Add/Upload image action without binding the test contract to a single internal element ID.
+- Verified My NĀR and Owner/Admin Studio remain reachable and core management surfaces are present.
+- Browser regression gate passed at the Beta phone viewport used by CI, including horizontal-overflow and safe-navigation checks.
+- Android compilation passed for the same canonical app.
+- Package/signature verification passed after build.
+- Beta release metadata is now explicitly verified as `versionCode 550` and `versionName 5.0.0-beta`.
+- An intermediate metadata-verification attempt (run #42) stopped before APK production because its version hook was too narrow. The hook was hardened in place; no failed build was released.
+- Canonical GitHub Actions **run #43** (`34333992032`) completed successfully, including all patches, static validation, browser regression, Android build, package/version/signature verification, and artifact upload.
+- Workflow artifact: `NAR-BETA-APK`; artifact digest: `sha256:ac9faf5ec2795bbec365578b2f2af0817614acdd2f44832a1dad4a0c57327303`.
+- Built APK: `NAR-BETA-5.0-debug.apk`; APK SHA-256: `5870dd92e9993cbe6aaf9120ac5b1bdbe2be85a623a1f0c64133485c436c1b79`.
+- Verified signer certificate SHA-256: `4d7cd06f969d9c4b1e3e361440544a27dc187a125851655aa45796453d50c3a8`.
+- Remaining Step 2 work is physical-device Beta testing: install over the existing NĀR app without uninstalling, then verify camera/gallery chooser behavior, local persistence, Android device safe areas, and final visual fidelity before moving to Final.
+
 ### 2026-09-09 — NĀR Beta 4.9.1 — Store + AI + Gallery
 
 **Successful build head `80a00cd329163a24d89e19717fdb2bafc89dc698` — canonical Beta build on `nar-main`**
