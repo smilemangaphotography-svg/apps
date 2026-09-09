@@ -87,7 +87,15 @@ assert(!/Cooling\s*0/i.test(pink.text)&&!/Creamy\s*0/i.test(pink.text),'Zero tas
 assert(/Pink grapefruit/i.test(pink.text)&&/Strawberry/i.test(pink.text)&&/Raspberry syrup/i.test(pink.text),'Pinkman ingredients were altered by taste-profile logic '+pink.text);
 
 await page.evaluate(()=>{const q=document.querySelector('#q');q.value='Grapefruit';q.dispatchEvent(new Event('input',{bubbles:true}))});await wait(220);
-const grapefruit=await page.evaluate(()=>{const cards=[...document.querySelectorAll('#results [data-open]')];const c=cards.find(x=>/\bGrapefruit\b/i.test(x.innerText||'')&&!/Pinkman/i.test(x.innerText||''));return c?.innerText||''});
+const grapefruit=await page.evaluate(()=>{
+  const cards=[...document.querySelectorAll('#results [data-open]')];
+  const c=cards.find(x=>{
+    const title=(x.querySelector('h3')?.textContent||'').replace(/\s+/g,' ').trim();
+    return /^Grapefruit$/i.test(title);
+  });
+  return c?.innerText||'';
+});
+assert(!!grapefruit,'Exact Grapefruit flavor result missing');
 assert(/Orange grapefruit/i.test(grapefruit)&&/Pink grapefruit/i.test(grapefruit),'Grapefruit ingredient identity changed '+grapefruit);
 await noOverflow('Search');
 
