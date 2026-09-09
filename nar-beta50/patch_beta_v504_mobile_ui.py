@@ -13,15 +13,15 @@ css = css_path.read_text()
 JS_MARK = 'NAR BETA 5.0.4 — MOBILE OWNER/AI FIX'
 CSS_MARK = 'NAR BETA 5.0.4 — MOBILE OWNER/AI FIX'
 
-# adminAiModal lives inside the canonical app closure. Replace it in-place rather
-# than appending a global override, otherwise WebView/browser scope cannot see it.
+# The layered Beta source can contain more than one legacy adminAiModal declaration.
+# Install a uniquely named 5.0.4 function inside the canonical closure so no old
+# declaration can shadow/override this corrected mobile screen.
 if JS_MARK not in js:
-    start = js.find('function adminAiModal(){')
-    end = js.find('function aiBrandId(', start)
-    if start < 0 or end < 0:
-        raise SystemExit('Canonical adminAiModal hook not found')
+    anchor = js.find('function aiBrandId(')
+    if anchor < 0:
+        raise SystemExit('Canonical AI scope hook not found')
     replacement = r'''/* NAR BETA 5.0.4 — MOBILE OWNER/AI FIX */
-function adminAiModal(){
+function beta504AdminAiModal(){
   ensureAiState();
   const ready=!!((state.admin.aiEndpoint||'').trim());
   modal(`<div class="sheethead beta504AiHead"><button id="aiAdminBack" class="backbtn">← Owner Studio</button><span>NĀR AI</span></div>
@@ -50,7 +50,7 @@ function adminAiModal(){
     state.admin.aiLabel=$('#aiLabel').value.trim()||'NĀR AI';
     save();
     toast('AI connection saved');
-    adminAiModal();
+    beta504AdminAiModal();
   };
   $('#testAiEndpoint').onclick=async()=>{
     const u=$('#aiEndpoint').value.trim();
@@ -67,7 +67,7 @@ function adminAiModal(){
   };
 }
 '''
-    js = js[:start] + replacement + js[end:]
+    js = js[:anchor] + replacement + js[anchor:]
 
 if CSS_MARK not in css:
     css += r'''
