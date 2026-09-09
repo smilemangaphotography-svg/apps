@@ -6,6 +6,7 @@ on:
     branches: [ nar-main ]
     paths:
       - 'nar-diagnostics/inspect_shisha_v51.py'
+      - 'nar-diagnostics/test_shisha_bridge_v51.mjs'
       - '.github/workflows/nar-v51-shisha-inspect.yml'
 
 permissions:
@@ -46,5 +47,15 @@ jobs:
           python3 nar-beta51/patch_beta_v5101_retire_pins.py
           python3 nar-beta51/patch_beta_v5102_active_line_contract.py
           python3 nar-beta51/patch_beta_v5103_zero_profiles.py
+          python3 nar-beta51/patch_beta_v5104_shisha_route.py
       - name: Inspect final ShishaLove route binding
         run: python3 nar-diagnostics/inspect_shisha_v51.py
+      - name: Browser runtime diagnostic
+        run: |
+          rm -rf /tmp/nar-ui
+          npm install --prefix /tmp/nar-ui puppeteer-core@24.16.0 --silent
+          python3 -m http.server 8765 --directory buildsrc/NAR-Mix/app/src/main/assets >/tmp/nar-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          sleep 1
+          node nar-diagnostics/test_shisha_bridge_v51.mjs
