@@ -69,8 +69,12 @@ for(const tab of tabs){await page.evaluate(t=>document.querySelector(`[data-deta
 await page.evaluate(()=>document.querySelector('[data-detail-tab="details"]').click());await wait(80);
 const detailLinks=await page.evaluate(()=>({ingredients:document.querySelectorAll('[data-ingredient]').length,profiles:document.querySelectorAll('[data-profile-link],.v49ProfileCard button').length,pairings:document.querySelectorAll('[data-pairing],[data-pair]').length||document.querySelectorAll('.v49PairingList button').length}));
 assert(detailLinks.ingredients>0,'Ingredient rows are not tappable');
-// reset modal by reloading; entered state is session-persistent.
-await page.reload({waitUntil:'networkidle0'});await wait(150);
+// Leave Flavor Detail through the same back control a real Android user taps.
+const closeDetail=await page.$('#closeBtnTop');
+assert(!!closeDetail,'Flavor Detail back button missing');
+await closeDetail.click();await wait(140);
+assert(!(await page.$('#modal')),'Flavor Detail did not close');
+assert((await page.$$('.betaNav button')).length===6,'Bottom navigation missing after Flavor Detail close');
 
 // Tobacco Store: real tobacco brands only; no ShishaLove; brand detail card remains one composed unit.
 await nav('Store');
