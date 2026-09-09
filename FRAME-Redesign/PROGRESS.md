@@ -136,5 +136,24 @@ Initial reference board:
 ### Next milestone
 Redraw the Android mockups page-by-page using **Essential Professional** as the single visual base and integrate the new Smart layer directly into Presets, Light/Color, Mask, Heal and AI pages. Then approve the set as **ANDROID MOCKUP LOCK V1** before implementation begins.
 
-### Rule for future sessions
-All new FRAME redesign decisions, mockups and implementation notes should continue under `FRAME-Redesign/` on `frame-redesign-main` until explicitly promoted. Do not replace or erase the existing packaged FRAME source while this redesign is under review.
+## 2026-09-09 — Smart Android mockup revision V2
+
+The Android mockup set was revised around the locked Essential Professional direction and the Smart Edit requirements.
+
+### Smart UI pages now represented
+- AI Analyze with scene tags, confidence-style recommendations and ranked preset matches.
+- Preset categories including Cloudy, Sunny, Sunset, Night/Low Light, Magical Church, Wedding and Portrait.
+- Preset collection page with multiple treatments for one scenario rather than one generic filter.
+- Light panel with visible Highlight Guard.
+- Color panel with explicit `Skin Priority (Auto)` and skin-tone protection.
+- Mask page with subject/sky/manual selection choices.
+- Heal/Remove page with real operation controls.
+- Smart Portrait with Soft Skin, White Teeth, Eye Enhance and Pop Subject toggles.
+- Wedding and Editorial preset-detail pages with reference-inspiration notes.
+- GPT Rate page with category scoring and prioritized corrections.
+- Export and Settings retained in the same Essential Professional visual language.
+
+### Mockup status
+**SMART ANDROID MOCKUP V2: DRAFTED**
+
+This revision is the current visual reference for the next review. It is not yet the implementation lock; each page still needs individual approval before beta implementation.
