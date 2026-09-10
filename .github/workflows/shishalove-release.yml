@@ -1,4 +1,4 @@
-name: ShishaLove 1.1.1 Release Validation
+name: ShishaLove 1.1.2 Release Validation
 
 on:
   push:
@@ -7,13 +7,14 @@ on:
     paths:
       - 'shishalove-mobile/**'
       - 'shishalove-ios/**'
+      - 'shishalove-branding/**'
       - 'shishalove-wordpress-bridge/**'
       - '.github/workflows/shishalove-release.yml'
   workflow_dispatch:
 
 jobs:
   android:
-    name: Android Customer 1.1.1 + Merchant 1.1.0
+    name: Android Customer + Merchant 1.1.2
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -21,14 +22,18 @@ jobs:
 
       - name: Validate Android release metadata
         run: |
-          grep -q "versionCode 111" shishalove-mobile/customer/build.gradle
-          grep -q "versionName '1.1.1'" shishalove-mobile/customer/build.gradle
-          grep -q "versionCode 110" shishalove-mobile/merchant/build.gradle
-          grep -q "versionName '1.1.0'" shishalove-mobile/merchant/build.gradle
+          grep -q "versionCode 112" shishalove-mobile/customer/build.gradle
+          grep -q "versionName '1.1.2'" shishalove-mobile/customer/build.gradle
+          grep -q "versionCode 112" shishalove-mobile/merchant/build.gradle
+          grep -q "versionName '1.1.2'" shishalove-mobile/merchant/build.gradle
           grep -q 'build=111' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
-          grep -q 'ShishaLoveCustomer/1.1.1' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
-          grep -q 'build=110' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
-          grep -q 'ShishaLoveMerchant/1.1.0' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q 'ShishaLoveCustomer/1.1.2' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
+          grep -q 'build=111' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q 'ShishaLoveMerchant/1.1.2' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          test -f shishalove-mobile/customer/src/main/assets/customer_phone_polish.js
+          test -f shishalove-mobile/merchant/src/main/assets/merchant_phone_polish.js
+          test -f shishalove-branding/customer-icon.b64.part00
+          test -f shishalove-branding/merchant-icon.b64.part00
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -51,25 +56,30 @@ jobs:
         working-directory: shishalove-mobile
         run: gradle :customer:assembleDebug :merchant:assembleDebug :customer:bundleRelease :merchant:bundleRelease --stacktrace
 
+      - name: Verify launcher assets were materialized
+        run: |
+          test -s shishalove-mobile/customer/src/main/res/drawable-nodpi/ic_shishalove_customer.png
+          test -s shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png
+
       - name: Collect Android artifacts
         run: |
           mkdir -p dist/android
-          cp shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk dist/android/ShishaLove-Customer-1.1.1-Install.apk
-          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/android/ShishaLove-Merchant-1.1.0-Install.apk
-          cp shishalove-mobile/customer/build/outputs/bundle/release/customer-release.aab dist/android/ShishaLove-Customer-1.1.1-Unsigned.aab
-          cp shishalove-mobile/merchant/build/outputs/bundle/release/merchant-release.aab dist/android/ShishaLove-Merchant-1.1.0-Unsigned.aab
+          cp shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk dist/android/ShishaLove-Customer-1.1.2-Install.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/android/ShishaLove-Merchant-1.1.2-Install.apk
+          cp shishalove-mobile/customer/build/outputs/bundle/release/customer-release.aab dist/android/ShishaLove-Customer-1.1.2-Unsigned.aab
+          cp shishalove-mobile/merchant/build/outputs/bundle/release/merchant-release.aab dist/android/ShishaLove-Merchant-1.1.2-Unsigned.aab
           sha256sum dist/android/* > dist/android/SHA256SUMS.txt
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: shishalove-1.1.1-android
+          name: shishalove-1.1.2-android
           path: dist/android/
           if-no-files-found: error
           retention-days: 30
 
   ios:
-    name: iOS Customer 1.1.1 + Merchant 1.1.0 compile check
+    name: iOS Customer + Merchant 1.1.2 compile check
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
@@ -77,19 +87,19 @@ jobs:
 
       - name: Validate iOS release metadata
         run: |
-          grep -A20 'ShishaLoveCustomer:' shishalove-ios/project.yml | grep -q 'MARKETING_VERSION: 1.1.1'
-          grep -A20 'ShishaLoveCustomer:' shishalove-ios/project.yml | grep -q 'CURRENT_PROJECT_VERSION: 111'
-          grep -A20 'ShishaLoveMerchant:' shishalove-ios/project.yml | grep -q 'MARKETING_VERSION: 1.1.0'
-          grep -A20 'ShishaLoveMerchant:' shishalove-ios/project.yml | grep -q 'CURRENT_PROJECT_VERSION: 110'
+          grep -A20 'ShishaLoveCustomer:' shishalove-ios/project.yml | grep -q 'MARKETING_VERSION: 1.1.2'
+          grep -A20 'ShishaLoveCustomer:' shishalove-ios/project.yml | grep -q 'CURRENT_PROJECT_VERSION: 112'
+          grep -A20 'ShishaLoveMerchant:' shishalove-ios/project.yml | grep -q 'MARKETING_VERSION: 1.1.2'
+          grep -A20 'ShishaLoveMerchant:' shishalove-ios/project.yml | grep -q 'CURRENT_PROJECT_VERSION: 112'
           grep -q 'build=111' shishalove-ios/Customer/ShishaLoveCustomerApp.swift
-          grep -q 'ShishaLoveCustomer/1.1.1 iOS' shishalove-ios/Customer/ShishaLoveCustomerApp.swift
-          grep -q 'build=110' shishalove-ios/Merchant/ShishaLoveMerchantApp.swift
-          grep -q 'ShishaLoveMerchant/1.1.0 iOS' shishalove-ios/Merchant/ShishaLoveMerchantApp.swift
+          grep -q 'ShishaLoveCustomer/1.1.2 iOS' shishalove-ios/Customer/ShishaLoveCustomerApp.swift
+          grep -q 'build=111' shishalove-ios/Merchant/ShishaLoveMerchantApp.swift
+          grep -q 'ShishaLoveMerchant/1.1.2 iOS' shishalove-ios/Merchant/ShishaLoveMerchantApp.swift
 
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Materialize app icons
+      - name: Materialize approved app icons
         working-directory: shishalove-ios
         run: bash scripts/materialize-assets.sh
 
@@ -109,14 +119,14 @@ jobs:
         working-directory: shishalove-ios
         run: |
           mkdir -p ../dist/ios
-          ditto -c -k --sequesterRsrc --keepParent build/customer/Build/Products/Release-iphonesimulator/ShishaLove.app ../dist/ios/ShishaLove-Customer-1.1.1-Simulator.zip
-          ditto -c -k --sequesterRsrc --keepParent 'build/merchant/Build/Products/Release-iphonesimulator/ShishaLove Merchant.app' ../dist/ios/ShishaLove-Merchant-1.1.0-Simulator.zip
+          ditto -c -k --sequesterRsrc --keepParent build/customer/Build/Products/Release-iphonesimulator/ShishaLove.app ../dist/ios/ShishaLove-Customer-1.1.2-Simulator.zip
+          ditto -c -k --sequesterRsrc --keepParent 'build/merchant/Build/Products/Release-iphonesimulator/ShishaLove Merchant.app' ../dist/ios/ShishaLove-Merchant-1.1.2-Simulator.zip
           shasum -a 256 ../dist/ios/* > ../dist/ios/SHA256SUMS.txt
 
       - name: Upload iOS validation artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: shishalove-1.1.1-ios-simulator
+          name: shishalove-1.1.2-ios-simulator
           path: dist/ios/
           if-no-files-found: error
           retention-days: 30
