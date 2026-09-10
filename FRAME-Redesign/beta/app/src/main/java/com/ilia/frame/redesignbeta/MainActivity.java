@@ -60,10 +60,13 @@ public class MainActivity extends Activity {
                 super.onPageFinished(view, url);
                 String patch = "(function(){" +
                         "var x=document.querySelector('#settings .profileCard small');" +
-                        "if(x)x.textContent='Version 0.5.0 beta';" +
-                        "function load05(){if(document.getElementById('frame-beta05-patch'))return;" +
+                        "if(x)x.textContent='Version 0.6.0 beta';" +
+                        "function load06(){if(document.getElementById('frame-beta06-patch'))return;" +
+                        "var q=document.createElement('script');q.id='frame-beta06-patch';" +
+                        "q.src='file:///android_asset/beta06.js';document.body.appendChild(q);}" +
+                        "function load05(){if(document.getElementById('frame-beta05-patch')){load06();return;}" +
                         "var p=document.createElement('script');p.id='frame-beta05-patch';" +
-                        "p.src='file:///android_asset/beta05.js';document.body.appendChild(p);}" +
+                        "p.src='file:///android_asset/beta05.js';p.onload=load06;document.body.appendChild(p);}" +
                         "if(!document.getElementById('frame-beta04-patch')){" +
                         "var s=document.createElement('script');s.id='frame-beta04-patch';" +
                         "s.src='file:///android_asset/beta04.js';s.onload=load05;document.body.appendChild(s);}" +
