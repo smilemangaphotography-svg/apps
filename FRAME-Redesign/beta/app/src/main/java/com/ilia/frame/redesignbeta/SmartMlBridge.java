@@ -19,6 +19,11 @@ import com.google.mlkit.vision.label.ImageLabel;
 import com.google.mlkit.vision.label.ImageLabeler;
 import com.google.mlkit.vision.label.ImageLabeling;
 import com.google.mlkit.vision.label.defaults.ImageLabelerOptions;
+import com.google.mlkit.vision.pose.Pose;
+import com.google.mlkit.vision.pose.PoseDetection;
+import com.google.mlkit.vision.pose.PoseDetector;
+import com.google.mlkit.vision.pose.PoseLandmark;
+import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions;
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmentation;
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmentationResult;
 import com.google.mlkit.vision.segmentation.subject.SubjectSegmenter;
@@ -36,11 +41,11 @@ public class SmartMlBridge {
     private final WebView webView;
     private final ImageLabeler labeler;
     private final FaceDetector faceDetector;
+    private final PoseDetector poseDetector;
     private final SubjectSegmenter subjectSegmenter;
 
-    private interface FaceCallback {
-        void done(JSONArray faces);
-    }
+    private interface FaceCallback { void done(JSONArray faces); }
+    private interface PoseCallback { void done(boolean detected, int landmarkCount, int rotation); }
 
     public SmartMlBridge(Activity activity, WebView webView) {
         this.activity = activity;
@@ -56,6 +61,12 @@ public class SmartMlBridge {
                 .setMinFaceSize(0.03f)
                 .build();
         this.faceDetector = FaceDetection.getClient(faceOptions);
+
+        PoseDetectorOptions poseOptions = new PoseDetectorOptions.Builder()
+                .setDetectorMode(PoseDetectorOptions.SINGLE_IMAGE_MODE)
+                .build();
+        this.poseDetector = PoseDetection.getClient(poseOptions);
+
         SubjectSegmenterOptions segmenterOptions = new SubjectSegmenterOptions.Builder()
                 .enableForegroundConfidenceMask()
                 .build();
@@ -71,8 +82,12 @@ public class SmartMlBridge {
         }
         final InputImage input = InputImage.fromBitmap(bitmap, 0);
         labeler.process(input)
-                .addOnSuccessListener(labels -> detectFacesFlexible(bitmap, faces -> sendAnalysis(requestId, bitmap, labels, faces)))
-                .addOnFailureListener(e -> detectFacesFlexible(bitmap, faces -> sendAnalysis(requestId, bitmap, null, faces)));
+                .addOnSuccessListener(labels -> detectFacesFlexible(bitmap, faces ->
+                        detectPoseFlexible(bitmap, (poseDetected, poseLandmarks, poseRotation) ->
+                                sendAnalysis(requestId, bitmap, labels, faces, poseDetected, poseLandmarks, poseRotation))))
+                .addOnFailureListener(e -> detectFacesFlexible(bitmap, faces ->
+                        detectPoseFlexible(bitmap, (poseDetected, poseLandmarks, poseRotation) ->
+                                sendAnalysis(requestId, bitmap, null, faces, poseDetected, poseLandmarks, poseRotation))));
     }
 
     private void detectFacesFlexible(Bitmap original, FaceCallback callback) {
@@ -110,6 +125,54 @@ public class SmartMlBridge {
                             });
                 })
                 .addOnFailureListener(e -> callback.done(new JSONArray()));
+    }
+
+    private void detectPoseFlexible(Bitmap original, PoseCallback callback) {
+        poseDetector.process(InputImage.fromBitmap(original, 0))
+                .addOnSuccessListener(pose -> {
+                    int count = reliablePoseLandmarks(pose);
+                    if (count >= 5) {
+                        callback.done(true, count, 0);
+                        return;
+                    }
+                    final Bitmap cw = rotate(original, 90);
+                    poseDetector.process(InputImage.fromBitmap(cw, 0))
+                            .addOnSuccessListener(pose90 -> {
+                                int count90 = reliablePoseLandmarks(pose90);
+                                cw.recycle();
+                                if (count90 >= 5) {
+                                    callback.done(true, count90, 90);
+                                    return;
+                                }
+                                final Bitmap ccw = rotate(original, 270);
+                                poseDetector.process(InputImage.fromBitmap(ccw, 0))
+                                        .addOnSuccessListener(pose270 -> {
+                                            int count270 = reliablePoseLandmarks(pose270);
+                                            ccw.recycle();
+                                            callback.done(count270 >= 5, count270, count270 >= 5 ? 270 : 0);
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            ccw.recycle();
+                                            callback.done(false, 0, 0);
+                                        });
+                            })
+                            .addOnFailureListener(e -> {
+                                cw.recycle();
+                                callback.done(false, 0, 0);
+                            });
+                })
+                .addOnFailureListener(e -> callback.done(false, 0, 0));
+    }
+
+    private int reliablePoseLandmarks(Pose pose) {
+        if (pose == null) return 0;
+        int reliable = 0;
+        List<PoseLandmark> landmarks = pose.getAllPoseLandmarks();
+        if (landmarks == null) return 0;
+        for (PoseLandmark landmark : landmarks) {
+            if (landmark != null && landmark.getInFrameLikelihood() >= 0.50f) reliable++;
+        }
+        return reliable;
     }
 
     private Bitmap rotate(Bitmap bitmap, int degrees) {
@@ -183,7 +246,8 @@ public class SmartMlBridge {
                 ));
     }
 
-    private void sendAnalysis(String requestId, Bitmap bitmap, List<ImageLabel> labels, JSONArray faceArray) {
+    private void sendAnalysis(String requestId, Bitmap bitmap, List<ImageLabel> labels, JSONArray faceArray,
+                              boolean poseDetected, int poseLandmarks, int poseRotation) {
         try {
             JSONObject root = new JSONObject();
             root.put("width", bitmap.getWidth());
@@ -197,12 +261,16 @@ public class SmartMlBridge {
                     item.put("text", label.getText());
                     item.put("confidence", label.getConfidence());
                     labelArray.put(item);
-                    if (++added >= 10) break;
+                    if (++added >= 12) break;
                 }
             }
             root.put("labels", labelArray);
             root.put("faces", faceArray == null ? new JSONArray() : faceArray);
             root.put("faceCount", faceArray == null ? 0 : faceArray.length());
+            root.put("poseDetected", poseDetected);
+            root.put("poseLandmarks", poseLandmarks);
+            root.put("poseRotationFallback", poseRotation);
+            root.put("peopleEvidence", poseDetected || (faceArray != null && faceArray.length() > 0));
             callJs("onAnalysis", requestId, root.toString());
         } catch (Exception e) {
             sendError("onAnalysisError", requestId, safeMessage(e));
