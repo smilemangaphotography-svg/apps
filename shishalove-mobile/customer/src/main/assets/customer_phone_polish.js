@@ -1,300 +1,47 @@
-(function () {
-  'use strict';
-
-  var VERSION = '1.1.3';
-  var HOME_URL = 'https://shishalove.eu/shishalove-app/?app=android&build=113';
-  var BASE = 'https://shishalove.eu';
-
-  var HOME_CATEGORIES = [
-    ['Hookah','/product-category/hookah/'],
-    ['Bowls','/product-category/bowls/'],
-    ['Hoses','/product-category/hose/'],
-    ['Accessories','/product-category/accessories/'],
-    ['Charcoal','/product-category/charcoal/'],
-    ['Flavors','/product-category/flavors/'],
-    ['Merchandise','/product-category/merchandise/']
-  ];
-
-  var HOOKAH = [
-    ['Wookah','/product-category/wookah/hookah-wookah/'],
-    ['Alpha','/product-category/alpha/'],
-    ['Steamulation','/product-category/steamulation/'],
-    ['Union','/product-category/union/'],
-    ['MIG','/product-category/mig/'],
-    ['El-Badia','/product-category/el-badia/hookah-el-badia/'],
-    ['Moze','/product-category/moze/hookah-moze/'],
-    ['Anima','/product-category/anima/'],
-    ['Gold Miner','/product-category/goldminer/'],
-    ['YKAP','/product-category/ykap/'],
-    ['Mexanika','/product-category/mexanika/'],
-    ['DIAVLA','/product-category/diavla/']
-  ];
-
-  var BOWLS = [
-    ['Phunnel','/product-category/bowls/phunnel-bowls/'],
-    ['Killer','/product-category/bowls/killer/'],
-    ['Heat Management','/product-category/bowls/heat-management/'],
-    ['Gaskets','/product-category/accessories/gaskets/']
-  ];
-
-  var ACCESSORIES = [
-    ['Hookah Vases','/product-category/glassbowls/'],
-    ['Charcoal Burner','/product-category/accessories/charcoal-burner/'],
-    ['Tongs','/product-category/accessories/tongs/'],
-    ['Cleaning','/product-category/accessories/cleaning/'],
-    ['Ash Plates','/product-category/accessories/ash-plates/'],
-    ['Charcoal Holder','/product-category/accessories/charcoal-holder/'],
-    ['Wind Cover','/product-category/accessories/wind-cover/'],
-    ['Pokers & Forks','/product-category/accessories/pokers/'],
-    ['Cases','/product-category/accessories/cases/'],
-    ['Hookah Colorants','/product-category/accessories/hookahcolorants/'],
-    ['Hookah Boards','/product-category/accessories/hookah-boards/'],
-    ['Molasses Catcher','/product-category/accessories/molasses-catcher/']
-  ];
-
-  function $all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
-  function text(el) { return (el && (el.innerText || el.textContent) || '').replace(/\s+/g,' ').trim(); }
-  function visible(el) {
-    if (!el || !el.getBoundingClientRect) return false;
-    var r = el.getBoundingClientRect(), s = getComputedStyle(el);
-    return r.width > 1 && r.height > 1 && s.display !== 'none' && s.visibility !== 'hidden';
-  }
-  function abs(path) { try { return new URL(path, BASE).href; } catch(e) { return path; } }
-  function esc(s) { return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-
-  function imageCandidate(img) {
-    if (!img) return '';
-    var attrs = ['data-src','data-lazy-src','data-original','data-lazyload','data-lazy','data-image','data-orig-file'];
-    for (var i=0;i<attrs.length;i++) { var v=img.getAttribute(attrs[i]); if (v) return abs(v); }
-    var set = img.getAttribute('data-srcset') || img.getAttribute('srcset');
-    if (set) return abs(set.split(',').pop().trim().split(/\s+/)[0]);
-    return abs(img.getAttribute('src') || '');
-  }
-
-  function repairImages() {
-    $all('img').forEach(function(img){
-      img.style.setProperty('opacity','1','important');
-      img.style.setProperty('visibility','visible','important');
-      img.setAttribute('decoding','async');
-      var src = imageCandidate(img);
-      var cur = img.getAttribute('src') || '';
-      if (src && (!cur || /placeholder|data:image\/gif/i.test(cur))) img.src = src;
-      if (!img.dataset.sl113error) {
-        img.dataset.sl113error='1';
-        img.addEventListener('error',function(){ var next=imageCandidate(img); if(next && next!==img.src) img.src=next; });
-      }
-    });
-  }
-
-  function firstProductImage(html) {
-    try {
-      var d = new DOMParser().parseFromString(html,'text/html');
-      var img = d.querySelector('ul.products li.product img,.products .product img,li.product img,img.wp-post-image');
-      return imageCandidate(img);
-    } catch(e) { return ''; }
-  }
-
-  function fetchThumb(label, path, cb) {
-    var key='sl113-thumb:'+path, cached='';
-    try { cached=localStorage.getItem(key)||''; } catch(e) {}
-    if (cached) { cb(cached); return; }
-    fetch(abs(path),{credentials:'include',cache:'force-cache'})
-      .then(function(r){ return r.ok ? r.text() : ''; })
-      .then(function(html){
-        var src=firstProductImage(html);
-        if(src){ try{localStorage.setItem(key,src);}catch(e){} cb(src); }
-      })
-      .catch(function(){});
-  }
-
-  function injectBaseStyle() {
-    if (document.getElementById('sl113-style')) return;
-    var s=document.createElement('style');
-    s.id='sl113-style';
-    s.textContent='\
-      :root{--sl-red:#d9253f;--sl-black:#080808;--sl-line:#e9e9e9}\
-      #sl113-drawer,#sl113-backdrop,#sl113-age{font-family:Arial,Helvetica,sans-serif}\
-      .sl113-grid{display:grid!important;gap:12px!important;margin:14px 24px 18px!important}\
-      .sl113-home-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}\
-      .sl113-hookah-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}\
-      .sl113-bowls-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}\
-      .sl113-accessories-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important}\
-      .sl113-card{position:relative!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-end!important;min-width:0!important;background:#fff!important;border:1px solid #e7e7e7!important;border-radius:18px!important;overflow:hidden!important;text-decoration:none!important;color:#111!important;box-shadow:none!important}\
-      .sl113-home-grid .sl113-card{height:190px!important}.sl113-hookah-grid .sl113-card{height:176px!important}.sl113-bowls-grid .sl113-card{height:190px!important}.sl113-accessories-grid .sl113-card{height:190px!important}\
-      .sl113-card img{position:absolute!important;left:8px!important;right:8px!important;top:8px!important;width:calc(100% - 16px)!important;height:72%!important;object-fit:contain!important;opacity:1!important;visibility:visible!important;background:#fff!important}\
-      .sl113-card .sl113-label{position:relative!important;z-index:2!important;width:100%!important;box-sizing:border-box!important;padding:10px 7px 13px!important;background:rgba(255,255,255,.96)!important;text-align:center!important;font-size:15px!important;font-weight:800!important;line-height:1.12!important;color:#111!important;-webkit-text-fill-color:#111!important}\
-      .sl113-bowls-grid .sl113-label{font-size:12px!important;padding:8px 3px 11px!important}\
-      .sl113-fallback{position:absolute!important;top:25%!important;font-size:36px!important;color:#777!important}\
-      #sl113-backdrop{position:fixed!important;inset:0!important;background:rgba(0,0,0,.35)!important;z-index:2147483638!important;display:none}\
-      #sl113-drawer{position:fixed!important;left:0!important;top:0!important;bottom:0!important;width:min(86vw,430px)!important;background:#080808!important;color:#fff!important;z-index:2147483639!important;transform:translateX(-105%)!important;transition:transform .18s ease!important;overflow:auto!important;padding:18px 22px 34px!important;box-sizing:border-box!important}\
-      body.sl113-drawer-open #sl113-backdrop{display:block!important}body.sl113-drawer-open #sl113-drawer{transform:translateX(0)!important}\
-      .sl113-drawer-head{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 20px}.sl113-wordmark{font-family:Georgia,serif;font-style:italic;font-weight:800;font-size:36px;letter-spacing:-2px}.sl113-wordmark b{color:#d9253f;font-style:normal;font-size:28px;margin-right:6px}.sl113-close{width:50px;height:50px;border:0;border-radius:50%;background:#232323;color:#fff;font-size:34px;line-height:50px}\
-      .sl113-menu-row{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:58px;padding:0 6px;border:0;border-bottom:1px solid #292929;background:#080808;color:#fff;font-size:19px;font-weight:800;text-align:left;box-sizing:border-box;text-decoration:none}.sl113-menu-row span:last-child{font-size:25px;font-weight:400}.sl113-sub{display:none;padding:4px 0 10px 18px}.sl113-sub.open{display:block}.sl113-sub a{display:block;color:#d4d4d4;text-decoration:none;padding:11px 2px;font-size:15px;border-bottom:1px solid #171717}.sl113-section{color:#777;font-size:12px;letter-spacing:2px;padding:24px 6px 8px}.sl113-lower a,.sl113-lower button{display:flex;gap:14px;align-items:center;width:100%;min-height:54px;background:#080808;border:0;color:#fff;text-decoration:none;font-size:17px;font-weight:700;text-align:left;padding:0 6px}.sl113-lower i{width:23px;text-align:center;font-style:normal;font-size:21px}\
-      #sl113-age{position:fixed!important;inset:0!important;z-index:2147483642!important;background:radial-gradient(circle at 50% 18%,#202020 0,#080808 45%,#000 100%)!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:26px!important;box-sizing:border-box!important}.sl113-age-card{width:min(90vw,420px);background:#fff;border-radius:4px;padding:34px 24px 28px;text-align:center;box-shadow:0 18px 55px rgba(0,0,0,.4)}.sl113-age-logo{font-family:Georgia,serif;font-size:36px;font-weight:800;font-style:italic;margin-bottom:24px}.sl113-age-card h2{font-size:31px;line-height:1.0;margin:0 0 24px}.sl113-age-card p{font-size:17px;line-height:1.55;color:#666;margin:0 0 24px}.sl113-age-confirm{display:block;width:100%;background:#d9253f;color:#fff;border:0;border-radius:2px;padding:17px 10px;font-size:16px;font-weight:800}.sl113-age-leave{display:inline-block;margin-top:20px;color:#666;text-decoration:none;font-size:16px}\
-      @media(max-width:390px){.sl113-grid{margin-left:16px!important;margin-right:16px!important}.sl113-home-grid .sl113-card{height:170px!important}.sl113-hookah-grid .sl113-card{height:158px!important}.sl113-accessories-grid .sl113-card{height:170px!important}.sl113-bowls-grid .sl113-card{height:170px!important}.sl113-bowls-grid .sl113-label{font-size:11px!important}}\
-    ';
-    document.head.appendChild(s);
-  }
-
-  function createCard(item, fallback) {
-    var a=document.createElement('a');
-    a.className='sl113-card';
-    a.href=abs(item[1]);
-    a.innerHTML='<span class="sl113-fallback">'+(fallback||'◇')+'</span><span class="sl113-label">'+esc(item[0])+'</span>';
-    fetchThumb(item[0],item[1],function(src){
-      if(!a.isConnected) return;
-      var old=a.querySelector('img'); if(old) old.remove();
-      var img=document.createElement('img'); img.alt=item[0]; img.src=src; img.decoding='async';
-      var fb=a.querySelector('.sl113-fallback'); if(fb) fb.style.display='none';
-      a.insertBefore(img,a.firstChild);
-    });
-    return a;
-  }
-
-  function makeGrid(items, cls, fallback) {
-    var g=document.createElement('div'); g.className='sl113-grid '+cls;
-    items.forEach(function(item){ g.appendChild(createCard(item,fallback)); });
-    return g;
-  }
-
-  function findExactText(label) {
-    var els=$all('h1,h2,h3,h4,p,span,strong,a,button,div');
-    for(var i=0;i<els.length;i++) if(visible(els[i]) && text(els[i]).toUpperCase()===label.toUpperCase()) return els[i];
-    return null;
-  }
-
-  function hideOldTiles(labels) {
-    labels.forEach(function(label){
-      $all('a,button,div,li').forEach(function(el){
-        if(!visible(el) || text(el).toUpperCase()!==label.toUpperCase()) return;
-        var n=el;
-        for(var i=0;i<4 && n;i++,n=n.parentElement){
-          var r=n.getBoundingClientRect();
-          if(r.height>=80 && r.height<=260 && r.width>=70 && r.width<=innerWidth*.65){ n.style.setProperty('display','none','important'); break; }
-        }
-      });
-    });
-  }
-
-  function mountAfter(anchor, node) {
-    if (!anchor || !node) return false;
-    var host=anchor;
-    for(var i=0;i<3 && host.parentElement;i++) {
-      var r=host.parentElement.getBoundingClientRect();
-      if(r.width>innerWidth*.72) host=host.parentElement; else break;
-    }
-    host.parentNode.insertBefore(node,host.nextSibling);
-    return true;
-  }
-
-  function ensureHomeGrid() {
-    if(document.getElementById('sl113-home-grid')) return;
-    var heading=findExactText('Shop by category');
-    if(!heading) return;
-    hideOldTiles(HOME_CATEGORIES.map(function(x){return x[0];}));
-    var g=makeGrid(HOME_CATEGORIES,'sl113-home-grid','◇'); g.id='sl113-home-grid';
-    mountAfter(heading,g);
-  }
-
-  function categoryTitle() {
-    var hs=$all('h1,h2,.page-title,.category-title');
-    for(var i=0;i<hs.length;i++){ if(visible(hs[i])) { var t=text(hs[i]); if(t) return t.toUpperCase(); } }
-    return '';
-  }
-
-  function ensureCategoryGrid() {
-    var title=categoryTitle(), cfg=null, cls='', id='';
-    if(title==='HOOKAH'){cfg=HOOKAH;cls='sl113-hookah-grid';id='sl113-hookah-grid';}
-    else if(title==='BOWLS'){cfg=BOWLS;cls='sl113-bowls-grid';id='sl113-bowls-grid';}
-    else if(title==='ACCESSORIES'){cfg=ACCESSORIES;cls='sl113-accessories-grid';id='sl113-accessories-grid';}
-    if(!cfg || document.getElementById(id)) return;
-    hideOldTiles(cfg.map(function(x){return x[0];}));
-    var h=findExactText(title), g=makeGrid(cfg,cls,'◇'); g.id=id;
-    mountAfter(h,g);
-  }
-
-  function looksHamburger(el) {
-    if(!el) return false;
-    var aria=(el.getAttribute('aria-label')||el.getAttribute('title')||'').toLowerCase();
-    var cls=String(el.className||'').toLowerCase();
-    var t=text(el).replace(/\s+/g,'');
-    return aria.indexOf('menu')>=0 || cls.indexOf('hamburger')>=0 || cls.indexOf('menu-toggle')>=0 || t==='☰';
-  }
-
-  function drawerHtml() {
-    function row(label,url,subId){
-      if(subId) return '<button class="sl113-menu-row" data-sl-sub="'+subId+'"><span>'+label+'</span><span>⌄</span></button>';
-      return '<a class="sl113-menu-row" href="'+abs(url)+'"><span>'+label+'</span><span>›</span></a>';
-    }
-    function sub(id,items){ return '<div class="sl113-sub" id="'+id+'">'+items.map(function(x){return '<a href="'+abs(x[1])+'">'+esc(x[0])+'</a>';}).join('')+'</div>'; }
-    return '<div class="sl113-drawer-head"><div class="sl113-wordmark"><b>♡</b>shishalove</div><button class="sl113-close" aria-label="Close">×</button></div>'+
-      row('HOME',HOME_URL)+row('HOOKAH','#','sl113-sub-hookah')+sub('sl113-sub-hookah',HOOKAH)+
-      row('BOWLS','#','sl113-sub-bowls')+sub('sl113-sub-bowls',BOWLS)+
-      row('HOSES','/product-category/hose/')+row('ACCESSORIES','#','sl113-sub-accessories')+sub('sl113-sub-accessories',ACCESSORIES)+
-      row('CHARCOAL','/product-category/charcoal/')+row('FLAVORS','/product-category/flavors/')+row('MERCHANDISE','/product-category/merchandise/')+
-      '<div class="sl113-section">SHISHALOVE</div><div class="sl113-lower">'+
-      '<a href="/my-account/"><i>♙</i>My Account</a><a href="/contact/"><i>◉</i>Customer Support</a><button data-sl-language><i>◎</i>Language <span style="margin-left:auto;color:#aaa">EN</span></button><a href="/about/"><i>ⓘ</i>About ShishaLove</a><a href="/stores/"><i>⌖</i>Find Stores</a><a href="/contact/"><i>✉</i>Contact Us</a></div>';
-  }
-
-  function ensureDrawer() {
-    if(document.getElementById('sl113-drawer')) return;
-    var backdrop=document.createElement('div'); backdrop.id='sl113-backdrop'; document.body.appendChild(backdrop);
-    var d=document.createElement('aside'); d.id='sl113-drawer'; d.innerHTML=drawerHtml(); document.body.appendChild(d);
-    function close(){ document.body.classList.remove('sl113-drawer-open'); }
-    backdrop.addEventListener('click',close); d.querySelector('.sl113-close').addEventListener('click',close);
-    $all('[data-sl-sub]',d).forEach(function(b){ b.addEventListener('click',function(){ var s=document.getElementById(b.getAttribute('data-sl-sub')); if(s) s.classList.toggle('open'); }); });
-    document.addEventListener('click',function(e){
-      var c=e.target && e.target.closest ? e.target.closest('button,a,[role="button"]') : null;
-      if(!c || c.closest('#sl113-drawer')) return;
-      if(looksHamburger(c)) { e.preventDefault(); e.stopPropagation(); if(e.stopImmediatePropagation)e.stopImmediatePropagation(); document.body.classList.add('sl113-drawer-open'); }
-    },true);
-  }
-
-  function siteBackTarget() {
-    var p=location.pathname.toLowerCase();
-    if(/^\/product-category\/(wookah|alpha|steamulation|union|mig|el-badia|moze|anima|goldminer|ykap|mexanika|diavla)/.test(p)) return '/product-category/hookah/';
-    if(/^\/product-category\/bowls\//.test(p)) return '/product-category/bowls/';
-    if(/^\/product-category\/accessories\//.test(p) || p==='/product-category/glassbowls/') return '/product-category/accessories/';
-    if(/^\/product-category\/(hookah|bowls|hose|accessories|charcoal|flavors|merchandise)\/?$/.test(p)) return HOME_URL;
-    return '';
-  }
-
-  function looksBack(el) {
-    if(!el) return false; var t=text(el).replace(/\s+/g,''), a=(el.getAttribute('aria-label')||el.getAttribute('title')||'').toLowerCase(), c=String(el.className||'').toLowerCase();
-    return t==='←'||t==='‹'||a.indexOf('back')>=0||c.indexOf('back')>=0;
-  }
-
-  function ensureBackRouting() {
-    if(window.__sl113Back) return; window.__sl113Back=true;
-    document.addEventListener('click',function(e){
-      var c=e.target&&e.target.closest?e.target.closest('a,button,[role="button"]'):null;
-      if(!looksBack(c)) return; var target=siteBackTarget(); if(!target) return;
-      e.preventDefault(); e.stopPropagation(); if(e.stopImmediatePropagation)e.stopImmediatePropagation(); location.assign(abs(target));
-    },true);
-  }
-
-  function hideReleaseBadges() {
-    $all('body *').forEach(function(el){ if(!el.children.length && /^RELEASE\s+1\.1\.\d+$/i.test(text(el))) el.style.setProperty('display','none','important'); });
-  }
-
-  function dismissSiteAge() {
-    $all('button,a').forEach(function(el){ var t=text(el).toUpperCase(); if(t==='I CONFIRM'||t.indexOf('CONFIRM')>=0 && t.length<35){ try{el.click();}catch(e){} } });
-  }
-
-  function ensureAgeGate() {
-    var confirmed=false; try{confirmed=localStorage.getItem('sl-age-confirmed-v113')==='1';}catch(e){}
-    if(confirmed || document.getElementById('sl113-age')) return;
-    var gate=document.createElement('div'); gate.id='sl113-age';
-    gate.innerHTML='<div class="sl113-age-card"><div class="sl113-age-logo">shishalove</div><h2>Welcome to<br>ShishaLove</h2><p>This storefront may contain age-restricted products. Confirm that you meet the legal age requirement in your location.</p><button class="sl113-age-confirm">I confirm I am of legal age</button><a class="sl113-age-leave" href="https://www.google.com/">Leave</a></div>';
-    document.body.appendChild(gate);
-    gate.querySelector('.sl113-age-confirm').addEventListener('click',function(){ try{localStorage.setItem('sl-age-confirmed-v113','1');}catch(e){} dismissSiteAge(); gate.remove(); });
-  }
-
-  function fix() {
-    injectBaseStyle(); repairImages(); ensureDrawer(); ensureBackRouting(); hideReleaseBadges(); ensureHomeGrid(); ensureCategoryGrid(); ensureAgeGate();
-  }
-
-  fix();
-  setTimeout(fix,250); setTimeout(fix,900); setTimeout(fix,1800);
-  if(!window.__sl113Obs){ var queued=false; window.__sl113Obs=new MutationObserver(function(){ if(queued)return; queued=true; setTimeout(function(){queued=false;repairImages();ensureHomeGrid();ensureCategoryGrid();hideReleaseBadges();},160); }); window.__sl113Obs.observe(document.documentElement,{childList:true,subtree:true}); }
+(function(){
+'use strict';
+var VERSION='1.1.4', BASE='https://shishalove.eu', HOME=BASE+'/shishalove-app/?app=android&build=114';
+var HOME_CATS=[['Hookah','/product-category/hookah/'],['Bowls','/product-category/bowls/'],['Hoses','/product-category/hose/'],['Accessories','/product-category/accessories/'],['Charcoal','/product-category/charcoal/'],['Flavors','/product-category/flavors/'],['Merchandise','/product-category/merchandise/']];
+var HOOKAH=[['Wookah','/product-category/wookah/hookah-wookah/'],['Alpha','/product-category/alpha/'],['Steamulation','/product-category/steamulation/'],['Union','/product-category/union/'],['MIG','/product-category/mig/'],['El-Badia','/product-category/el-badia/hookah-el-badia/'],['Moze','/product-category/moze/hookah-moze/'],['Anima','/product-category/anima/'],['Gold Miner','/product-category/goldminer/'],['YKAP','/product-category/ykap/'],['Mexanika','/product-category/mexanika/'],['DIAVLA','/product-category/diavla/']];
+var BOWLS=[['Phunnel','/product-category/bowls/phunnel-bowls/'],['Killer','/product-category/bowls/killer/'],['Heat Management','/product-category/bowls/heat-management/'],['Gaskets','/product-category/accessories/gaskets/']];
+var ACCESS=[['Hookah Vases','/product-category/glassbowls/'],['Charcoal Burner','/product-category/accessories/charcoal-burner/'],['Tongs','/product-category/accessories/tongs/'],['Cleaning','/product-category/accessories/cleaning/'],['Ash Plates','/product-category/accessories/ash-plates/'],['Charcoal Holder','/product-category/accessories/charcoal-holder/'],['Wind Cover','/product-category/accessories/wind-cover/'],['Pokers & Forks','/product-category/accessories/pokers/'],['Cases','/product-category/accessories/cases/'],['Hookah Colorants','/product-category/accessories/hookahcolorants/'],['Hookah Boards','/product-category/accessories/hookah-boards/'],['Molasses Catcher','/product-category/accessories/molasses-catcher/']];
+function all(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));}
+function tx(e){return (e&&(e.innerText||e.textContent)||'').replace(/\s+/g,' ').trim();}
+function vis(e){if(!e||!e.getBoundingClientRect)return false;var r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>1&&r.height>1&&s.display!=='none'&&s.visibility!=='hidden';}
+function abs(u){try{return new URL(u,BASE).href;}catch(e){return u||'';}}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function injectStyle(){if(document.getElementById('sl114-style'))return;var s=document.createElement('style');s.id='sl114-style';s.textContent='\
+:root{--slr:#d9253f;--slb:#080808;--sll:#e9e9e9}body.sl114-appshell{padding-bottom:76px!important;background:#fff!important}body.sl114-appshell header:not(#sl114-appbar),body.sl114-appshell .site-header,body.sl114-appshell #masthead,body.sl114-appshell footer,body.sl114-appshell .site-footer{display:none!important}\
+#sl114-appbar{height:84px;display:grid;grid-template-columns:58px 1fr 114px;align-items:center;background:#fff;border-bottom:1px solid #eee;padding:0 16px;box-sizing:border-box;position:relative;z-index:90}#sl114-appbar .m{font-size:34px;background:none;border:0;padding:0;text-align:left}#sl114-appbar .brand{text-align:center;font-family:Georgia,serif;font-style:italic;font-weight:800;font-size:29px;letter-spacing:-1px;color:#111}#sl114-appbar .right{display:flex;align-items:center;justify-content:flex-end;gap:16px;font-weight:800;font-size:16px}#sl114-appbar a{text-decoration:none;color:#111}.sl114-caret{color:var(--slr)}\
+#sl114-bottom{position:fixed;left:0;right:0;bottom:0;height:72px;background:#fff;border-top:1px solid #eee;z-index:150;display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:max(5px,env(safe-area-inset-bottom));box-sizing:content-box}#sl114-bottom a{display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;color:#555;font:700 12px Arial;gap:5px}#sl114-bottom a i{font-style:normal;font-size:25px;line-height:1}#sl114-bottom a.home{color:var(--slr)}\
+.sl114-grid{display:grid!important;gap:10px!important;margin:14px 24px 22px!important}.sl114-hookah{grid-template-columns:repeat(2,minmax(0,1fr))!important}.sl114-bowls{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}.sl114-access{grid-template-columns:repeat(3,minmax(0,1fr))!important}.sl114-card{height:176px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;border:1px solid #e6e6e6;border-radius:17px;background:#fff;overflow:hidden;text-decoration:none!important;color:#111!important;box-sizing:border-box}.sl114-bowls .sl114-card{height:180px}.sl114-access .sl114-card{height:185px}.sl114-card img{position:absolute;left:8px;right:8px;top:8px;width:calc(100% - 16px);height:72%;object-fit:contain;background:#fff}.sl114-card .label{position:relative;z-index:2;width:100%;box-sizing:border-box;padding:8px 5px 12px;background:rgba(255,255,255,.96);font:800 14px/1.1 Arial;text-align:center}.sl114-bowls .label{font-size:11px;padding-left:2px;padding-right:2px}.sl114-ph{position:absolute;top:38%;font:600 12px Arial;color:#999}\
+.sl114-home-upgraded{display:flex!important;flex-direction:column!important;justify-content:flex-end!important;position:relative!important;overflow:hidden!important;background:#fff!important}.sl114-home-upgraded svg,.sl114-home-upgraded>i,.sl114-home-upgraded .icon{display:none!important}.sl114-home-photo{position:absolute!important;left:8px!important;right:8px!important;top:8px!important;width:calc(100% - 16px)!important;height:68%!important;object-fit:contain!important;background:#fff!important}.sl114-home-upgraded .sl114-home-label{position:relative!important;z-index:3!important;width:100%!important;background:rgba(255,255,255,.96)!important;text-align:center!important;color:#111!important;-webkit-text-fill-color:#111!important;font-weight:800!important}\
+#sl114-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.38);z-index:2147483638;display:none}#sl114-drawer{position:fixed;left:0;top:0;bottom:0;width:min(86vw,430px);background:#080808;color:#fff;z-index:2147483639;transform:translateX(-105%);transition:transform .18s ease;overflow:auto;padding:18px 22px 34px;box-sizing:border-box;font-family:Arial}body.sl114-drawer-open #sl114-backdrop{display:block}body.sl114-drawer-open #sl114-drawer{transform:translateX(0)}.sl114-dh{display:flex;align-items:center;justify-content:space-between;padding:8px 2px 20px}.sl114-wordmark{font-family:Georgia,serif;font-style:italic;font-weight:800;font-size:36px}.sl114-wordmark b{color:var(--slr);font-style:normal;font-size:27px;margin-right:6px}.sl114-close{width:50px;height:50px;border:0;border-radius:50%;background:#232323;color:#fff;font-size:34px}.sl114-row{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:58px;padding:0 6px;border:0;border-bottom:1px solid #292929;background:#080808;color:#fff;font-size:19px;font-weight:800;text-align:left;box-sizing:border-box;text-decoration:none}.sl114-row span:last-child{font-size:24px;font-weight:400}.sl114-sub{display:none;padding:4px 0 10px 18px}.sl114-sub.open{display:block}.sl114-sub a{display:block;color:#d5d5d5;text-decoration:none;padding:10px 2px;font-size:15px;border-bottom:1px solid #171717}.sl114-sec{color:#777;font-size:12px;letter-spacing:2px;padding:24px 6px 8px}.sl114-lower a,.sl114-lower button{display:flex;gap:14px;align-items:center;width:100%;min-height:52px;background:#080808;border:0;color:#fff;text-decoration:none;font-size:16px;font-weight:700;text-align:left;padding:0 6px}.sl114-lower i{width:22px;text-align:center;font-style:normal;font-size:20px}\
+#sl114-age{position:fixed;inset:0;z-index:2147483642;background:radial-gradient(circle at 50% 18%,#202020 0,#080808 45%,#000 100%);display:flex;align-items:center;justify-content:center;padding:26px;box-sizing:border-box;font-family:Arial}.sl114-age-card{width:min(90vw,420px);background:#fff;border-radius:5px;padding:42px 24px 30px;text-align:center;box-shadow:0 18px 55px rgba(0,0,0,.4)}.sl114-age-card h2{font-size:31px;line-height:1.02;margin:0 0 28px}.sl114-age-card p{font-size:17px;line-height:1.55;color:#666;margin:0 0 26px}.sl114-confirm{display:block;width:100%;background:var(--slr);color:#fff;border:0;border-radius:2px;padding:17px 10px;font-size:16px;font-weight:800}.sl114-leave{display:inline-block;margin-top:21px;color:#666;text-decoration:none;font-size:16px}\
+body.sl114-appshell .grecaptcha-badge,body.sl114-appshell .cky-btn-revisit-wrapper,body.sl114-appshell [class*=cookie-revisit]{display:none!important}@media(max-width:390px){.sl114-grid{margin-left:16px!important;margin-right:16px!important}.sl114-card{height:158px}.sl114-bowls .sl114-card{height:160px}.sl114-access .sl114-card{height:165px}}';document.head.appendChild(s);}
+function imageCandidate(img){if(!img)return'';var a=['data-src','data-lazy-src','data-original','data-lazyload','data-lazy','data-image','data-orig-file'];for(var i=0;i<a.length;i++){var v=img.getAttribute(a[i]);if(v)return abs(v);}var set=img.getAttribute('data-srcset')||img.getAttribute('srcset');if(set)return abs(set.split(',').pop().trim().split(/\s+/)[0]);return abs(img.getAttribute('src')||'');}
+function repairImages(){all('img').forEach(function(img){img.style.setProperty('opacity','1','important');img.style.setProperty('visibility','visible','important');img.setAttribute('decoding','async');var src=imageCandidate(img),cur=img.getAttribute('src')||'';if(src&&(!cur||/placeholder|data:image\/gif/i.test(cur)))img.src=src;});}
+var catMap=null,catWait=[];
+function warmCategoryMap(){if(catMap){return;}try{var c=JSON.parse(localStorage.getItem('sl114-catmap')||'null');if(c&&c.time>Date.now()-86400000&&c.map){catMap=c.map;return;}}catch(e){}fetch(BASE+'/wp-json/wc/store/v1/products/categories?per_page=100',{credentials:'include',cache:'force-cache'}).then(function(r){return r.ok?r.json():[];}).then(function(rows){var m={};(rows||[]).forEach(function(x){var im=x.image&&(x.image.src||x.image.thumbnail)||'';if(im){m[String(x.name||'').toLowerCase()]=im;m[String(x.slug||'').toLowerCase()]=im;}});catMap=m;try{localStorage.setItem('sl114-catmap',JSON.stringify({time:Date.now(),map:m}));}catch(e){}catWait.splice(0).forEach(function(f){f();});}).catch(function(){catMap={};});}
+function firstProductImage(html){try{var d=new DOMParser().parseFromString(html,'text/html'),im=d.querySelector('ul.products li.product img,.products .product img,li.product img,img.wp-post-image');return imageCandidate(im);}catch(e){return'';}}
+function photoFor(label,path,cb){var key='sl114-thumb:'+path,c='';try{c=localStorage.getItem(key)||'';}catch(e){}if(c){cb(c);return;}function categoryTry(){var slug=(path.split('/').filter(Boolean).pop()||'').toLowerCase(),k=label.toLowerCase(),src=(catMap&&((catMap[k])||(catMap[slug])))||'';if(src){try{localStorage.setItem(key,src);}catch(e){}cb(src);return true;}return false;}if(categoryTry())return;if(catMap===null){catWait.push(function(){if(!categoryTry())scrape();});warmCategoryMap();}else scrape();function scrape(){fetch(abs(path),{credentials:'include',cache:'force-cache'}).then(function(r){return r.ok?r.text():'';}).then(function(h){var s=firstProductImage(h);if(s){try{localStorage.setItem(key,s);}catch(e){}cb(s);}}).catch(function(){});}}
+function hideNativeAge(){all('body *').forEach(function(e){if(e.id==='sl114-age'||e.closest&&e.closest('#sl114-age'))return;var t=tx(e).toLowerCase();if((t.indexOf('are you over 18 years of age')>=0||t.indexOf('remember me')>=0&&t.indexOf('yes')>=0&&t.indexOf('no')>=0)&&e.getBoundingClientRect&&e.getBoundingClientRect().width>220){var n=e;for(var i=0;i<5&&n&&n!==document.body;i++,n=n.parentElement){var r=n.getBoundingClientRect();if(r.width>250&&r.height>180){n.style.setProperty('display','none','important');break;}}}});}
+function ensureAge(){var ok=false;try{ok=localStorage.getItem('sl-age-confirmed-v114')==='1'||localStorage.getItem('sl-age-confirmed-v113')==='1';}catch(e){}if(ok){hideNativeAge();return;}if(document.getElementById('sl114-age'))return;var g=document.createElement('div');g.id='sl114-age';g.innerHTML='<div class="sl114-age-card"><h2>Welcome to<br>ShishaLove</h2><p>This storefront may contain age-restricted products. Confirm that you meet the legal age requirement in your location.</p><button class="sl114-confirm">I confirm I am of legal age</button><a class="sl114-leave" href="https://www.google.com/">Leave</a></div>';document.body.appendChild(g);g.querySelector('.sl114-confirm').onclick=function(){try{localStorage.setItem('sl-age-confirmed-v114','1');localStorage.setItem('sl-age-confirmed-v113','1');}catch(e){}hideNativeAge();g.remove();};}
+function exact(label){var es=all('h1,h2,h3,h4,p,span,strong,a,button,div');for(var i=0;i<es.length;i++)if(vis(es[i])&&tx(es[i]).toUpperCase()===label.toUpperCase())return es[i];return null;}
+function findCard(label){var e=exact(label);if(!e)return null,n=e;for(var i=0;i<5&&n&&n!==document.body;i++,n=n.parentElement){var r=n.getBoundingClientRect();if(r.width>=90&&r.width<=innerWidth*.5&&r.height>=100&&r.height<=280)return {card:n,label:e};}return null;}
+function upgradeHome(){HOME_CATS.forEach(function(item){var hit=findCard(item[0]);if(!hit||hit.card.classList.contains('sl114-home-upgraded'))return;hit.card.classList.add('sl114-home-upgraded');hit.label.classList.add('sl114-home-label');photoFor(item[0],item[1],function(src){if(!hit.card.isConnected||hit.card.querySelector('.sl114-home-photo'))return;var im=document.createElement('img');im.className='sl114-home-photo';im.alt=item[0];im.src=src;hit.card.insertBefore(im,hit.card.firstChild);});});}
+function hideCards(items){items.forEach(function(item){var h=findCard(item[0]);if(h&&!h.card.closest('.sl114-grid'))h.card.style.setProperty('display','none','important');});}
+function makeGrid(items,cls,id){var g=document.createElement('div');g.className='sl114-grid '+cls;g.id=id;items.forEach(function(item){var a=document.createElement('a');a.className='sl114-card';a.href=abs(item[1]);a.innerHTML='<span class="sl114-ph">'+esc(item[0])+'</span><span class="label">'+esc(item[0])+'</span>';g.appendChild(a);photoFor(item[0],item[1],function(src){if(!a.isConnected||a.querySelector('img'))return;var im=document.createElement('img');im.src=src;im.alt=item[0];im.decoding='async';var ph=a.querySelector('.sl114-ph');if(ph)ph.style.display='none';a.insertBefore(im,a.firstChild);});});return g;}
+function pageTitle(){var p=location.pathname.toLowerCase();if(p.indexOf('/wookah/')>=0||p.indexOf('hookah-wookah')>=0)return'WOOKAH';var hs=all('h1,h2,.page-title,.category-title');for(var i=0;i<hs.length;i++)if(vis(hs[i])&&tx(hs[i]))return tx(hs[i]).toUpperCase();return'';}
+function fixBrandTitle(){var p=location.pathname.toLowerCase(),name='';if(p.indexOf('/wookah/')>=0||p.indexOf('hookah-wookah')>=0)name='Wookah';if(!name)return;all('h1,h2').forEach(function(h){if(vis(h)&&tx(h).toUpperCase()==='HOOKAH')h.textContent=name;});document.title=name+' – ShishaLove';}
+function mountGrid(){var t=pageTitle(),items=null,cls='',id='';if(t==='HOOKAH'){items=HOOKAH;cls='sl114-hookah';id='sl114-hookah-grid';}else if(t==='BOWLS'){items=BOWLS;cls='sl114-bowls';id='sl114-bowls-grid';}else if(t==='ACCESSORIES'){items=ACCESS;cls='sl114-access';id='sl114-access-grid';}if(!items||document.getElementById(id))return;hideCards(items);var h=exact(t.charAt(0)+t.slice(1).toLowerCase())||exact(t),g=makeGrid(items,cls,id);if(h){var host=h;while(host.parentElement&&host.parentElement.getBoundingClientRect().width<innerWidth*.75)host=host.parentElement;host.parentNode.insertBefore(g,host.nextSibling);}else{var main=document.querySelector('main')||document.body;main.insertBefore(g,main.firstChild);}}
+function logoSrc(){var imgs=all('img');for(var i=0;i<imgs.length;i++){var s=imageCandidate(imgs[i]),a=(imgs[i].alt||'').toLowerCase();if((s&&s.toLowerCase().indexOf('logo')>=0||a.indexOf('shishalove')>=0)&&vis(imgs[i]))return s;}return'';}
+function ensureAppShell(){var p=location.pathname.toLowerCase();if(p.indexOf('/shishalove-app')===0)return;document.body.classList.add('sl114-appshell');if(!document.getElementById('sl114-appbar')){var bar=document.createElement('header');bar.id='sl114-appbar';var ls=logoSrc();bar.innerHTML='<button class="m" aria-label="menu">☰</button><a class="brand" href="'+HOME+'">'+(ls?'<img src="'+esc(ls)+'" alt="ShishaLove" style="max-height:62px;max-width:190px;object-fit:contain">':'shishalove')+'</a><div class="right"><span>EN <b class="sl114-caret">⌄</b></span><a href="'+BASE+'/cart/" aria-label="Cart">🛒</a></div>';document.body.insertBefore(bar,document.body.firstChild);}if(!document.getElementById('sl114-bottom')){var b=document.createElement('nav');b.id='sl114-bottom';b.innerHTML='<a class="home" href="'+HOME+'"><i>⌂</i>Home</a><a href="'+BASE+'/?s=&post_type=product"><i>⌕</i>Search</a><a href="'+BASE+'/wishlist/"><i>♡</i>Favorites</a><a href="'+BASE+'/my-account/"><i>♙</i>Account</a>';document.body.appendChild(b);}fixBrandTitle();}
+function drawerHtml(){function row(n,u,id){return id?'<button class="sl114-row" data-sub="'+id+'"><span>'+n+'</span><span>⌄</span></button>':'<a class="sl114-row" href="'+abs(u)+'"><span>'+n+'</span><span>›</span></a>';}function sub(id,a){return'<div class="sl114-sub" id="'+id+'">'+a.map(function(x){return'<a href="'+abs(x[1])+'">'+esc(x[0])+'</a>';}).join('')+'</div>';}return'<div class="sl114-dh"><div class="sl114-wordmark"><b>♡</b>shishalove</div><button class="sl114-close">×</button></div>'+row('HOME',HOME)+row('HOOKAH','#','h')+sub('h',HOOKAH)+row('BOWLS','#','b')+sub('b',BOWLS)+row('HOSES','/product-category/hose/')+row('ACCESSORIES','#','a')+sub('a',ACCESS)+row('CHARCOAL','/product-category/charcoal/')+row('FLAVORS','/product-category/flavors/')+row('MERCHANDISE','/product-category/merchandise/')+'<div class="sl114-sec">SHISHALOVE</div><div class="sl114-lower"><a href="/my-account/"><i>♙</i>My Account</a><a href="/contact/"><i>◉</i>Customer Support</a><button><i>◎</i>Language <span style="margin-left:auto;color:#aaa">EN</span></button><a href="/about/"><i>ⓘ</i>About ShishaLove</a><a href="/stores/"><i>⌖</i>Find Stores</a><a href="/contact/"><i>✉</i>Contact Us</a></div>';}
+function ensureDrawer(){if(document.getElementById('sl114-drawer'))return;var bd=document.createElement('div');bd.id='sl114-backdrop';document.body.appendChild(bd);var d=document.createElement('aside');d.id='sl114-drawer';d.innerHTML=drawerHtml();document.body.appendChild(d);function close(){document.body.classList.remove('sl114-drawer-open');}bd.onclick=close;d.querySelector('.sl114-close').onclick=close;all('[data-sub]',d).forEach(function(b){b.onclick=function(){var s=document.getElementById(b.getAttribute('data-sub'));if(s)s.classList.toggle('open');};});document.addEventListener('click',function(e){var c=e.target&&e.target.closest?e.target.closest('button,a,[role="button"]'):null;if(!c||c.closest('#sl114-drawer'))return;var ar=(c.getAttribute('aria-label')||'').toLowerCase(),cl=String(c.className||'').toLowerCase(),t=tx(c).replace(/\s/g,'');if(ar.indexOf('menu')>=0||cl.indexOf('hamburger')>=0||cl.indexOf('menu-toggle')>=0||t==='☰'){e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();document.body.classList.add('sl114-drawer-open');}},true);}
+function backTarget(){var p=location.pathname.toLowerCase();if(/^\/product-category\/(wookah|alpha|steamulation|union|mig|el-badia|moze|anima|goldminer|ykap|mexanika|diavla)/.test(p))return'/product-category/hookah/';if(/^\/product-category\/bowls\//.test(p))return'/product-category/bowls/';if(/^\/product-category\/accessories\//.test(p)||p==='/product-category/glassbowls/')return'/product-category/accessories/';if(/^\/product-category\/(hookah|bowls|hose|accessories|charcoal|flavors|merchandise)\/?$/.test(p))return HOME;return'';}
+function ensureBack(){if(window.__sl114back)return;window.__sl114back=1;document.addEventListener('click',function(e){var c=e.target&&e.target.closest?e.target.closest('a,button,[role="button"]'):null;if(!c)return;var t=tx(c).replace(/\s+/g,''),a=(c.getAttribute('aria-label')||c.getAttribute('title')||'').toLowerCase(),cl=String(c.className||'').toLowerCase();if(!(t==='←'||t==='‹'||a.indexOf('back')>=0||cl.indexOf('back')>=0))return;var x=backTarget();if(!x)return;e.preventDefault();e.stopPropagation();location.assign(abs(x));},true);}
+function hideBadges(){all('body *').forEach(function(e){if(!e.children.length&&/^RELEASE\s+1\.1\.\d+$/i.test(tx(e)))e.style.setProperty('display','none','important');});}
+function fix(){injectStyle();warmCategoryMap();repairImages();hideNativeAge();ensureAge();ensureAppShell();ensureDrawer();ensureBack();fixBrandTitle();upgradeHome();mountGrid();hideBadges();}
+fix();setTimeout(fix,220);setTimeout(fix,800);if(!window.__sl114obs){var q=false;window.__sl114obs=new MutationObserver(function(){if(q)return;q=true;setTimeout(function(){q=false;repairImages();hideNativeAge();ensureAppShell();fixBrandTitle();upgradeHome();mountGrid();hideBadges();},120);});window.__sl114obs.observe(document.documentElement,{childList:true,subtree:true});}
 })();
