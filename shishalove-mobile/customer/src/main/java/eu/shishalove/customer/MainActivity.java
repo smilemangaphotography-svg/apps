@@ -32,7 +32,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=113";
+    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=114";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7101;
 
@@ -90,7 +90,7 @@ public class MainActivity extends Activity {
         if (savedInstanceState == null) webView.loadUrl(START_URL);
         else {
             webView.restoreState(savedInstanceState);
-            dismissSplash(450);
+            dismissSplash(350);
         }
     }
 
@@ -128,7 +128,7 @@ public class MainActivity extends Activity {
     private void dismissSplash(long delayMs) {
         handler.postDelayed(() -> {
             if (splashOverlay == null || splashOverlay.getVisibility() != View.VISIBLE) return;
-            splashOverlay.animate().alpha(0f).setDuration(180).withEndAction(() -> {
+            splashOverlay.animate().alpha(0f).setDuration(160).withEndAction(() -> {
                 splashOverlay.setVisibility(View.GONE);
                 getWindow().setStatusBarColor(Color.WHITE);
                 getWindow().setNavigationBarColor(Color.WHITE);
@@ -167,7 +167,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) settings.setOffscreenPreRaster(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.1.3");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.1.4");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
@@ -190,7 +190,7 @@ public class MainActivity extends Activity {
                 super.onPageCommitVisible(view, url);
                 applyPhonePolish(view);
                 progressBar.setVisibility(View.GONE);
-                dismissSplash(420);
+                dismissSplash(260);
             }
 
             @Override
@@ -198,7 +198,7 @@ public class MainActivity extends Activity {
                 super.onPageFinished(view, url);
                 applyPhonePolish(view);
                 progressBar.setVisibility(View.GONE);
-                dismissSplash(120);
+                dismissSplash(80);
             }
 
             @Override
