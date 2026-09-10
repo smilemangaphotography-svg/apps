@@ -3,8 +3,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:icon="@drawable/ic_shishalove"
+        android:roundIcon="@drawable/ic_shishalove"
         android:label="ShishaLove Merchant"
+        android:hardwareAccelerated="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
         <activity
