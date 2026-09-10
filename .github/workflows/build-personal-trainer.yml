@@ -6,7 +6,7 @@ on:
     branches: [ personal-trainer-main ]
     paths:
       - 'personal-trainer/android-beta/**'
-      - 'personal-trainer/ILIA-COACH-2.7-DESIGN-LOCK.md'
+      - 'personal-trainer/DESIGN-LOCK-BETA-2.9.md'
       - '.github/workflows/build-personal-trainer.yml'
 
 permissions:
@@ -18,10 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - name: Checkout repository
+      - name: Checkout canonical branch
         uses: actions/checkout@v4
         with:
           ref: personal-trainer-main
+          fetch-depth: 0
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -48,91 +49,85 @@ jobs:
             sudo apt-get install -y ffmpeg
           fi
 
-      - name: Import proven Adaptive Coach 1.1 anatomy pack
+      - name: Import proven Adaptive Coach 1.1 motion library
         shell: bash
         run: |
           set -euo pipefail
           A=personal-trainer/android-beta/app/src/main/assets
-          mkdir -p "$A/media/anatomy" "$A/media/custom" /tmp/ilia110
-          curl -L --fail --retry 4 --retry-delay 2 \
-            'https://raw.githubusercontent.com/smilemangaphotography-svg/apps/rebuild/ilias-coach-v2/ILIA-SAFE-SOURCE.bin' \
-            -o /tmp/ilia110/source.zip
+          mkdir -p "$A/media/adaptive" /tmp/ilia110
+          git fetch --depth=1 origin rebuild/ilias-coach-v2
+          git show FETCH_HEAD:ILIA-SAFE-SOURCE.bin > /tmp/ilia110/source.zip
           unzip -q /tmp/ilia110/source.zip -d /tmp/ilia110/source
           SRC=/tmp/ilia110/source/Ilias-Coach/app/src/main/assets/media/anatomy
           test -d "$SRC"
-          cp -a "$SRC"/. "$A/media/anatomy/"
-          test -s "$A/media/anatomy/leg-press.mp4"
-          test -s "$A/media/anatomy/leg-press.webp"
-          test -s "$A/media/anatomy/front-plank.mp4"
-          test -s "$A/media/anatomy/rope-triceps-pressdown.mp4"
+          cp -a "$SRC"/. "$A/media/adaptive/"
+          test -s "$A/media/adaptive/leg-press.mp4"
+          test -s "$A/media/adaptive/leg-press.webp"
+          test -s "$A/media/adaptive/front-plank.mp4"
+          test -s "$A/media/adaptive/rope-triceps-pressdown.mp4"
 
-      - name: Import five Personal Trainer extension motions
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Validate locked Beta 2.9 runtime
         shell: bash
         run: |
           set -euo pipefail
           A=personal-trainer/android-beta/app/src/main/assets
-          mkdir -p /tmp/b26 "$A/media/custom"
-          curl -L --fail --retry 4 \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            'https://api.github.com/repos/smilemangaphotography-svg/apps/actions/artifacts/10123086475/zip' \
-            -o /tmp/b26/artifact.zip
-          unzip -q /tmp/b26/artifact.zip -d /tmp/b26/artifact
-          unzip -q /tmp/b26/artifact/Personal-Trainer-Style2-Beta-2.6.apk -d /tmp/b26/apk
-          for pair in chestrow:chestrow legext:legext revlunge:revlunge spanish:spanish deadbug:deadbug; do
-            name=${pair%%:*}
-            src=${pair##*:}
-            cp "/tmp/b26/apk/assets/media/motion-${src}-loop.mp4" "$A/media/custom/${name}.mp4"
-            cp "/tmp/b26/apk/assets/media/motion-${src}-poster.jpg" "$A/media/custom/${name}.jpg"
-            test -s "$A/media/custom/${name}.mp4"
-            test -s "$A/media/custom/${name}.jpg"
-          done
-
-      - name: Validate ILIA COACH 2.7 source
-        shell: bash
-        run: |
-          set -euo pipefail
-          A=personal-trainer/android-beta/app/src/main/assets
-          node --check "$A/ilia27.js"
-          test -s "$A/ilia27.css"
-          test -s "$A/index27.html"
-          grep -q 'ilia27.css' "$A/index27.html"
-          grep -q 'ilia27.js' "$A/index27.html"
-          grep -q "__ILIA_COACH_27__='all-in-one-locked-2.7'" "$A/ilia27.js"
-          grep -q 'requestAnimationFrame' "$A/ilia27.js"
-          grep -q 'preload="auto"' "$A/ilia27.js"
-          grep -q 'EXERCISE SELECTION' "$A/ilia27.js"
-          grep -q 'TRAINING TYPE' "$A/ilia27.js"
-          grep -q 'RUNNING TYPE' "$A/ilia27.js"
-          grep -q "versionName '2.7-beta'" personal-trainer/android-beta/app/build.gradle
+          node --check "$A/app-v2.js"
+          node --check "$A/pt-v25-core.js"
+          node --check "$A/style2-v29.js"
+          node --check "$A/style2-v29-admin.js"
+          test -s "$A/style2-v29.css"
+          test -s "$A/index29.html"
+          test -s personal-trainer/DESIGN-LOCK-BETA-2.9.md
+          grep -q 'style2-v29.css' "$A/index29.html"
+          grep -q 'style2-v29.js' "$A/index29.html"
+          grep -q 'style2-v29-admin.js' "$A/index29.html"
+          ! grep -q 'style2-v25.js' "$A/index29.html"
+          ! grep -q 'style2-v26.js' "$A/index29.html"
+          ! grep -q 'ilia27.js' "$A/index29.html"
+          grep -q "__PT_STYLE29__='locked-all-in-one-2.9'" "$A/style2-v29.js"
+          grep -q 'requestAnimationFrame(()=>requestAnimationFrame(load))' "$A/style2-v29.js"
+          grep -q 'Animation Gallery' "$A/style2-v29-admin.js"
+          grep -q 'Font Manager' "$A/style2-v29-admin.js"
+          grep -q 'Exercise Upload' "$A/style2-v29-admin.js"
+          grep -q 'LOCAL RECOGNITION' "$A/style2-v29-admin.js"
+          grep -q 'Spotify Playlists' "$A/style2-v29.js"
+          grep -q 'YouTube / YouTube Music' "$A/style2-v29.js"
+          grep -q 'MONTHLY' "$A/style2-v29.js"
+          grep -q 'WEEKLY' "$A/style2-v29.js"
+          grep -q '2-WEEK BLOCKS' "$A/style2-v29.js"
+          grep -q "versionName '2.9-beta'" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionCode 29" personal-trainer/android-beta/app/build.gradle
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
           grep -q 'android:label="ILIA COACH"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'index27.html' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'window.PT27' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          test "$(grep -o "id:'" "$A/ilia27.js" | wc -l)" -ge 31
+          grep -q 'index29.html' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q '__PT_STYLE29__' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'window.PT25' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          node - <<'NODE'
+          const core=require('./personal-trainer/android-beta/app/src/main/assets/pt-v25-core.js');
+          for(const goal of ['5K','10K','Half Marathon','Marathon']){
+            const t=core.defaultTarget(goal);
+            const p=core.paceTargets(goal,t);
+            if(!p || !Number.isFinite(p.race)) throw new Error('pace failed '+goal);
+          }
+          if(core.paceCue(400,300)!=='speed-up') throw new Error('speed-up cue failed');
+          if(core.paceCue(240,300)!=='slow-down') throw new Error('slow-down cue failed');
+          console.log('running pace engine PASS');
+          NODE
 
-      - name: Validate bundled anatomy motion media
+      - name: Validate proven 26-movement media pack
         shell: bash
         run: |
           set -euo pipefail
-          A=personal-trainer/android-beta/app/src/main/assets
-          old=(leg-press machine-chest-press supported-bulgarian-split-squat seated-hamstring-curl standing-calf-raise running lat-pulldown seated-shoulder-press backward-sled-drag pallof-press romanian-deadlift barbell-hip-thrust step-up incline-dumbbell-press seated-calf-raise single-leg-leg-press supported-single-arm-dumbbell-row side-plank push-up seated-cable-row dumbbell-biceps-curl rope-triceps-pressdown dumbbell-lateral-raise face-pull goblet-squat front-plank)
-          for f in "${old[@]}"; do
-            test -s "$A/media/anatomy/$f.mp4"
-            test -s "$A/media/anatomy/$f.webp"
-            ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate -of default=nw=1 "$A/media/anatomy/$f.mp4" | grep -q 'codec_name=h264'
+          A=personal-trainer/android-beta/app/src/main/assets/media/adaptive
+          files=(leg-press step-up barbell-hip-thrust side-plank front-plank seated-cable-row seated-calf-raise goblet-squat supported-single-arm-dumbbell-row push-up lat-pulldown rope-triceps-pressdown incline-dumbbell-press dumbbell-lateral-raise romanian-deadlift dumbbell-biceps-curl backward-sled-drag machine-chest-press pallof-press seated-shoulder-press face-pull running single-leg-leg-press seated-hamstring-curl supported-bulgarian-split-squat standing-calf-raise)
+          for f in "${files[@]}"; do
+            test -s "$A/$f.mp4"
+            test -s "$A/$f.webp"
+            ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate -of default=nw=1 "$A/$f.mp4" | grep -q 'codec_name=h264'
           done
-          custom=(chestrow legext revlunge spanish deadbug)
-          for f in "${custom[@]}"; do
-            test -s "$A/media/custom/$f.mp4"
-            test -s "$A/media/custom/$f.jpg"
-            ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=nw=1 "$A/media/custom/$f.mp4" | grep -q 'codec_name=h264'
-          done
-          echo "31 exercise motion sources validated"
+          echo "26 Adaptive Coach MP4 + WebP movement pairs validated"
 
-      - name: Build ILIA COACH Beta 2.7 APK
+      - name: Build ILIA COACH Beta 2.9 APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
 
       - name: Validate APK identity and contents
@@ -142,68 +137,73 @@ jobs:
           APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='27' versionName='2.7-beta'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='29' versionName='2.9-beta'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'ILIA COACH'"
-          unzip -l "$APK" | grep -q 'assets/index27.html'
-          unzip -l "$APK" | grep -q 'assets/ilia27.js'
-          unzip -l "$APK" | grep -q 'assets/ilia27.css'
-          unzip -l "$APK" | grep -q 'assets/media/anatomy/leg-press.mp4'
-          unzip -l "$APK" | grep -q 'assets/media/anatomy/front-plank.mp4'
-          unzip -l "$APK" | grep -q 'assets/media/custom/legext.mp4'
-          unzip -l "$APK" | grep -q 'assets/media/custom/deadbug.mp4'
+          unzip -l "$APK" | grep -q 'assets/index29.html'
+          unzip -l "$APK" | grep -q 'assets/style2-v29.js'
+          unzip -l "$APK" | grep -q 'assets/style2-v29-admin.js'
+          unzip -l "$APK" | grep -q 'assets/style2-v29.css'
+          unzip -l "$APK" | grep -q 'assets/media/adaptive/leg-press.mp4'
+          unzip -l "$APK" | grep -q 'assets/media/adaptive/front-plank.mp4'
+          unzip -l "$APK" | grep -q 'assets/media/adaptive/face-pull.mp4'
 
-      - name: Package Beta 2.7 deliverables
+      - name: Package Beta 2.9 deliverables
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release
           APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
-          cp "$APK" release/ILIA-COACH-All-In-One-Beta-2.7.apk
-          cat > release/DIAGNOSTICS-BETA-2.7.txt <<'REPORT'
-          ILIA COACH All-In-One — Beta 2.7 CI Diagnostics
+          cp "$APK" release/ILIA-COACH-All-In-One-Beta-2.9.apk
+          cat > release/DIAGNOSTICS-BETA-2.9.txt <<'REPORT'
+          ILIA COACH All-In-One — Beta 2.9 CI Diagnostics
           Canonical repository: smilemangaphotography-svg/apps
           Canonical branch: personal-trainer-main
           Existing Android package preserved: PASS — com.ilia.personaltrainer
           Display label: PASS — ILIA COACH
-          Version: PASS — 2.7-beta / versionCode 27
-          Locked design document: PASS
-          Single consolidated frontend runtime: PASS — index27.html + ilia27.js + ilia27.css
-          Legacy Personal Trainer localStorage migration: STATIC PASS
-          Multi-goal selection: STATIC PASS
-          Training-type selection: STATIC PASS
-          Running-type selection: STATIC PASS
-          Schedule builder: STATIC PASS
-          Today/current workout full exercise list: STATIC PASS
-          Weekly + Monthly + 2-week plan views: STATIC PASS
-          Exercise select/unselect + automatic rebuild: STATIC PASS
-          Exercise library: PASS — 31 strength/rehab/conditioning movements
-          Adaptive Coach 1.1 proven anatomy pack imported: PASS — 26 MP4 + WebP pairs
-          Personal Trainer extension motions imported: PASS — 5 MP4 + JPG pairs
-          Motion architecture: PASS — one player, requestAnimationFrame attach, autoplay/muted/loop/playsinline/preload auto, poster fallback
-          Active workout flow: STATIC PASS
-          Rest timer: STATIC PASS
-          Native GPS bridge compile: PASS
-          Native TTS voice coach bridge compile: PASS
-          Recover page: STATIC PASS
-          Fuel/meal tracking: STATIC PASS
-          Local music picker: STATIC PASS
-          YouTube/YouTube Music: external official app/browser launch; no broken WebView embed
+          Version: PASS — 2.9-beta / versionCode 29
+          Locked Beta 2.9 design document: PASS
+          Consolidated runtime: PASS — index29 + style2-v29 core/admin
+          Old v25/v26/v27 runtime overlays excluded from entrypoint: PASS
+          Multi-goal builder: STATIC PASS
+          Training-type builder: STATIC PASS
+          5K/10K/Half/Marathon target support: PASS
+          Weekly/Monthly/2-week planning views: STATIC PASS
+          Current workout / Today plan: STATIC PASS
+          User-selectable exercise pool: STATIC PASS
+          Exercise library: PASS — 26 proven built-in movement assets plus local custom exercises
+          Adaptive Coach 1.1 anatomy pack imported: PASS — 26 MP4 + WebP pairs
+          Motion architecture: PASS — one player, next-frame attach, autoplay/muted/loop/playsinline/preload, poster fallback
+          Start / Active Muscles / End seek controls: STATIC PASS
+          Active workout/rest flow: STATIC PASS
+          Native GPS + TTS bridge compile: PASS
+          Running voice pace engine: PASS
+          Recover page with area/side/pain-aware rules: STATIC PASS
+          Fuel/macros/meals: STATIC PASS
+          DRIVE local audio: STATIC PASS
+          YouTube/YouTube Music broken WebView iframe removed: PASS — saved link opens official handler
+          Spotify playlist reference/link mode: STATIC PASS — no fake OAuth state
           Progress dashboard: STATIC PASS
-          Spotify: EXCLUDED BY REQUEST
-          Garmin: EXCLUDED BY REQUEST
-          Strava: EXCLUDED BY REQUEST
+          Profile controls: STATIC PASS
+          Admin Studio: STATIC PASS
+          Page editor: STATIC PASS
+          Font manager: STATIC PASS
+          Admin image gallery with IndexedDB storage: STATIC PASS
+          Animation gallery enable/disable/replace with IndexedDB storage: STATIC PASS
+          Exercise file upload + filename recognition + manual confirmation: STATIC PASS
+          Garmin: EXCLUDED
+          Strava: EXCLUDED
           Android Gradle build: PASS
           APK identity/content validation: PASS
-          Safe-area implementation: STATIC PASS; Samsung physical verification required
-          GPS accuracy, TTS audibility and continuous video smoothness: PHYSICAL DEVICE VERIFICATION REQUIRED
+          Safe-area implementation: STATIC PASS; physical Samsung verification required
+          GPS accuracy, TTS audibility, external playlist handlers, uploaded-media persistence and continuous motion smoothness: PHYSICAL DEVICE VERIFICATION REQUIRED
           REPORT
-          sha256sum release/ILIA-COACH-All-In-One-Beta-2.7.apk > release/SHA256SUMS.txt
-          zip -qr release/ILIA-COACH-All-In-One-Beta-2.7-Source.zip personal-trainer/android-beta personal-trainer/ILIA-COACH-2.7-DESIGN-LOCK.md .github/workflows/build-personal-trainer.yml -x '*/build/*'
+          sha256sum release/ILIA-COACH-All-In-One-Beta-2.9.apk > release/SHA256SUMS.txt
+          zip -qr release/ILIA-COACH-All-In-One-Beta-2.9-Source.zip personal-trainer/android-beta personal-trainer/DESIGN-LOCK-BETA-2.9.md .github/workflows/build-personal-trainer.yml -x '*/build/*' -x '*/media/adaptive/*'
 
-      - name: Upload Beta 2.7
+      - name: Upload Beta 2.9
         uses: actions/upload-artifact@v4
         with:
-          name: ILIA-COACH-ALL-IN-ONE-BETA-2.7
+          name: ILIA-COACH-ALL-IN-ONE-BETA-2.9
           path: release/*
           if-no-files-found: error
           retention-days: 30
