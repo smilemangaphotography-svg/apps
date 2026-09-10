@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.webkit.CookieManager;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -20,7 +21,7 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=070";
+    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=100";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7101;
 
@@ -31,6 +32,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Window window = getWindow();
+        window.setStatusBarColor(Color.WHITE);
+        window.setNavigationBarColor(Color.WHITE);
+        window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
@@ -45,20 +50,14 @@ public class MainActivity extends Activity {
         progressBar.setMax(100);
         root.addView(progressBar, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                8
+                6
         ));
 
         setContentView(root);
         configureWebView();
 
-        // Beta builds intentionally bypass stale WordPress/WebView assets.
-        webView.clearCache(true);
-
-        if (savedInstanceState == null) {
-            webView.loadUrl(START_URL);
-        } else {
-            webView.restoreState(savedInstanceState);
-        }
+        if (savedInstanceState == null) webView.loadUrl(START_URL);
+        else webView.restoreState(savedInstanceState);
     }
 
     private void configureWebView() {
@@ -75,14 +74,14 @@ public class MainActivity extends Activity {
         settings.setDisplayZoomControls(false);
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomerBeta/0.3");
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.0");
 
-        CookieManager cookieManager = CookieManager.getInstance();
-        cookieManager.setAcceptCookie(true);
-        cookieManager.setAcceptThirdPartyCookies(webView, true);
+        CookieManager cookies = CookieManager.getInstance();
+        cookies.setAcceptCookie(true);
+        cookies.setAcceptThirdPartyCookies(webView, true);
 
-        WebView.setWebContentsDebuggingEnabled(true);
+        WebView.setWebContentsDebuggingEnabled(false);
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -106,7 +105,9 @@ public class MainActivity extends Activity {
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
                 if (request.isForMainFrame()) {
-                    Toast.makeText(MainActivity.this, "Unable to reach ShishaLove. Check your connection and try again.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(MainActivity.this,
+                            "Unable to reach ShishaLove. Check your internet connection and try again.",
+                            Toast.LENGTH_LONG).show();
                 }
             }
         });
@@ -119,23 +120,19 @@ public class MainActivity extends Activity {
             }
 
             @Override
-            public boolean onShowFileChooser(
-                    WebView webView,
-                    ValueCallback<Uri[]> filePathCallbackNew,
-                    FileChooserParams fileChooserParams
-            ) {
+            public boolean onShowFileChooser(WebView webView,
+                                             ValueCallback<Uri[]> newCallback,
+                                             FileChooserParams params) {
                 if (filePathCallback != null) filePathCallback.onReceiveValue(null);
-                filePathCallback = filePathCallbackNew;
-
+                filePathCallback = newCallback;
                 Intent intent;
                 try {
-                    intent = fileChooserParams.createIntent();
+                    intent = params.createIntent();
                 } catch (Exception e) {
                     intent = new Intent(Intent.ACTION_GET_CONTENT);
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
                     intent.setType("*/*");
                 }
-
                 try {
                     startActivityForResult(intent, FILE_CHOOSER_REQUEST);
                     return true;
@@ -154,12 +151,6 @@ public class MainActivity extends Activity {
         if ("http".equals(scheme) || "https".equals(scheme)) {
             String host = uri.getHost();
             if (host != null && (SHOP_HOST.equalsIgnoreCase(host) || ("www." + SHOP_HOST).equalsIgnoreCase(host))) {
-                return false;
-            }
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW, uri));
-                return true;
-            } catch (Exception ignored) {
                 return false;
             }
         }
@@ -185,6 +176,12 @@ public class MainActivity extends Activity {
     protected void onSaveInstanceState(Bundle outState) {
         webView.saveState(outState);
         super.onSaveInstanceState(outState);
+    }
+
+    @Override
+    protected void onPause() {
+        CookieManager.getInstance().flush();
+        super.onPause();
     }
 
     @Override
