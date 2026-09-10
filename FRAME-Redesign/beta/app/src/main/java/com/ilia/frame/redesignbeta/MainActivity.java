@@ -27,7 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
-    private static final int FILE_CHOOSER_REQUEST = 6001;
+    private static final int FILE_CHOOSER_REQUEST = 7001;
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
 
@@ -54,27 +54,7 @@ public class MainActivity extends Activity {
         WebView.setWebContentsDebuggingEnabled(true);
         webView.addJavascriptInterface(new AndroidBridge(this), "FrameAndroid");
         webView.addJavascriptInterface(new SmartMlBridge(this, webView), "FrameAI");
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                String patch = "(function(){" +
-                        "var x=document.querySelector('#settings .profileCard small');" +
-                        "if(x)x.textContent='Version 0.6.0 beta';" +
-                        "function load06(){if(document.getElementById('frame-beta06-patch'))return;" +
-                        "var q=document.createElement('script');q.id='frame-beta06-patch';" +
-                        "q.src='file:///android_asset/beta06.js';document.body.appendChild(q);}" +
-                        "function load05(){if(document.getElementById('frame-beta05-patch')){load06();return;}" +
-                        "var p=document.createElement('script');p.id='frame-beta05-patch';" +
-                        "p.src='file:///android_asset/beta05.js';p.onload=load06;document.body.appendChild(p);}" +
-                        "if(!document.getElementById('frame-beta04-patch')){" +
-                        "var s=document.createElement('script');s.id='frame-beta04-patch';" +
-                        "s.src='file:///android_asset/beta04.js';s.onload=load05;document.body.appendChild(s);}" +
-                        "else{load05();}" +
-                        "})();";
-                view.evaluateJavascript(patch, null);
-            }
-        });
+        webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
@@ -94,14 +74,13 @@ public class MainActivity extends Activity {
             }
         });
 
-        webView.loadUrl("file:///android_asset/index.html");
+        webView.loadUrl("file:///android_asset/index07.html");
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != FILE_CHOOSER_REQUEST || fileCallback == null) return;
-
         Uri[] results = null;
         if (resultCode == RESULT_OK && data != null) {
             ArrayList<Uri> uris = new ArrayList<>();
@@ -111,42 +90,31 @@ public class MainActivity extends Activity {
                     Uri uri = clipData.getItemAt(i).getUri();
                     if (uri != null) uris.add(uri);
                 }
-            } else if (data.getData() != null) {
-                uris.add(data.getData());
-            }
+            } else if (data.getData() != null) uris.add(data.getData());
             if (!uris.isEmpty()) results = uris.toArray(new Uri[0]);
         }
         fileCallback.onReceiveValue(results);
         fileCallback = null;
     }
 
-    private void exitApp() {
-        super.onBackPressed();
-    }
-
     @Override
     public void onBackPressed() {
-        if (webView == null) {
-            exitApp();
-            return;
-        }
+        if (webView == null) { super.onBackPressed(); return; }
         String js = "(function(){var a=document.querySelector('.screen.active');" +
-                "if(a&&a.id==='editor'){document.getElementById('editorBack').click();return 'handled';}" +
-                "if(a&&a.id==='admin'){document.querySelector('#admin [data-go=\"settings\"]').click();return 'handled';}" +
-                "if(a&&a.id==='settings'){document.querySelector('#settings [data-go=\"library\"]').click();return 'handled';}" +
-                "if(a&&a.id==='onboarding'){document.querySelector('#onboarding [data-go=\"library\"]').click();return 'handled';}" +
+                "if(a&&a.id==='editor'){document.getElementById('backBtn').click();return 'handled';}" +
+                "if(a&&a.id==='admin'){document.getElementById('adminBack').click();return 'handled';}" +
+                "if(a&&a.id==='settings'){document.getElementById('settingsBack').click();return 'handled';}" +
+                "if(a&&a.id==='library'){return 'exit';}" +
+                "if(a&&a.id==='splash'){return 'exit';}" +
                 "return 'exit';})()";
         webView.evaluateJavascript(js, value -> {
-            if (value == null || value.contains("exit")) exitApp();
+            if (value == null || value.contains("exit")) MainActivity.super.onBackPressed();
         });
     }
 
     public static class AndroidBridge {
         private final Context context;
-
-        AndroidBridge(Context context) {
-            this.context = context;
-        }
+        AndroidBridge(Context context) { this.context = context; }
 
         @JavascriptInterface
         public void toast(String message) {
@@ -170,17 +138,14 @@ public class MainActivity extends Activity {
                     values.put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/FRAME Beta");
                     values.put(MediaStore.Images.Media.IS_PENDING, 1);
                 }
-
                 Uri uri = context.getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
                 if (uri == null) return false;
                 try (OutputStream stream = context.getContentResolver().openOutputStream(uri)) {
                     if (stream == null) return false;
-                    stream.write(bytes);
-                    stream.flush();
+                    stream.write(bytes); stream.flush();
                 }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    ContentValues done = new ContentValues();
-                    done.put(MediaStore.Images.Media.IS_PENDING, 0);
+                    ContentValues done = new ContentValues(); done.put(MediaStore.Images.Media.IS_PENDING, 0);
                     context.getContentResolver().update(uri, done, null, null);
                 }
                 ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Saved to Pictures / FRAME Beta", Toast.LENGTH_LONG).show());
@@ -200,7 +165,6 @@ public class MainActivity extends Activity {
                         : requestedName.replaceAll("[^a-zA-Z0-9._-]", "_");
                 if (!fileName.toLowerCase().endsWith(".xmp")) fileName += ".xmp";
                 byte[] bytes = xmpText.getBytes(StandardCharsets.UTF_8);
-
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     ContentValues values = new ContentValues();
                     values.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
@@ -211,11 +175,9 @@ public class MainActivity extends Activity {
                     if (uri == null) return false;
                     try (OutputStream stream = context.getContentResolver().openOutputStream(uri)) {
                         if (stream == null) return false;
-                        stream.write(bytes);
-                        stream.flush();
+                        stream.write(bytes); stream.flush();
                     }
-                    ContentValues done = new ContentValues();
-                    done.put(MediaStore.Downloads.IS_PENDING, 0);
+                    ContentValues done = new ContentValues(); done.put(MediaStore.Downloads.IS_PENDING, 0);
                     context.getContentResolver().update(uri, done, null, null);
                 } else {
                     File base = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
@@ -223,8 +185,7 @@ public class MainActivity extends Activity {
                     File dir = new File(base, "FRAME Presets");
                     if (!dir.exists() && !dir.mkdirs()) return false;
                     try (FileOutputStream stream = new FileOutputStream(new File(dir, fileName))) {
-                        stream.write(bytes);
-                        stream.flush();
+                        stream.write(bytes); stream.flush();
                     }
                 }
                 ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Lightroom preset saved to Downloads / FRAME Presets", Toast.LENGTH_LONG).show());
