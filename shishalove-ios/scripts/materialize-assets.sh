@@ -23,8 +23,10 @@ materialize() {
     echo "Missing locked ShishaLove ${prefix} icon parts" >&2
     exit 1
   fi
-  base64 --decode "$tmp" > "$out" 2>/dev/null || base64 -D "$tmp" > "$out"
-  sips -g pixelWidth -g pixelHeight "$out" | grep -q '1024' || sips -z 1024 1024 "$out" --out "$out" >/dev/null
+  openssl base64 -d -A -in "$tmp" -out "$out"
+  test -s "$out"
+  sips -z 1024 1024 "$out" --out "$out" >/dev/null
+  sips -g pixelWidth -g pixelHeight "$out" | grep -q '1024'
 }
 
 materialize customer "$CUSTOMER_OUT"
