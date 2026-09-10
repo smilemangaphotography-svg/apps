@@ -93,7 +93,7 @@ jobs:
       - name: Relocate NAR 5.1.1 into canonical runtime scope
         run: python3 nar-beta51/patch_beta_v5111_scope.py
       - name: Apply NAR 5.1.2 real multi-photo adding
-        run: python3 nar-beta51/patch_beta_v512_add_photos.py
+        run: python3 nar-beta51/run_beta_v512_add_photos.py
       - name: Validate canonical NAR Beta 5.1.2
         run: |
           JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
