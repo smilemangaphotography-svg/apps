@@ -9,25 +9,19 @@ android {
     defaultConfig {
         applicationId 'com.ilia.photomasterai'
         minSdk 26
-        targetSdk 34
-        versionCode 1
-        versionName '0.9.0-beta'
+        targetSdk 35
+        versionCode 2
+        versionName '0.10.0-beta'
 
         def endpoint = project.findProperty('PHOTO_MASTER_AI_ENDPOINT') ?: ''
         buildConfigField 'String', 'AI_ENDPOINT', '"' + endpoint.toString().replace('\\', '\\\\').replace('"', '\\"') + '"'
     }
 
-    buildFeatures {
-        buildConfig true
-    }
+    buildFeatures { buildConfig true }
 
     buildTypes {
-        debug {
-            minifyEnabled false
-        }
-        release {
-            minifyEnabled false
-        }
+        debug { minifyEnabled false }
+        release { minifyEnabled false }
     }
 
     compileOptions {
@@ -36,5 +30,4 @@ android {
     }
 }
 
-dependencies {
-}
+dependencies { }
