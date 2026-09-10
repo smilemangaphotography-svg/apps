@@ -1,4 +1,4 @@
-name: ShishaLove 1.1.3 Functional Mockup Validation
+name: ShishaLove 1.1.4 Functional Mockup Validation
 
 on:
   push:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   android:
-    name: Android Customer + Merchant 1.1.3
+    name: Android Customer + Merchant 1.1.4
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -22,14 +22,18 @@ jobs:
 
       - name: Validate Android functional mockup metadata
         run: |
-          grep -q "versionCode 113" shishalove-mobile/customer/build.gradle
-          grep -q "versionName '1.1.3'" shishalove-mobile/customer/build.gradle
-          grep -q "versionCode 113" shishalove-mobile/merchant/build.gradle
-          grep -q "versionName '1.1.3'" shishalove-mobile/merchant/build.gradle
-          grep -q 'build=113' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
-          grep -q 'ShishaLoveCustomer/1.1.3' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
-          grep -q 'sl113-hookah-grid' shishalove-mobile/customer/src/main/assets/customer_phone_polish.js
-          grep -q 'sl113-drawer' shishalove-mobile/customer/src/main/assets/customer_phone_polish.js
+          grep -q "versionCode 114" shishalove-mobile/customer/build.gradle
+          grep -q "versionName '1.1.4'" shishalove-mobile/customer/build.gradle
+          grep -q "versionCode 114" shishalove-mobile/merchant/build.gradle
+          grep -q "versionName '1.1.4'" shishalove-mobile/merchant/build.gradle
+          grep -q 'build=114' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
+          grep -q 'ShishaLoveCustomer/1.1.4' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
+          grep -q 'build=114' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q 'ShishaLoveMerchant/1.1.4' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q 'sl114-hookah-grid' shishalove-mobile/customer/src/main/assets/customer_phone_polish.js
+          grep -q 'sl114-drawer' shishalove-mobile/customer/src/main/assets/customer_phone_polish.js
+          grep -q 'Quick Select (Most Used)' shishalove-mobile/merchant/src/main/assets/merchant_phone_polish.js
+          grep -q 'slm114-hidden-loading' shishalove-mobile/merchant/src/main/assets/merchant_phone_polish.js
           test -f shishalove-mobile/customer/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           test -f shishalove-mobile/merchant/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           test -f shishalove-branding/customer-icon.b64.part00
@@ -64,28 +68,28 @@ jobs:
       - name: Collect Android artifacts
         run: |
           mkdir -p dist/android
-          cp shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk dist/android/ShishaLove-Customer-1.1.3-Install.apk
-          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/android/ShishaLove-Merchant-1.1.3-Install.apk
-          cp shishalove-mobile/customer/build/outputs/bundle/release/customer-release.aab dist/android/ShishaLove-Customer-1.1.3-Unsigned.aab
-          cp shishalove-mobile/merchant/build/outputs/bundle/release/merchant-release.aab dist/android/ShishaLove-Merchant-1.1.3-Unsigned.aab
+          cp shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk dist/android/ShishaLove-Customer-1.1.4-Install.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/android/ShishaLove-Merchant-1.1.4-Install.apk
+          cp shishalove-mobile/customer/build/outputs/bundle/release/customer-release.aab dist/android/ShishaLove-Customer-1.1.4-Unsigned.aab
+          cp shishalove-mobile/merchant/build/outputs/bundle/release/merchant-release.aab dist/android/ShishaLove-Merchant-1.1.4-Unsigned.aab
           sha256sum dist/android/* > dist/android/SHA256SUMS.txt
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: shishalove-1.1.3-android
+          name: shishalove-1.1.4-android
           path: dist/android/
           if-no-files-found: error
           retention-days: 30
 
   ios:
-    name: iOS Customer + Merchant 1.1.2 compile check
+    name: iOS Customer + Merchant existing compile check
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate iOS release metadata
+      - name: Validate existing iOS release metadata
         run: |
           grep -A20 'ShishaLoveCustomer:' shishalove-ios/project.yml | grep -q 'MARKETING_VERSION: 1.1.2'
           grep -A20 'ShishaLoveCustomer:' shishalove-ios/project.yml | grep -q 'CURRENT_PROJECT_VERSION: 112'
