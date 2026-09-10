@@ -10,8 +10,12 @@ Reference SHA-256: `9f4334c1b15a3ed23532ed108233ed413bbc6ee56b015858c84b69721780
 - Black/white/red ShishaLove hookah-heart launcher/splash mark.
 - Centered ShishaLove brand in the top bar.
 - Hamburger on the left; language + cart on the right. No duplicate top-right search icon.
-- Bottom navigation is exactly: **Home / Search / Favorites / Account**.
+- Header geometry is permanently split into three independent zones so logo, language and cart never overlap on narrow phones.
+- Customer logo is intentionally smaller on phone portrait widths; header height remains compact and consistent across every page.
+- Website carousel must show the full artwork on phone. Do not use destructive left/right `cover` cropping; use contained artwork with responsive/per-slide height.
+- Bottom navigation is exactly: **Home / Search / Favorites / Account** and must stay above Android/iOS safe areas.
 - Mobile-first spacing, 2-column product grid, clean 1:1 product imagery, no desktop-style clutter.
+- Home spacing around pickup, Shop by Category and Recent Arrivals is compact; do not reintroduce excessive blank vertical space.
 - Customer category/subcategory routing remains canonical WooCommerce path based.
 - Payment remains a secure WooCommerce handoff.
 
@@ -42,6 +46,10 @@ Reference SHA-256: `9f4334c1b15a3ed23532ed108233ed413bbc6ee56b015858c84b69721780
 - Search accepts product name, SKU, category and brand.
 - Category imagery is merchant-managed and may fall back cleanly.
 - Android and iOS wrappers must load the same canonical customer app.
+- Header spacing and carousel behavior are global shell behavior, not page-specific overrides.
+
+## Final phone-polish amendment — 1.1.1
+The September 10 Samsung phone review is incorporated into the lock: reduce top-header logo scale, prevent EN/cart collision, show complete carousel art, tighten Home whitespace, and protect the bottom navigation from system gesture/navigation areas. These are corrective implementation details, not a redesign.
 
 ## Change control
 Future UI changes must preserve this lock unless explicitly approved by the owner. Implementation changes may fix bugs, performance, accessibility, security or platform compatibility without altering the approved page hierarchy and visual language.
