@@ -6,6 +6,9 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -19,7 +22,9 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
@@ -27,22 +32,24 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=111";
+    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=113";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7101;
 
     private WebView webView;
     private ProgressBar progressBar;
+    private FrameLayout splashOverlay;
     private ValueCallback<Uri[]> filePathCallback;
     private String phonePolishJs;
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Window window = getWindow();
-        window.setStatusBarColor(Color.WHITE);
-        window.setNavigationBarColor(Color.WHITE);
-        window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        window.setStatusBarColor(Color.BLACK);
+        window.setNavigationBarColor(Color.BLACK);
+        window.getDecorView().setSystemUiVisibility(0);
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
@@ -64,20 +71,70 @@ public class MainActivity extends Activity {
 
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(100);
+        progressBar.setVisibility(View.GONE);
         root.addView(progressBar, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                5
+                dp(3)
+        ));
+
+        splashOverlay = createSplash();
+        root.addView(splashOverlay, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
         ));
 
         setContentView(root);
         phonePolishJs = readAsset("customer_phone_polish.js");
         configureWebView();
 
-        if (savedInstanceState == null) {
-            webView.loadUrl(START_URL);
-        } else {
+        if (savedInstanceState == null) webView.loadUrl(START_URL);
+        else {
             webView.restoreState(savedInstanceState);
+            dismissSplash(450);
         }
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private FrameLayout createSplash() {
+        FrameLayout overlay = new FrameLayout(this);
+        overlay.setBackgroundColor(Color.BLACK);
+
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(eu.shishalove.customer.R.drawable.ic_shishalove_customer);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        FrameLayout.LayoutParams logoParams = new FrameLayout.LayoutParams(dp(300), dp(300));
+        logoParams.gravity = Gravity.CENTER;
+        logoParams.bottomMargin = dp(34);
+        overlay.addView(logo, logoParams);
+
+        TextView loading = new TextView(this);
+        loading.setText("Loading your experience…");
+        loading.setTextColor(Color.rgb(210, 210, 210));
+        loading.setTextSize(13f);
+        loading.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams loadingParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(52)
+        );
+        loadingParams.gravity = Gravity.BOTTOM;
+        loadingParams.bottomMargin = dp(38);
+        overlay.addView(loading, loadingParams);
+        return overlay;
+    }
+
+    private void dismissSplash(long delayMs) {
+        handler.postDelayed(() -> {
+            if (splashOverlay == null || splashOverlay.getVisibility() != View.VISIBLE) return;
+            splashOverlay.animate().alpha(0f).setDuration(180).withEndAction(() -> {
+                splashOverlay.setVisibility(View.GONE);
+                getWindow().setStatusBarColor(Color.WHITE);
+                getWindow().setNavigationBarColor(Color.WHITE);
+                getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+            }).start();
+        }, delayMs);
     }
 
     private String readAsset(String name) {
@@ -110,7 +167,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) settings.setOffscreenPreRaster(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.1.2");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.1.3");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
@@ -133,6 +190,7 @@ public class MainActivity extends Activity {
                 super.onPageCommitVisible(view, url);
                 applyPhonePolish(view);
                 progressBar.setVisibility(View.GONE);
+                dismissSplash(420);
             }
 
             @Override
@@ -140,12 +198,14 @@ public class MainActivity extends Activity {
                 super.onPageFinished(view, url);
                 applyPhonePolish(view);
                 progressBar.setVisibility(View.GONE);
+                dismissSplash(120);
             }
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
                 if (request.isForMainFrame()) {
+                    dismissSplash(0);
                     Toast.makeText(MainActivity.this,
                             "Unable to reach ShishaLove. Check your internet connection and try again.",
                             Toast.LENGTH_LONG).show();
@@ -157,7 +217,7 @@ public class MainActivity extends Activity {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
                 progressBar.setProgress(newProgress);
-                progressBar.setVisibility(newProgress >= 78 ? View.GONE : View.VISIBLE);
+                progressBar.setVisibility(newProgress >= 72 ? View.GONE : View.VISIBLE);
             }
 
             @Override
@@ -187,9 +247,7 @@ public class MainActivity extends Activity {
     }
 
     private void applyPhonePolish(WebView view) {
-        if (phonePolishJs != null && !phonePolishJs.isEmpty()) {
-            view.evaluateJavascript(phonePolishJs, null);
-        }
+        if (phonePolishJs != null && !phonePolishJs.isEmpty()) view.evaluateJavascript(phonePolishJs, null);
     }
 
     private boolean handleUri(Uri uri) {
@@ -197,9 +255,7 @@ public class MainActivity extends Activity {
         String scheme = uri.getScheme().toLowerCase();
         if ("http".equals(scheme) || "https".equals(scheme)) {
             String host = uri.getHost();
-            if (host != null && (SHOP_HOST.equalsIgnoreCase(host) || ("www." + SHOP_HOST).equalsIgnoreCase(host))) {
-                return false;
-            }
+            if (host != null && (SHOP_HOST.equalsIgnoreCase(host) || ("www." + SHOP_HOST).equalsIgnoreCase(host))) return false;
         }
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, uri));
@@ -239,6 +295,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        handler.removeCallbacksAndMessages(null);
         if (webView != null) {
             CookieManager.getInstance().flush();
             webView.stopLoading();
