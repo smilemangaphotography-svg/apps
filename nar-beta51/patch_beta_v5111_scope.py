@@ -52,3 +52,10 @@ if old in s:
 
 p.write_text(s)
 print('Relocated NAR Beta 5.1.1 editor/media block inside canonical app lexical scope with stable observer updates')
+
+# Apply the phone-safe fixed Edit Flavor header after the private runtime relocation.
+# This keeps its DOM-only logic global while preserving access to the canonical editor UI.
+safe_header=Path('nar-beta51/patch_beta_v5112_safe_header.py')
+if not safe_header.exists():
+    raise SystemExit('NAR 5.1.1 Samsung-safe header patch missing')
+exec(compile(safe_header.read_text(), str(safe_header), 'exec'))
