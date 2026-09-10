@@ -1,0 +1,3 @@
+PHOTO MASTER AI beta build trigger
+Branch: photo-master-ai-beta
+Version: 0.9.0-beta
