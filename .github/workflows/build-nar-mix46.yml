@@ -88,7 +88,9 @@ jobs:
         run: python3 nar-beta51/patch_beta_v5103_zero_profiles.py
       - name: Apply NAR 5.1 ShishaLove hierarchy route fix
         run: python3 nar-beta51/patch_beta_v5104_shisha_route.py
-      - name: Validate canonical NAR Beta 5.1.0
+      - name: Apply NAR 5.1.1 flavor editor and media fix
+        run: python3 nar-beta51/patch_beta_v511_editor_media.py
+      - name: Validate canonical NAR Beta 5.1.1
         run: |
           JS=buildsrc/NAR-Mix/app/src/main/assets/app.js
           CSS=buildsrc/NAR-Mix/app/src/main/assets/app.css
@@ -100,6 +102,8 @@ jobs:
           grep -q 'NAR BETA 5.1.0 — ACTIVE LINE CONTRACT FIX' "$JS"
           grep -q 'NAR BETA 5.1.0 — ZERO PROFILE VISIBILITY FIX' "$JS"
           grep -q 'NAR BETA 5.1.0 — SHISHALOVE ROUTE FIX' "$JS"
+          grep -q 'NAR BETA 5.1.1 — FLAVOR EDIT + MULTI IMAGE FRAME FIX' "$JS"
+          grep -q 'NAR BETA 5.1.1 — FLAVOR EDIT + MULTI IMAGE FRAME FIX' "$CSS"
           grep -q "window.nar51PublicShisha=publicShisha51" "$JS"
           grep -q "if(beta50ShishaOpen&&typeof window.nar51PublicShisha==='function')return window.nar51PublicShisha(p);" "$JS"
           grep -q 'betaActiveLines' "$JS"
@@ -128,9 +132,12 @@ jobs:
           grep -q "\['details','mixes','reviews','photos','similar'\]" "$JS"
           grep -q 'function gpt(p)' "$JS"
           grep -q 'function adminFlavorsModal' "$JS"
+          grep -q 'MAX_IMAGES=4' "$JS"
+          grep -q 'nar511FlavorEditing' "$JS"
+          grep -q 'nar511EditActions' "$CSS"
           if grep -q "exec(Path('nar-beta51/inspect_v51_state.py').read_text())" nar-beta50/patch_beta_v5071_allbrands_guard.py; then exit 1; fi
           if grep -q "learnTopic=b.dataset.topic;learn(p)" "$JS"; then exit 1; fi
-      - name: Browser regression audit for NAR Beta 5.1.0
+      - name: Browser regression audit for NAR Beta 5.1.1
         run: |
           rm -rf /tmp/nar-ui
           npm install --prefix /tmp/nar-ui puppeteer-core@24.16.0 --silent
@@ -140,6 +147,7 @@ jobs:
           sleep 1
           node nar-beta50/test_beta504_mobile_ui.mjs
           node nar-beta51/test_beta510.mjs
+          node nar-beta51/test_beta511_editor_media.mjs
       - name: Build the same NAR Beta APK
         run: gradle --no-daemon -p buildsrc/NAR-Mix :app:assembleDebug --stacktrace
       - name: Verify package/signing identity and collect Beta APK
@@ -153,10 +161,10 @@ jobs:
           "$AAPT" dump badging "$APK" | tee output/APK_BADGING.txt
           "$APKSIGNER" verify --print-certs "$APK" | tee output/APK_CERT.txt
           grep -q "package: name='com.iliaperformance.narowner2026'" output/APK_BADGING.txt
-          grep -q "versionCode='560'" output/APK_BADGING.txt
-          grep -q "versionName='5.1.0-beta'" output/APK_BADGING.txt
-          cp "$APK" output/NAR-BETA-5.1.0-debug.apk
-          sha256sum output/NAR-BETA-5.1.0-debug.apk > output/SHA256SUMS.txt
+          grep -q "versionCode='561'" output/APK_BADGING.txt
+          grep -q "versionName='5.1.1-beta'" output/APK_BADGING.txt
+          cp "$APK" output/NAR-BETA-5.1.1-debug.apk
+          sha256sum output/NAR-BETA-5.1.1-debug.apk > output/SHA256SUMS.txt
           ls -lh output
       - uses: actions/upload-artifact@v4
         with:
