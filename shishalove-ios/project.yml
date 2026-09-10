@@ -1,0 +1,70 @@
+name: ShishaLoveMobile
+options:
+  bundleIdPrefix: eu.shishalove
+  deploymentTarget:
+    iOS: '16.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    IPHONEOS_DEPLOYMENT_TARGET: '16.0'
+    TARGETED_DEVICE_FAMILY: '1,2'
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  ShishaLoveCustomer:
+    type: application
+    platform: iOS
+    sources:
+      - Shared
+      - Customer
+      - Assets/Customer.xcassets
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: eu.shishalove.customer
+        PRODUCT_NAME: ShishaLove
+        MARKETING_VERSION: 1.0.0
+        CURRENT_PROJECT_VERSION: 100
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: ShishaLove
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  ShishaLoveMerchant:
+    type: application
+    platform: iOS
+    sources:
+      - Shared
+      - Merchant
+      - Assets/Merchant.xcassets
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: eu.shishalove.merchant
+        PRODUCT_NAME: ShishaLove Merchant
+        MARKETING_VERSION: 1.0.0
+        CURRENT_PROJECT_VERSION: 100
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: ShishaLove Merchant
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_NSCameraUsageDescription: ShishaLove Merchant uses the camera when you choose to photograph a product image.
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: ShishaLove Merchant uses your photo library when you choose product, category or cover images.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+schemes:
+  ShishaLoveCustomer:
+    build:
+      targets:
+        ShishaLoveCustomer: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+  ShishaLoveMerchant:
+    build:
+      targets:
+        ShishaLoveMerchant: all
+    run:
+      config: Debug
+    archive:
+      config: Release
