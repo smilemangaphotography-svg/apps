@@ -49,6 +49,7 @@ public class MainActivity extends Activity {
 
         WebView.setWebContentsDebuggingEnabled(true);
         webView.addJavascriptInterface(new AndroidBridge(this), "FrameAndroid");
+        webView.addJavascriptInterface(new SmartMlBridge(this, webView), "FrameAI");
         webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
