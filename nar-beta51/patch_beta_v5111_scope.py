@@ -26,6 +26,14 @@ if core_close<0:
 if core_close>=block_start:
     raise SystemExit('Unexpected 5.1.1 scope order; refusing unsafe relocation')
 
+# Prevent the editor MutationObserver from re-triggering itself forever by replacing
+# the photo-count text node only when the displayed value actually changed.
+old="head.textContent=`${Math.min(actual,MAX_IMAGES)}/${MAX_IMAGES}`"
+new="{const v=`${Math.min(actual,MAX_IMAGES)}/${MAX_IMAGES}`;if(head.textContent!==v)head.textContent=v}"
+if old not in block:
+    raise SystemExit('NAR 5.1.1 photo-count observer hook missing')
+block=block.replace(old,new,1)
+
 # Remove the global copy then insert it immediately before the core closure that owns
 # state, DB, flavor(), customPhotos(), $, $$, save(), app() and detail().
 s=s[:block_start].rstrip()+'\n'
@@ -39,6 +47,8 @@ if not (core_start<new_mark<new_close<new_root):
     raise SystemExit('5.1.1 feature block was not relocated inside canonical NAR scope')
 if s.find(MARK,new_root)!=-1:
     raise SystemExit('Duplicate 5.1.1 block remains outside canonical scope')
+if old in s:
+    raise SystemExit('Unstable NAR 5.1.1 photo-count observer update remains')
 
 p.write_text(s)
-print('Relocated NAR Beta 5.1.1 editor/media block inside canonical app lexical scope')
+print('Relocated NAR Beta 5.1.1 editor/media block inside canonical app lexical scope with stable observer updates')
