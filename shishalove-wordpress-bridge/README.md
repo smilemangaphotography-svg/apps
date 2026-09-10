@@ -1,31 +1,27 @@
 # ShishaLove WordPress Bridge 1.0.0
 
-Canonical backend for the ShishaLove Customer and Merchant mobile/web apps.
+Canonical backend contract for the ShishaLove Customer and Merchant mobile/web apps.
 
-This production release is the approved Beta 0.7.6 feature set with the plugin version promoted to `1.0.0`.
+The production package is the approved Beta 0.7.6 feature set promoted to `1.0.0`, with the final iPhone/PWA metadata added for Home Screen installation.
 
-## Deployable ZIP
+## Deployable package
 
-The release ZIP is `shishalove-app-bridge-1.0.0.zip`.
+File: `shishalove-app-bridge-1.0.0.zip`
 
 SHA-256:
 
-`50a88992aad1b165a040bad069d98f6837cee7f2a980450d06fead21e59d15aa`
+`467b2bd4113871bc445f9c3064ddd6b776bfca8d7d7a6c2f8d18506713e15ee8`
 
-## Source archive in repository
-
-`source-1.0.0.tar.gz.b64` contains the complete UTF-8 PHP/JS/CSS/HTML/manifest/service-worker/documentation source, excluding PNG design-lock/icon binaries. Decode with:
-
-```bash
-base64 --decode source-1.0.0.tar.gz.b64 > source-1.0.0.tar.gz
-mkdir source && tar -xzf source-1.0.0.tar.gz -C source
-```
-
-The deployable WordPress ZIP retains the PNG assets and is the artifact that should be installed on `shishalove.eu`.
+The deployable ZIP is distributed as a release artifact rather than committed as a binary to this public repository. This avoids storing large design-lock PNG assets and release binaries in Git history.
 
 ## Runtime contract
 
 - Customer: `https://shishalove.eu/shishalove-app/`
 - Merchant: `https://shishalove.eu/shishalove-merchant/`
-- WooCommerce/WordPress remains the source of truth.
+- WooCommerce/WordPress remains the single source of truth.
 - Customer and Merchant must not fork product, stock, category, price or order data into a separate database.
+- Customer and Merchant expose installable PWA metadata for iPhone/iPad Home Screen use.
+
+## Native clients
+
+Android production sources live under `shishalove-mobile/` and iOS production sources live under `shishalove-ios/`. Both point to this same bridge/runtime contract.
