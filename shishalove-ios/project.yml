@@ -22,8 +22,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: eu.shishalove.customer
         PRODUCT_NAME: ShishaLove
-        MARKETING_VERSION: 1.0.1
-        CURRENT_PROJECT_VERSION: 101
+        MARKETING_VERSION: 1.1.0
+        CURRENT_PROJECT_VERSION: 110
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: ShishaLove
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
@@ -41,8 +41,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: eu.shishalove.merchant
         PRODUCT_NAME: ShishaLove Merchant
-        MARKETING_VERSION: 1.0.1
-        CURRENT_PROJECT_VERSION: 101
+        MARKETING_VERSION: 1.1.0
+        CURRENT_PROJECT_VERSION: 110
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: ShishaLove Merchant
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
