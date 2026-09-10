@@ -21,7 +21,7 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=100";
+    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=110";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7201;
 
@@ -75,7 +75,7 @@ public class MainActivity extends Activity {
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.0");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
