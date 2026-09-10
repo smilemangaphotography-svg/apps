@@ -8,7 +8,7 @@ struct ShishaLoveCustomerApp: App {
         WindowGroup {
             ShishaLoveWebView(
                 startURL: startURL,
-                appUserAgent: "ShishaLoveCustomer/1.1.1 iOS"
+                appUserAgent: "ShishaLoveCustomer/1.1.2 iOS"
             )
             .ignoresSafeArea(.keyboard)
             .background(Color.white)
