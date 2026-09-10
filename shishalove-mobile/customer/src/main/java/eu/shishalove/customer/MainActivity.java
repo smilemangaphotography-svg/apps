@@ -21,7 +21,7 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=100";
+    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=101";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7101;
 
@@ -75,7 +75,7 @@ public class MainActivity extends Activity {
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.0.1");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
@@ -99,6 +99,7 @@ public class MainActivity extends Activity {
                 super.onPageFinished(view, url);
                 progressBar.setVisibility(View.GONE);
                 CookieManager.getInstance().flush();
+                applyPhonePolish(view);
             }
 
             @Override
@@ -143,6 +144,18 @@ public class MainActivity extends Activity {
                 }
             }
         });
+    }
+
+    private void applyPhonePolish(WebView view) {
+        String js = "(function(){" +
+                "document.querySelectorAll('input[autofocus],textarea[autofocus]').forEach(function(el){el.removeAttribute('autofocus');});" +
+                "var a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')){a.blur();}" +
+                "if(!document.getElementById('sl-native-phone-polish')){" +
+                "var s=document.createElement('style');s.id='sl-native-phone-polish';" +
+                "s.textContent='@media(max-width:600px){header img{max-height:74px!important;width:auto!important}.site-header img,.header-logo img{max-width:210px!important;height:auto!important}input,select,button{font-size:16px}}';" +
+                "document.head.appendChild(s);}" +
+                "})();";
+        view.evaluateJavascript(js, null);
     }
 
     private boolean handleUri(Uri uri) {
