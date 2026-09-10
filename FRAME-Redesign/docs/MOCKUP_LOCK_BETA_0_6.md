@@ -8,7 +8,7 @@ The approved Android mockups are the visual and interaction reference for Beta 0
 
 ## Locked page sequence
 1. Branded FRAME cover with logo mark and Get Started action.
-2. Library organized by All / People / Architecture / Wedding / Travel / Edited / Favorites.
+2. Library organized by All / People / Architecture / Wedding / Travel / Edited / Favorites, with a permanent `+ Add Photos` action in the Library header so more images can be imported at any time.
 3. Immersive Editor / Viewer with photo-first layout, image dimensions and one Zoom control.
 4. Smart Edit with scene-aware recommended preset, explanation, Preview and Apply Suggested Fixes.
 5. Rate & Improve with Technical / Creative / Potential scores and actionable fixes including Crop & Straighten and Remove Distractions.
@@ -32,6 +32,7 @@ The approved Android mockups are the visual and interaction reference for Beta 0
 - Library scene categories are inferred automatically from image analysis.
 - Preset recommendations are scene-aware and should rank the best photographic starting point for the image.
 - Compatible FRAME presets can be exported as Lightroom XMP files.
+- Library import must never disappear after the first photo is added. The populated Library keeps a clearly visible `+ Add Photos` control in the top bar, opening the multi-photo picker. The empty Library additionally shows the large `Import Photo` call-to-action.
 
 ## Beta 0.6 implementation note
 Beta 0.6 keeps the existing non-destructive FRAME lineage and adds a UI/interaction lock layer (`beta06.js`) above the 0.4/0.5 engine. Native ML Kit face, pose, image-label and foreground-subject analysis remain the on-device intelligence base. Sky/Water/Architecture selective masks in this beta use semantic cues plus image-derived mask heuristics and therefore remain beta-quality rather than production Lightroom-equivalent segmentation.
