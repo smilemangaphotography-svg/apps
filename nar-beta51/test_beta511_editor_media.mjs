@@ -31,14 +31,15 @@ await page.click('#nar51LayoutBack');await wait(160);
 
 // Flavor editor must be a safe focused screen with reachable top/bottom controls and exactly four image slots.
 assert(!!(await page.$('#adminFlavors')),'Manage flavors entry missing');await page.click('#adminFlavors');await wait(160);
-const row=await page.$('[data-admin-flavor]');assert(!!row,'No flavor available in Manage flavors');await row.click();await wait(220);
+const row=await page.$('[data-admin-flavor]');assert(!!row,'No flavor available in Manage flavors');await row.click();await wait(260);
 assert(await page.evaluate(()=>document.body.classList.contains('nar511FlavorEditing')),'Flavor editor safe mode did not activate');
 assert(!!(await page.$('.nar511FlavorEdit')),'Flavor editor class missing');
 const navHidden=await page.evaluate(()=>{const n=document.querySelector('.betaNav,.pixelNarNav');return !n||getComputedStyle(n).display==='none'});assert(navHidden,'Public bottom nav still covers flavor editor');
 const slots=await page.$$('.nar511EditHero .nar511ImageFrame');assert(slots.length===4,'Edit Flavor must show exactly four image frames, got '+slots.length);
 assert(!!(await page.$('#nar511SaveEdit'))&&!!(await page.$('#nar511CancelEdit')),'Sticky Save/Cancel controls missing');
-const geometry=await page.evaluate(()=>{const h=document.querySelector('.nar511FlavorEdit .sheethead')?.getBoundingClientRect();const a=document.querySelector('.nar511EditActions')?.getBoundingClientRect();return{top:h?.top,bottom:a?innerHeight-a.bottom:null}});
-assert(geometry.top>=0,'Edit Flavor header is hidden above viewport '+JSON.stringify(geometry));assert(geometry.bottom>=0,'Edit Flavor save actions are hidden below viewport '+JSON.stringify(geometry));
+assert(!!(await page.$('#nar511EditTopBar')),'Samsung-safe Edit Flavor top bar missing');
+const geometry=await page.evaluate(()=>{const h=document.querySelector('#nar511EditTopBar')?.getBoundingClientRect();const a=document.querySelector('.nar511EditActions')?.getBoundingClientRect();return{top:h?.top,bottom:a?innerHeight-a.bottom:null,height:h?.height}});
+assert(geometry.top>=0&&geometry.height>=50,'Edit Flavor safe header is hidden above viewport '+JSON.stringify(geometry));assert(geometry.bottom>=0,'Edit Flavor save actions are hidden below viewport '+JSON.stringify(geometry));
 
 // Prove a real edit can be saved from the new sticky action bar.
 const original=await page.$eval('#afName',e=>e.value);const changed=(original+' 511').slice(0,80);
