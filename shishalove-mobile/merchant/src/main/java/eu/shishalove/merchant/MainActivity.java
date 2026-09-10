@@ -27,7 +27,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=111";
+    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=114";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7201;
 
@@ -64,9 +64,10 @@ public class MainActivity extends Activity {
 
         progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         progressBar.setMax(100);
+        progressBar.setVisibility(View.GONE);
         root.addView(progressBar, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                5
+                3
         ));
 
         setContentView(root);
@@ -107,7 +108,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) settings.setOffscreenPreRaster(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.2");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.4");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
@@ -153,8 +154,8 @@ public class MainActivity extends Activity {
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
-                progressBar.setProgress(newProgress);
-                progressBar.setVisibility(newProgress >= 78 ? View.GONE : View.VISIBLE);
+                progressBar.setVisibility(View.GONE);
+                if (newProgress >= 12) applyPhonePolish(view);
             }
 
             @Override
@@ -192,9 +193,7 @@ public class MainActivity extends Activity {
         String scheme = uri.getScheme().toLowerCase();
         if ("http".equals(scheme) || "https".equals(scheme)) {
             String host = uri.getHost();
-            if (host != null && (SHOP_HOST.equalsIgnoreCase(host) || ("www." + SHOP_HOST).equalsIgnoreCase(host))) {
-                return false;
-            }
+            if (host != null && (SHOP_HOST.equalsIgnoreCase(host) || ("www." + SHOP_HOST).equalsIgnoreCase(host))) return false;
         }
         try {
             startActivity(new Intent(Intent.ACTION_VIEW, uri));
