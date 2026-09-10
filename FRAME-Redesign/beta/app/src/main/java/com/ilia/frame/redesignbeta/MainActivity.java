@@ -54,10 +54,14 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                view.evaluateJavascript(
-                        "(function(){var x=document.querySelector('#settings .profileCard small');if(x)x.textContent='Version 0.3.0 beta';})();",
-                        null
-                );
+                String patch = "(function(){" +
+                        "var x=document.querySelector('#settings .profileCard small');" +
+                        "if(x)x.textContent='Version 0.4.0 beta';" +
+                        "if(!document.getElementById('frame-beta04-patch')){" +
+                        "var s=document.createElement('script');s.id='frame-beta04-patch';" +
+                        "s.src='file:///android_asset/beta04.js';document.body.appendChild(s);}" +
+                        "})();";
+                view.evaluateJavascript(patch, null);
             }
         });
         webView.setWebChromeClient(new WebChromeClient() {
