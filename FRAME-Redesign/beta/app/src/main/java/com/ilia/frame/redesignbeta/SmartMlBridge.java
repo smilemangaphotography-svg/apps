@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Matrix;
+import android.graphics.Rect;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
@@ -28,7 +30,6 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.nio.FloatBuffer;
 import java.util.List;
-import java.util.Locale;
 
 public class SmartMlBridge {
     private final Activity activity;
@@ -37,20 +38,22 @@ public class SmartMlBridge {
     private final FaceDetector faceDetector;
     private final SubjectSegmenter subjectSegmenter;
 
+    private interface FaceCallback {
+        void done(JSONArray faces);
+    }
+
     public SmartMlBridge(Activity activity, WebView webView) {
         this.activity = activity;
         this.webView = webView;
         this.labeler = ImageLabeling.getClient(
-                new ImageLabelerOptions.Builder()
-                        .setConfidenceThreshold(0.58f)
-                        .build()
+                new ImageLabelerOptions.Builder().setConfidenceThreshold(0.62f).build()
         );
         FaceDetectorOptions faceOptions = new FaceDetectorOptions.Builder()
                 .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
                 .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
                 .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
                 .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
-                .setMinFaceSize(0.05f)
+                .setMinFaceSize(0.03f)
                 .build();
         this.faceDetector = FaceDetection.getClient(faceOptions);
         SubjectSegmenterOptions segmenterOptions = new SubjectSegmenterOptions.Builder()
@@ -68,12 +71,99 @@ public class SmartMlBridge {
         }
         final InputImage input = InputImage.fromBitmap(bitmap, 0);
         labeler.process(input)
-                .addOnSuccessListener(labels -> faceDetector.process(input)
-                        .addOnSuccessListener(faces -> sendAnalysis(requestId, bitmap, labels, faces))
-                        .addOnFailureListener(e -> sendAnalysis(requestId, bitmap, labels, null)))
-                .addOnFailureListener(e -> faceDetector.process(input)
-                        .addOnSuccessListener(faces -> sendAnalysis(requestId, bitmap, null, faces))
-                        .addOnFailureListener(e2 -> sendError("onAnalysisError", requestId, e2.getMessage())));
+                .addOnSuccessListener(labels -> detectFacesFlexible(bitmap, faces -> sendAnalysis(requestId, bitmap, labels, faces)))
+                .addOnFailureListener(e -> detectFacesFlexible(bitmap, faces -> sendAnalysis(requestId, bitmap, null, faces)));
+    }
+
+    private void detectFacesFlexible(Bitmap original, FaceCallback callback) {
+        faceDetector.process(InputImage.fromBitmap(original, 0))
+                .addOnSuccessListener(faces -> {
+                    JSONArray direct = facesToJson(faces, original.getWidth(), original.getHeight(), 0);
+                    if (direct.length() > 0) {
+                        callback.done(direct);
+                        return;
+                    }
+                    final Bitmap cw = rotate(original, 90);
+                    faceDetector.process(InputImage.fromBitmap(cw, 0))
+                            .addOnSuccessListener(cwFaces -> {
+                                JSONArray mapped = facesToJson(cwFaces, original.getWidth(), original.getHeight(), 90);
+                                cw.recycle();
+                                if (mapped.length() > 0) {
+                                    callback.done(mapped);
+                                    return;
+                                }
+                                final Bitmap ccw = rotate(original, 270);
+                                faceDetector.process(InputImage.fromBitmap(ccw, 0))
+                                        .addOnSuccessListener(ccwFaces -> {
+                                            JSONArray mapped2 = facesToJson(ccwFaces, original.getWidth(), original.getHeight(), 270);
+                                            ccw.recycle();
+                                            callback.done(mapped2);
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            ccw.recycle();
+                                            callback.done(new JSONArray());
+                                        });
+                            })
+                            .addOnFailureListener(e -> {
+                                cw.recycle();
+                                callback.done(new JSONArray());
+                            });
+                })
+                .addOnFailureListener(e -> callback.done(new JSONArray()));
+    }
+
+    private Bitmap rotate(Bitmap bitmap, int degrees) {
+        Matrix matrix = new Matrix();
+        matrix.postRotate(degrees);
+        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+    }
+
+    private JSONArray facesToJson(List<Face> faces, int originalWidth, int originalHeight, int rotation) {
+        JSONArray array = new JSONArray();
+        if (faces == null) return array;
+        for (Face face : faces) {
+            try {
+                Rect r = face.getBoundingBox();
+                double left, top, right, bottom;
+                if (rotation == 90) {
+                    left = r.top;
+                    right = r.bottom;
+                    top = originalHeight - r.right;
+                    bottom = originalHeight - r.left;
+                } else if (rotation == 270) {
+                    left = originalWidth - r.bottom;
+                    right = originalWidth - r.top;
+                    top = r.left;
+                    bottom = r.right;
+                } else {
+                    left = r.left;
+                    top = r.top;
+                    right = r.right;
+                    bottom = r.bottom;
+                }
+                left = clamp(left, 0, originalWidth);
+                right = clamp(right, 0, originalWidth);
+                top = clamp(top, 0, originalHeight);
+                bottom = clamp(bottom, 0, originalHeight);
+                if (right <= left || bottom <= top) continue;
+                JSONObject f = new JSONObject();
+                f.put("left", left / originalWidth);
+                f.put("top", top / originalHeight);
+                f.put("right", right / originalWidth);
+                f.put("bottom", bottom / originalHeight);
+                f.put("rotationFallback", rotation);
+                if (face.getSmilingProbability() != null) f.put("smile", face.getSmilingProbability());
+                if (face.getLeftEyeOpenProbability() != null) f.put("leftEyeOpen", face.getLeftEyeOpenProbability());
+                if (face.getRightEyeOpenProbability() != null) f.put("rightEyeOpen", face.getRightEyeOpenProbability());
+                array.put(f);
+            } catch (Exception ignored) {
+            }
+        }
+        return array;
+    }
+
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     @JavascriptInterface
@@ -93,7 +183,7 @@ public class SmartMlBridge {
                 ));
     }
 
-    private void sendAnalysis(String requestId, Bitmap bitmap, List<ImageLabel> labels, List<Face> faces) {
+    private void sendAnalysis(String requestId, Bitmap bitmap, List<ImageLabel> labels, JSONArray faceArray) {
         try {
             JSONObject root = new JSONObject();
             root.put("width", bitmap.getWidth());
@@ -102,7 +192,7 @@ public class SmartMlBridge {
             if (labels != null) {
                 int added = 0;
                 for (ImageLabel label : labels) {
-                    if (label.getConfidence() < 0.58f) continue;
+                    if (label.getConfidence() < 0.62f) continue;
                     JSONObject item = new JSONObject();
                     item.put("text", label.getText());
                     item.put("confidence", label.getConfidence());
@@ -111,23 +201,8 @@ public class SmartMlBridge {
                 }
             }
             root.put("labels", labelArray);
-
-            JSONArray faceArray = new JSONArray();
-            if (faces != null) {
-                for (Face face : faces) {
-                    JSONObject f = new JSONObject();
-                    f.put("left", face.getBoundingBox().left / (double) bitmap.getWidth());
-                    f.put("top", face.getBoundingBox().top / (double) bitmap.getHeight());
-                    f.put("right", face.getBoundingBox().right / (double) bitmap.getWidth());
-                    f.put("bottom", face.getBoundingBox().bottom / (double) bitmap.getHeight());
-                    if (face.getSmilingProbability() != null) f.put("smile", face.getSmilingProbability());
-                    if (face.getLeftEyeOpenProbability() != null) f.put("leftEyeOpen", face.getLeftEyeOpenProbability());
-                    if (face.getRightEyeOpenProbability() != null) f.put("rightEyeOpen", face.getRightEyeOpenProbability());
-                    faceArray.put(f);
-                }
-            }
-            root.put("faces", faceArray);
-            root.put("faceCount", faces == null ? 0 : faces.size());
+            root.put("faces", faceArray == null ? new JSONArray() : faceArray);
+            root.put("faceCount", faceArray == null ? 0 : faceArray.length());
             callJs("onAnalysis", requestId, root.toString());
         } catch (Exception e) {
             sendError("onAnalysisError", requestId, safeMessage(e));
@@ -149,8 +224,8 @@ public class SmartMlBridge {
             int selected = 0;
             for (int i = 0; i < count && confidence.hasRemaining(); i++) {
                 float c = confidence.get();
-                if (c > 0.18f) {
-                    int a = Math.max(0, Math.min(255, Math.round((c - 0.12f) / 0.88f * 255f)));
+                if (c > 0.20f) {
+                    int a = Math.max(0, Math.min(255, Math.round((c - 0.14f) / 0.86f * 255f)));
                     pixels[i] = Color.argb(a, 255, 255, 255);
                     if (c >= 0.55f) selected++;
                 } else {
