@@ -50,7 +50,16 @@ public class MainActivity extends Activity {
         WebView.setWebContentsDebuggingEnabled(true);
         webView.addJavascriptInterface(new AndroidBridge(this), "FrameAndroid");
         webView.addJavascriptInterface(new SmartMlBridge(this, webView), "FrameAI");
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                view.evaluateJavascript(
+                        "(function(){var x=document.querySelector('#settings .profileCard small');if(x)x.textContent='Version 0.3.0 beta';})();",
+                        null
+                );
+            }
+        });
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
