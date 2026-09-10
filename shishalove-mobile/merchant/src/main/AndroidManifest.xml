@@ -4,8 +4,8 @@
 
     <application
         android:allowBackup="false"
-        android:icon="@drawable/ic_shishalove"
-        android:roundIcon="@drawable/ic_shishalove"
+        android:icon="@drawable/ic_shishalove_merchant"
+        android:roundIcon="@drawable/ic_shishalove_merchant"
         android:label="ShishaLove Merchant"
         android:hardwareAccelerated="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
