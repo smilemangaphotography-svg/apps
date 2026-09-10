@@ -9,6 +9,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
@@ -19,7 +20,10 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
@@ -56,10 +60,14 @@ public class MainActivity extends Activity {
                 super.onPageFinished(view, url);
                 String patch = "(function(){" +
                         "var x=document.querySelector('#settings .profileCard small');" +
-                        "if(x)x.textContent='Version 0.4.0 beta';" +
+                        "if(x)x.textContent='Version 0.5.0 beta';" +
+                        "function load05(){if(document.getElementById('frame-beta05-patch'))return;" +
+                        "var p=document.createElement('script');p.id='frame-beta05-patch';" +
+                        "p.src='file:///android_asset/beta05.js';document.body.appendChild(p);}" +
                         "if(!document.getElementById('frame-beta04-patch')){" +
                         "var s=document.createElement('script');s.id='frame-beta04-patch';" +
-                        "s.src='file:///android_asset/beta04.js';document.body.appendChild(s);}" +
+                        "s.src='file:///android_asset/beta04.js';s.onload=load05;document.body.appendChild(s);}" +
+                        "else{load05();}" +
                         "})();";
                 view.evaluateJavascript(patch, null);
             }
@@ -176,6 +184,50 @@ public class MainActivity extends Activity {
                 return true;
             } catch (Exception e) {
                 ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Export failed: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public boolean saveXmp(String xmpText, String requestedName) {
+            try {
+                if (xmpText == null || xmpText.trim().isEmpty()) return false;
+                String fileName = (requestedName == null || requestedName.trim().isEmpty())
+                        ? "FRAME_Preset_" + System.currentTimeMillis() + ".xmp"
+                        : requestedName.replaceAll("[^a-zA-Z0-9._-]", "_");
+                if (!fileName.toLowerCase().endsWith(".xmp")) fileName += ".xmp";
+                byte[] bytes = xmpText.getBytes(StandardCharsets.UTF_8);
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    ContentValues values = new ContentValues();
+                    values.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
+                    values.put(MediaStore.Downloads.MIME_TYPE, "application/rdf+xml");
+                    values.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/FRAME Presets");
+                    values.put(MediaStore.Downloads.IS_PENDING, 1);
+                    Uri uri = context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                    if (uri == null) return false;
+                    try (OutputStream stream = context.getContentResolver().openOutputStream(uri)) {
+                        if (stream == null) return false;
+                        stream.write(bytes);
+                        stream.flush();
+                    }
+                    ContentValues done = new ContentValues();
+                    done.put(MediaStore.Downloads.IS_PENDING, 0);
+                    context.getContentResolver().update(uri, done, null, null);
+                } else {
+                    File base = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+                    if (base == null) return false;
+                    File dir = new File(base, "FRAME Presets");
+                    if (!dir.exists() && !dir.mkdirs()) return false;
+                    try (FileOutputStream stream = new FileOutputStream(new File(dir, fileName))) {
+                        stream.write(bytes);
+                        stream.flush();
+                    }
+                }
+                ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "Lightroom preset saved to Downloads / FRAME Presets", Toast.LENGTH_LONG).show());
+                return true;
+            } catch (Exception e) {
+                ((Activity) context).runOnUiThread(() -> Toast.makeText(context, "XMP export failed: " + e.getMessage(), Toast.LENGTH_LONG).show());
                 return false;
             }
         }
