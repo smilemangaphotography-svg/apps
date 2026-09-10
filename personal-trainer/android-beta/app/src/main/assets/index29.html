@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#06100b">
+<title>ILIA Coach Beta 2.9</title>
+<link rel="stylesheet" href="app-v2.css">
+<link rel="stylesheet" href="style2-v29.css">
+</head>
+<body>
+<section id="style2Cover" class="cover-screen">
+  <button id="coverSettings" class="cover-settings" aria-label="Settings">⚙</button>
+  <div class="cover-inner">
+    <div class="cover-brand">ILIA COACH · ALL-IN-ONE</div>
+    <h1 class="cover-title">TRAIN SMARTER.<span>RUN FURTHER.</span></h1>
+    <div class="cover-tag">STRENGTH · RUNNING · RECOVERY · NUTRITION · PROGRESS</div>
+    <button id="coverEnter" class="cover-enter">GET STARTED &nbsp;→</button>
+    <div class="cover-foot">LOCKED DESIGN · BETA 2.9</div>
+  </div>
+</section>
+<div id="app">
+  <section id="builder" class="builder hidden">
+    <div class="builder-progress" id="builderProgress"></div>
+    <div id="builderBody"></div>
+    <div class="builder-footer">
+      <button id="builderBack" class="btn ghost">← BACK</button>
+      <button id="builderNext" class="btn lime">CONTINUE <span>→</span></button>
+    </div>
+  </section>
+  <main id="mainApp" class="main-app hidden">
+    <header class="app-topbar"><div><div class="tiny-label" id="topLabel">ILIA COACH · ALL-IN-ONE · BETA 2.9</div><div class="top-title" id="topTitle">Home</div></div><button id="topProfile" class="icon-btn" aria-label="Settings">⚙</button></header>
+    <section id="pageHome" class="page active" data-page="home"></section>
+    <section id="pagePlan" class="page" data-page="plan"></section>
+    <section id="pageTrain" class="page" data-page="train"></section>
+    <section id="pageFuel" class="page" data-page="fuel"></section>
+    <section id="pageMore" class="page" data-page="more"></section>
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-nav="home"><span class="nav-icon">⌂</span><small>HOME</small></button>
+      <button class="nav-btn" data-nav="plan"><span class="nav-icon">▦</span><small>PLAN</small></button>
+      <button class="nav-btn" data-nav="train"><span class="nav-icon">▣</span><small>TRAIN</small></button>
+      <button class="nav-btn" data-nav="fuel"><span class="nav-icon">◔</span><small>FUEL</small></button>
+      <button class="nav-btn" data-nav="more"><span class="nav-icon">•••</span><small>MORE</small></button>
+    </nav>
+  </main>
+  <section id="exerciseDetail" class="overlay hidden"></section>
+  <section id="workoutOverlay" class="overlay workout hidden"></section>
+  <section id="restOverlay" class="overlay rest hidden"></section>
+  <section id="runOverlay" class="overlay hidden"></section>
+  <section id="sheet" class="sheet hidden"><div id="sheetCard" class="sheet-card"></div></section>
+  <div id="toast" class="toast"></div>
+  <input id="audioPicker" class="hidden" type="file" accept="audio/*" multiple>
+  <audio id="audioPlayer"></audio>
+  <input id="activityPicker" class="hidden" type="file" accept=".gpx,.tcx,.csv,text/*">
+  <input id="exerciseFilePicker" class="hidden" type="file" accept="video/mp4,video/*,image/*">
+  <input id="galleryFilePicker" class="hidden" type="file" accept="image/*">
+</div>
+<script src="app-v2.js"></script>
+<script src="pt-v25-core.js"></script>
+<script src="style2-v29.js"></script>
+<script src="style2-v29-admin.js"></script>
+</body>
+</html>
