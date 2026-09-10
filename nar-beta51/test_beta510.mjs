@@ -100,8 +100,10 @@ assert(/Orange grapefruit/i.test(grapefruit)&&/Pink grapefruit/i.test(grapefruit
 await noOverflow('Search');
 
 // A root navigation choice must replace child/detail state without Android Back.
-const open=await page.$('#results [data-open] h3,#results [data-open] .flavorvisual');
-if(open){await open.click();await wait(180);await nav('Mix');const stacked=await page.evaluate(()=>{const m=document.querySelector('#modal');return !!m&&getComputedStyle(m).display!=='none'&&(m.innerText||'').trim().length>0});assert(!stacked,'Root Mix left Flavor Detail stacked');assert((await bodyText()).includes('Expected Taste Profile'),'Mix root did not render')}
+// 5.1.1 owns the full flavor-card surface; click that stable navigation target rather
+// than a legacy title/image child that can legitimately be hidden by a new media layout.
+const open=await page.$('#results [data-open]');
+if(open){await open.evaluate(x=>x.click());await wait(180);await nav('Mix');const stacked=await page.evaluate(()=>{const m=document.querySelector('#modal');return !!m&&getComputedStyle(m).display!=='none'&&(m.innerText||'').trim().length>0});assert(!stacked,'Root Mix left Flavor Detail stacked');assert((await bodyText()).includes('Expected Taste Profile'),'Mix root did not render')}
 
 // ShishaLove is a store hierarchy: chosen tobacco brands + taste-profile access.
 await nav('Home');const shisha=await page.$('#homeShisha50');assert(!!shisha,'ShishaLove Home entry missing');await shisha.click();await wait(220);
