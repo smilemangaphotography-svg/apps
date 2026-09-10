@@ -4,10 +4,12 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowInsets;
 import android.webkit.CookieManager;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -21,7 +23,7 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=110";
+    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=111";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7101;
 
@@ -39,6 +41,17 @@ public class MainActivity extends Activity {
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
+
+        // Android 15 / targetSdk 35 enforces edge-to-edge. Keep the web shell inside
+        // the real system-bar insets so the ShishaLove header and bottom navigation
+        // never sit under the status bar, camera cutout, gesture area or 3-button bar.
+        if (Build.VERSION.SDK_INT >= 35) {
+            root.setOnApplyWindowInsetsListener((v, insets) -> {
+                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
+                v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                return insets;
+            });
+        }
 
         webView = new WebView(this);
         root.addView(webView, new FrameLayout.LayoutParams(
@@ -75,7 +88,7 @@ public class MainActivity extends Activity {
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.1.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.1.1");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
@@ -148,12 +161,28 @@ public class MainActivity extends Activity {
 
     private void applyPhonePolish(WebView view) {
         String js = "(function(){" +
+                "function fix(){" +
                 "document.querySelectorAll('input[autofocus],textarea[autofocus]').forEach(function(el){el.removeAttribute('autofocus');});" +
                 "var a=document.activeElement;if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')){a.blur();}" +
+                "document.querySelectorAll('img').forEach(function(img){" +
+                "if(!img.dataset.slRepairBound){img.dataset.slRepairBound='1';img.addEventListener('error',function(){" +
+                "var c=img.getAttribute('data-src')||img.getAttribute('data-lazy-src')||img.getAttribute('data-original')||img.getAttribute('data-lazyload');" +
+                "if(c&&img.src!==c){img.src=c;}" +
+                "},{once:true});}" +
+                "if(!img.getAttribute('src')){var c=img.getAttribute('data-src')||img.getAttribute('data-lazy-src')||img.getAttribute('data-original')||img.getAttribute('data-lazyload');if(c){img.src=c;}}" +
+                "});" +
+                "document.querySelectorAll('body *').forEach(function(el){" +
+                "if(el.children.length===0&&/^RELEASE\\s+1\\.1\\.\\d+$/i.test((el.textContent||'').trim())){" +
+                "var p=getComputedStyle(el).position;if(p==='fixed'||p==='absolute'){el.style.setProperty('display','none','important');}" +
+                "}" +
+                "});" +
+                "}" +
                 "if(!document.getElementById('sl-native-phone-polish')){" +
                 "var s=document.createElement('style');s.id='sl-native-phone-polish';" +
-                "s.textContent='@media(max-width:600px){header img{max-height:74px!important;width:auto!important}.site-header img,.header-logo img{max-width:210px!important;height:auto!important}input,select,button{font-size:16px}}';" +
+                "s.textContent='@media(max-width:600px){header img{max-height:68px!important;width:auto!important}.site-header img,.header-logo img{max-width:190px!important;height:auto!important}input,select,button{font-size:16px}.sl-bottom-nav,.bottom-navigation,.bottom-nav{padding-bottom:max(8px,env(safe-area-inset-bottom))!important}img{max-width:100%}}';" +
                 "document.head.appendChild(s);}" +
+                "fix();" +
+                "if(!window.__slNativeObserver){window.__slNativeObserver=new MutationObserver(function(){fix();});window.__slNativeObserver.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['src','data-src','class','style']});}" +
                 "})();";
         view.evaluateJavascript(js, null);
     }
