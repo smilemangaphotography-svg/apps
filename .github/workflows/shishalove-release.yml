@@ -1,0 +1,100 @@
+name: ShishaLove 1.0 Release Validation
+
+on:
+  push:
+    branches:
+      - shishalove-main
+    paths:
+      - 'shishalove-mobile/**'
+      - 'shishalove-ios/**'
+      - 'shishalove-wordpress-bridge/**'
+      - '.github/workflows/shishalove-release.yml'
+  workflow_dispatch:
+
+jobs:
+  android:
+    name: Android Customer + Merchant
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build installable development APKs and production bundles
+        working-directory: shishalove-mobile
+        run: gradle :customer:assembleDebug :merchant:assembleDebug :customer:bundleRelease :merchant:bundleRelease --stacktrace
+
+      - name: Collect Android artifacts
+        run: |
+          mkdir -p dist/android
+          cp shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk dist/android/ShishaLove-Customer-1.0-Install.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/android/ShishaLove-Merchant-1.0-Install.apk
+          cp shishalove-mobile/customer/build/outputs/bundle/release/customer-release.aab dist/android/ShishaLove-Customer-1.0-Unsigned.aab
+          cp shishalove-mobile/merchant/build/outputs/bundle/release/merchant-release.aab dist/android/ShishaLove-Merchant-1.0-Unsigned.aab
+          sha256sum dist/android/* > dist/android/SHA256SUMS.txt
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-1.0-android
+          path: dist/android/
+          if-no-files-found: error
+          retention-days: 30
+
+  ios:
+    name: iOS Customer + Merchant compile check
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Materialize app icons
+        working-directory: shishalove-ios
+        run: bash scripts/materialize-assets.sh
+
+      - name: Generate Xcode project
+        working-directory: shishalove-ios
+        run: xcodegen generate
+
+      - name: Build Customer for iOS Simulator
+        working-directory: shishalove-ios
+        run: xcodebuild -project ShishaLoveMobile.xcodeproj -scheme ShishaLoveCustomer -sdk iphonesimulator -configuration Release -derivedDataPath build/customer CODE_SIGNING_ALLOWED=NO build
+
+      - name: Build Merchant for iOS Simulator
+        working-directory: shishalove-ios
+        run: xcodebuild -project ShishaLoveMobile.xcodeproj -scheme ShishaLoveMerchant -sdk iphonesimulator -configuration Release -derivedDataPath build/merchant CODE_SIGNING_ALLOWED=NO build
+
+      - name: Collect iOS validation apps
+        working-directory: shishalove-ios
+        run: |
+          mkdir -p ../dist/ios
+          ditto -c -k --sequesterRsrc --keepParent build/customer/Build/Products/Release-iphonesimulator/ShishaLove.app ../dist/ios/ShishaLove-Customer-1.0-Simulator.zip
+          ditto -c -k --sequesterRsrc --keepParent 'build/merchant/Build/Products/Release-iphonesimulator/ShishaLove Merchant.app' ../dist/ios/ShishaLove-Merchant-1.0-Simulator.zip
+          shasum -a 256 ../dist/ios/* > ../dist/ios/SHA256SUMS.txt
+
+      - name: Upload iOS validation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-1.0-ios-simulator
+          path: dist/ios/
+          if-no-files-found: error
+          retention-days: 30
