@@ -97,9 +97,13 @@ public class MainActivity extends Activity {
         fileCallback = null;
     }
 
+    private void exitApp() {
+        super.onBackPressed();
+    }
+
     @Override
     public void onBackPressed() {
-        if (webView == null) { super.onBackPressed(); return; }
+        if (webView == null) { exitApp(); return; }
         String js = "(function(){var a=document.querySelector('.screen.active');" +
                 "if(a&&a.id==='editor'){document.getElementById('backBtn').click();return 'handled';}" +
                 "if(a&&a.id==='admin'){document.getElementById('adminBack').click();return 'handled';}" +
@@ -108,7 +112,7 @@ public class MainActivity extends Activity {
                 "if(a&&a.id==='splash'){return 'exit';}" +
                 "return 'exit';})()";
         webView.evaluateJavascript(js, value -> {
-            if (value == null || value.contains("exit")) MainActivity.super.onBackPressed();
+            if (value == null || value.contains("exit")) exitApp();
         });
     }
 
