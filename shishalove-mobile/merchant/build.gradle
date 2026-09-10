@@ -10,8 +10,8 @@ android {
         applicationId 'eu.shishalove.merchant'
         minSdk 24
         targetSdk 35
-        versionCode 110
-        versionName '1.1.0'
+        versionCode 112
+        versionName '1.1.2'
     }
 
     buildTypes {
@@ -23,4 +23,24 @@ android {
             minifyEnabled false
         }
     }
+}
+
+def materializeMerchantLauncherIcon = tasks.register('materializeMerchantLauncherIcon') {
+    doLast {
+        def brandingDir = rootProject.file('../shishalove-branding')
+        def parts = fileTree(brandingDir) {
+            include 'merchant-icon.b64.part*'
+        }.files.sort { a, b -> a.name <=> b.name }
+        if (parts.isEmpty()) {
+            throw new GradleException('Missing locked ShishaLove Merchant launcher artwork')
+        }
+        def encoded = parts.collect { it.getText('UTF-8').trim() }.join('')
+        def output = file('src/main/res/drawable-nodpi/ic_shishalove_merchant.png')
+        output.parentFile.mkdirs()
+        output.bytes = java.util.Base64.decoder.decode(encoded)
+    }
+}
+
+tasks.named('preBuild').configure {
+    dependsOn materializeMerchantLauncherIcon
 }
