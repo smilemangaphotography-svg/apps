@@ -24,6 +24,8 @@ jobs:
         shell: bash
         run: |
           test -s PHOTO-MASTER-AI/app/src/main/assets/index.html
+          test -s PHOTO-MASTER-AI/app/src/main/assets/beta011.js
+          test -s PHOTO-MASTER-AI/app/src/main/assets/beta011.css
           grep -q "ChatGPT Shortcut Editor" PHOTO-MASTER-AI/app/src/main/assets/index.html
           grep -q "E-Commerce" PHOTO-MASTER-AI/app/src/main/assets/index.html
           grep -q "Instagram 9:16" PHOTO-MASTER-AI/app/src/main/assets/index.html
@@ -33,8 +35,13 @@ jobs:
           grep -q "Fix Only" PHOTO-MASTER-AI/app/src/main/assets/index.html
           grep -q "Refine Result" PHOTO-MASTER-AI/app/src/main/assets/index.html
           grep -q "Reference Match" PHOTO-MASTER-AI/app/src/main/assets/index.html
+          grep -q "API & Account" PHOTO-MASTER-AI/app/src/main/assets/beta011.js
+          grep -q "History" PHOTO-MASTER-AI/app/src/main/assets/beta011.js
+          grep -q "Custom Master" PHOTO-MASTER-AI/app/src/main/assets/beta011.js
+          grep -q "BetaActivity" PHOTO-MASTER-AI/app/src/main/AndroidManifest.xml
           grep -q "getConnectionStatus" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/MainActivity.java
           grep -q "editImage" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/MainActivity.java
+          node --check PHOTO-MASTER-AI/app/src/main/assets/beta011.js
           node --check PHOTO-MASTER-AI/backend/api/edit.mjs
           python3 - <<'PY'
           from pathlib import Path
@@ -83,21 +90,23 @@ jobs:
           AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging "$APK" | tee badging.txt
           grep -q "package: name='com.ilia.photomasterai'" badging.txt
-          grep -q "versionName='0.10.0-beta'" badging.txt
+          grep -q "versionName='0.11.0-beta'" badging.txt
           unzip -l "$APK" | tee apk-files.txt
           grep -q "assets/index.html" apk-files.txt
+          grep -q "assets/beta011.js" apk-files.txt
+          grep -q "assets/beta011.css" apk-files.txt
 
       - name: Collect artifact
         shell: bash
         run: |
           mkdir -p beta-artifact
-          cp PHOTO-MASTER-AI/app/build/outputs/apk/debug/app-debug.apk beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA.apk
-          sha256sum beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA.apk > beta-artifact/SHA256SUMS.txt
+          cp PHOTO-MASTER-AI/app/build/outputs/apk/debug/app-debug.apk beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.11.0.apk
+          sha256sum beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.11.0.apk > beta-artifact/SHA256SUMS.txt
 
       - name: Upload beta APK
         uses: actions/upload-artifact@v4
         with:
-          name: CHATGPT-SHORTCUT-EDITOR-FUNCTIONAL-BETA-A54
+          name: CHATGPT-SHORTCUT-EDITOR-FUNCTIONAL-BETA-0.11.0-A54
           path: beta-artifact/*
           if-no-files-found: error
           retention-days: 30
