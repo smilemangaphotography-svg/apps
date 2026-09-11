@@ -31,7 +31,7 @@ jobs:
           grep -q 'customer_phone_fix_115.js' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
           grep -q 'build=115' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
           grep -q 'ShishaLoveMerchant/1.1.5' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
-          grep -q 'LOAD_CACHE_ELSE_NETWORK' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q 'snapshotOverlay' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
           grep -q 'sl114-hookah-grid' shishalove-mobile/customer/src/main/assets/customer_phone_polish.js
           grep -q 'sl114-drawer' shishalove-mobile/customer/src/main/assets/customer_phone_polish.js
           grep -q 'sl115-category-head' shishalove-mobile/customer/src/main/assets/customer_phone_fix_115.js
