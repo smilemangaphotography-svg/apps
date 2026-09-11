@@ -20,29 +20,38 @@ jobs:
       - name: Checkout redesign branch
         uses: actions/checkout@v4
 
-      - name: Validate mockup-locked Beta 0.8 runtime
+      - name: Generate mockup-locked Beta 0.9 runtime
         shell: bash
         run: |
-          test -f FRAME-Redesign/beta/app/src/main/assets/index08.html
+          python3 FRAME-Redesign/beta/patch09.py
+
+      - name: Validate mockup-locked Beta 0.9 runtime
+        shell: bash
+        run: |
+          test -f FRAME-Redesign/beta/app/src/main/assets/index09.html
           test -f FRAME-Redesign/beta/app/src/main/assets/style08.css
-          test -f FRAME-Redesign/beta/app/src/main/assets/app08.js
+          test -f FRAME-Redesign/beta/app/src/main/assets/style09.css
+          test -f FRAME-Redesign/beta/app/src/main/assets/app09.js
           test -f FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/SmartMlBridge.java
-          node --check FRAME-Redesign/beta/app/src/main/assets/app08.js
-          grep -q 'style08.css' FRAME-Redesign/beta/app/src/main/assets/index08.html
-          grep -q 'app08.js' FRAME-Redesign/beta/app/src/main/assets/index08.html
-          grep -q 'index08.html' FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/MainActivity.java
+          node --check FRAME-Redesign/beta/app/src/main/assets/app09.js
+          grep -q 'style09.css' FRAME-Redesign/beta/app/src/main/assets/index09.html
+          grep -q 'app09.js' FRAME-Redesign/beta/app/src/main/assets/index09.html
+          grep -q 'index09.html' FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/MainActivity.java
           grep -q 'saveXmp' FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/MainActivity.java
           grep -q 'PoseDetection' FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/SmartMlBridge.java
           grep -q 'SubjectSegmentation' FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/SmartMlBridge.java
           grep -q 'subject-segmentation' FRAME-Redesign/beta/app/build.gradle
-          grep -q "versionName '0.8.0-beta8'" FRAME-Redesign/beta/app/build.gradle
-          grep -q '9:16' FRAME-Redesign/beta/app/src/main/assets/app08.js
-          grep -q 'Add Photos' FRAME-Redesign/beta/app/src/main/assets/index08.html
-          grep -q 'Crop Lock' FRAME-Redesign/beta/app/src/main/assets/app08.js
-          grep -q 'AI Master Recipe' FRAME-Redesign/beta/app/src/main/assets/app08.js
-          grep -q 'Color Range' FRAME-Redesign/beta/app/src/main/assets/app08.js
-          grep -q 'Luminance' FRAME-Redesign/beta/app/src/main/assets/app08.js
-          grep -q 'Export Lightroom XMP' FRAME-Redesign/beta/app/src/main/assets/app08.js
+          grep -q "versionName '0.9.0-beta9'" FRAME-Redesign/beta/app/build.gradle
+          grep -q 'exactRatioRect' FRAME-Redesign/beta/app/src/main/assets/app09.js
+          grep -q '9:16' FRAME-Redesign/beta/app/src/main/assets/app09.js
+          grep -q 'visualSceneHints' FRAME-Redesign/beta/app/src/main/assets/app09.js
+          grep -q 'Coastal · Travel' FRAME-Redesign/beta/app/src/main/assets/app09.js
+          grep -q 'updateRateDock' FRAME-Redesign/beta/app/src/main/assets/app09.js
+          grep -q 'AI Master Recipe' FRAME-Redesign/beta/app/src/main/assets/app09.js
+          grep -q 'Crop Lock' FRAME-Redesign/beta/app/src/main/assets/app09.js
+          grep -q 'Preview Result' FRAME-Redesign/beta/app/src/main/assets/app09.js
+          grep -q 'Export Lightroom XMP' FRAME-Redesign/beta/app/src/main/assets/app09.js
+          grep -q 'Add Photos' FRAME-Redesign/beta/app/src/main/assets/index09.html
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -74,21 +83,21 @@ jobs:
           test -f "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee FRAME-Redesign/beta/apk-badging.txt
           grep -q "package: name='com.ilia.frame.redesignbeta.debug'" FRAME-Redesign/beta/apk-badging.txt
-          grep -q "versionName='0.8.0-beta8-debug'" FRAME-Redesign/beta/apk-badging.txt
+          grep -q "versionName='0.9.0-beta9-debug'" FRAME-Redesign/beta/apk-badging.txt
 
       - name: Collect beta artifact
         shell: bash
         run: |
           mkdir -p frame-beta-apk
-          cp FRAME-Redesign/beta/app/build/outputs/apk/debug/app-debug.apk frame-beta-apk/FRAME-Redesign-Beta-0.8.0.apk
+          cp FRAME-Redesign/beta/app/build/outputs/apk/debug/app-debug.apk frame-beta-apk/FRAME-Redesign-Beta-0.9.0.apk
           cp FRAME-Redesign/beta/apk-badging.txt frame-beta-apk/APK-IDENTITY.txt
-          sha256sum frame-beta-apk/FRAME-Redesign-Beta-0.8.0.apk | tee frame-beta-apk/SHA256SUMS.txt
+          sha256sum frame-beta-apk/FRAME-Redesign-Beta-0.9.0.apk | tee frame-beta-apk/SHA256SUMS.txt
           ls -lh frame-beta-apk
 
       - name: Upload FRAME beta APK
         uses: actions/upload-artifact@v4
         with:
-          name: FRAME-REDESIGN-BETA-0.8.0
+          name: FRAME-REDESIGN-BETA-0.9.0
           path: frame-beta-apk/*
           if-no-files-found: error
           retention-days: 30
