@@ -2,6 +2,8 @@ package eu.shishalove.merchant;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
@@ -19,6 +21,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
@@ -31,8 +34,11 @@ public class MainActivity extends Activity {
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7201;
 
+    private FrameLayout root;
     private WebView webView;
     private ProgressBar progressBar;
+    private ImageView snapshotOverlay;
+    private Bitmap lastSnapshot;
     private ValueCallback<Uri[]> filePathCallback;
     private String phonePolishJs;
 
@@ -44,7 +50,7 @@ public class MainActivity extends Activity {
         window.setNavigationBarColor(Color.WHITE);
         window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
 
-        FrameLayout root = new FrameLayout(this);
+        root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
         if (Build.VERSION.SDK_INT >= 35) {
             root.setOnApplyWindowInsetsListener((v, insets) -> {
@@ -58,6 +64,15 @@ public class MainActivity extends Activity {
         webView.setBackgroundColor(Color.WHITE);
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         root.addView(webView, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+
+        snapshotOverlay = new ImageView(this);
+        snapshotOverlay.setScaleType(ImageView.ScaleType.FIT_XY);
+        snapshotOverlay.setBackgroundColor(Color.WHITE);
+        snapshotOverlay.setVisibility(View.GONE);
+        root.addView(snapshotOverlay, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
         ));
@@ -90,6 +105,36 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void showLastSnapshot() {
+        if (lastSnapshot == null || lastSnapshot.isRecycled()) return;
+        snapshotOverlay.setImageBitmap(lastSnapshot);
+        snapshotOverlay.setAlpha(1f);
+        snapshotOverlay.setVisibility(View.VISIBLE);
+    }
+
+    private void hideLastSnapshot() {
+        if (snapshotOverlay.getVisibility() != View.VISIBLE) return;
+        snapshotOverlay.animate().alpha(0f).setDuration(100).withEndAction(() -> {
+            snapshotOverlay.setVisibility(View.GONE);
+            snapshotOverlay.setAlpha(1f);
+        }).start();
+    }
+
+    private void captureSnapshot() {
+        webView.postDelayed(() -> {
+            if (webView.getWidth() <= 0 || webView.getHeight() <= 0) return;
+            try {
+                Bitmap bitmap = Bitmap.createBitmap(webView.getWidth(), webView.getHeight(), Bitmap.Config.ARGB_8888);
+                Canvas canvas = new Canvas(bitmap);
+                webView.draw(canvas);
+                Bitmap old = lastSnapshot;
+                lastSnapshot = bitmap;
+                if (old != null && old != bitmap && !old.isRecycled()) old.recycle();
+            } catch (Throwable ignored) {
+            }
+        }, 120);
+    }
+
     private void configureWebView() {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -106,7 +151,7 @@ public class MainActivity extends Activity {
         settings.setDisplayZoomControls(false);
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-        settings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) settings.setOffscreenPreRaster(true);
         settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.5");
 
@@ -127,10 +172,18 @@ public class MainActivity extends Activity {
             }
 
             @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                super.onPageStarted(view, url, favicon);
+                showLastSnapshot();
+                applyPhonePolish(view);
+            }
+
+            @Override
             public void onPageCommitVisible(WebView view, String url) {
                 super.onPageCommitVisible(view, url);
                 applyPhonePolish(view);
                 progressBar.setVisibility(View.GONE);
+                hideLastSnapshot();
             }
 
             @Override
@@ -138,12 +191,15 @@ public class MainActivity extends Activity {
                 super.onPageFinished(view, url);
                 applyPhonePolish(view);
                 progressBar.setVisibility(View.GONE);
+                hideLastSnapshot();
+                captureSnapshot();
             }
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 super.onReceivedError(view, request, error);
                 if (request.isForMainFrame()) {
+                    hideLastSnapshot();
                     Toast.makeText(MainActivity.this,
                             "Unable to reach ShishaLove Merchant. Check your internet connection and try again.",
                             Toast.LENGTH_LONG).show();
@@ -233,6 +289,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (lastSnapshot != null && !lastSnapshot.isRecycled()) lastSnapshot.recycle();
         if (webView != null) {
             CookieManager.getInstance().flush();
             webView.stopLoading();
