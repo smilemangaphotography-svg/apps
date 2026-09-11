@@ -74,7 +74,7 @@ public class MainActivity extends Activity {
             }
         });
 
-        webView.loadUrl("file:///android_asset/index07.html");
+        webView.loadUrl("file:///android_asset/index08.html");
     }
 
     @Override
