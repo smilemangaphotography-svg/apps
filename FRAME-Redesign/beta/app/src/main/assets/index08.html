@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+<meta name="theme-color" content="#050607" />
+<title>FRAME Beta 0.8</title>
+<link rel="stylesheet" href="style08.css" />
+</head>
+<body>
+<section id="splash" class="screen active splash">
+  <div class="splashBg"></div><div class="splashShade"></div>
+  <div class="splashContent">
+    <div class="brandLock"><div class="brandMark"><i></i></div><div class="brandWord">FRAME</div></div>
+    <div class="tagline">EDIT · REFINE · CREATE</div>
+    <div class="splashSpacer"></div>
+    <div class="splashPromise">A BETTER FRAME<br>FOR A BRIGHTER STORY</div>
+    <button class="primary wide" id="startBtn">Get Started</button>
+    <button class="ghostLink" id="guestBtn">Continue as Guest</button>
+    <blockquote>“Great photos aren’t taken,<br>they’re refined.”</blockquote>
+  </div>
+</section>
+
+<section id="library" class="screen">
+  <header class="top"><button class="icon" id="libraryMenu">☰</button><div class="brandMini"><span class="brandMark tiny"><i></i></span><b>FRAME</b></div><div class="grow"></div><button class="icon" id="searchBtn">⌕</button><button class="addPhotos" id="addPhotos">＋ Add Photos</button></header>
+  <div id="filters" class="filters">
+    <button class="chip active" data-filter="all">All</button><button class="chip" data-filter="people">People</button><button class="chip" data-filter="architecture">Architecture</button><button class="chip" data-filter="wedding">Wedding</button><button class="chip" data-filter="travel">Travel</button><button class="chip" data-filter="landscape">Landscape</button><button class="chip" data-filter="night">Night</button><button class="chip" data-filter="food">Food</button><button class="chip" data-filter="edited">Edited</button><button class="chip" data-filter="favorites">Favorites</button>
+  </div>
+  <div class="libraryScroll"><div id="emptyLibrary" class="empty"><div class="emptyMark">▣</div><h2>Import Your Photos</h2><p>Your originals stay untouched. FRAME stores non-destructive edits in its library.</p><button class="primary" id="emptyImport">Import Photos</button></div><div id="grid" class="grid"></div></div>
+  <input id="filePick" class="hidden" type="file" accept="image/*" multiple />
+  <nav class="bottom"><button class="nav active" data-screen="library"><b>▣</b>Library</button><button class="nav" id="navEdit"><b>✎</b>Edit</button><button class="nav" id="navPresets"><b>◈</b>Presets</button><button class="nav" id="navAI"><b>✦</b>AI</button><button class="nav" id="navMore"><b>•••</b>More</button></nav>
+</section>
+
+<section id="editor" class="screen editor">
+  <header class="editorTop"><button class="icon" id="backBtn">‹</button><div class="fileMeta grow"><b id="fileName">Photo</b><small id="fileMeta">—</small></div><button class="icon" id="favBtn">♡</button><button class="icon" id="undoBtn">↶</button><button class="icon" id="redoBtn">↷</button><button class="icon" id="compareBtn">◫</button><button class="icon gold" id="exportBtn">⇧</button></header>
+  <main id="canvasArea" class="canvasArea">
+    <div id="viewport" class="viewport"><div id="stage" class="stage"><canvas id="editCanvas"></canvas><canvas id="maskCanvas" class="overlay"></canvas><canvas id="healCanvas" class="overlay"></canvas><div id="cropOverlay" class="cropOverlay hidden"><div class="cropGrid"></div><b class="h tl" data-h="tl"></b><b class="h tr" data-h="tr"></b><b class="h bl" data-h="bl"></b><b class="h br" data-h="br"></b></div></div></div>
+    <button id="zoomBtn" class="zoomBtn">⌕ <span>Fit</span></button>
+    <div id="compare" class="compare"><div><span>Before</span><canvas id="beforeCanvas"></canvas></div><div><span>After</span><canvas id="afterCanvas"></canvas></div></div>
+    <label id="maskToggle" class="maskToggle hidden"><span>Show Overlay</span><input type="checkbox" checked /></label>
+  </main>
+  <section class="panel"><div class="panelHead"><div><h2 id="panelTitle">Smart Edit</h2><small id="panelHint">Analyze · suggest · preview · apply</small></div><div class="grow"></div><button id="collapseBtn" class="mini">⌄</button><button id="resetBtn" class="mini">Reset</button></div><div id="panelBody" class="panelBody"></div></section>
+  <nav id="tools" class="tools"><button class="tool active" data-tool="smart"><b>✦</b>Smart</button><button class="tool" data-tool="presets"><b>◈</b>Presets</button><button class="tool" data-tool="light"><b>☼</b>Light</button><button class="tool" data-tool="color"><b>◐</b>Color</button><button class="tool" data-tool="detail"><b>△</b>Detail</button><button class="tool" data-tool="mask"><b>◎</b>Mask</button><button class="tool" data-tool="heal"><b>⌁</b>Heal</button><button class="tool" data-tool="crop"><b>⌗</b>Crop</button><button class="tool" data-tool="rate"><b>8.5</b>Rate</button></nav>
+</section>
+
+<section id="settings" class="screen"><header class="top"><button class="icon" id="settingsBack">‹</button><h1>Settings</h1><div class="grow"></div><span class="adminPill">Owner</span></header><div class="settingsScroll"><div class="profile"><div class="brandMark large"><i></i></div><div><h2>FRAME</h2><p>Version 0.8.0 beta</p><small>Owner</small></div></div><button class="setting" data-setting="ai"><span>✦</span><div><b>AI & Analysis</b><small>Scene detection, model settings and confidence</small></div><i>›</i></button><button class="setting" data-setting="presets"><span>◈</span><div><b>Preset Management</b><small>Create, rename, reorder and export</small></div><i>›</i></button><button class="setting" data-setting="library"><span>▣</span><div><b>Library & Storage</b><small>Manage photos, cache and database</small></div><i>›</i></button><button class="setting" data-setting="export"><span>⇧</span><div><b>Export Settings</b><small>Quality, naming and destinations</small></div><i>›</i></button><button class="setting" data-setting="appearance"><span>◐</span><div><b>App Appearance</b><small>Theme and UI preferences</small></div><i>›</i></button><button class="setting" data-setting="backup"><span>⟳</span><div><b>Backup & Restore</b><small>Export or restore your data</small></div><i>›</i></button><button class="setting" data-setting="help"><span>?</span><div><b>Help & Support</b><small>Guides, diagnostics and contact</small></div><i>›</i></button><button class="setting" id="adminBtn"><span>⚙</span><div><b>Admin Tools</b><small>Advanced controls · owner only</small></div><i>›</i></button></div></section>
+
+<section id="admin" class="screen"><header class="top"><button class="icon" id="adminBack">‹</button><h1>Admin Tools</h1><div class="grow"></div><span class="adminPill">Owner</span></header><div class="settingsScroll"><label class="setting"><span>✦</span><div><b>Highlight Guard</b><small>Protect recoverable highlights automatically</small></div><input id="highlightGuard" type="checkbox" checked /></label><label class="setting"><span>◐</span><div><b>Skin Priority</b><small>Keep detected skin natural</small></div><input id="skinPriority" type="checkbox" checked /></label><label class="setting"><span>◎</span><div><b>Mask Overlay Default</b><small>Show red selection overlay by default</small></div><input id="overlayDefault" type="checkbox" checked /></label><label class="setting"><span>🔒</span><div><b>Crop Lock Default</b><small>AI may recommend crop but cannot commit it while locked</small></div><input id="cropLockDefault" type="checkbox" checked /></label><button class="setting" id="clearLibrary"><span>⌫</span><div><b>Clear FRAME Library</b><small>Removes FRAME records only, never phone originals</small></div><i>›</i></button></div></section>
+
+<div id="modal" class="modal hidden"><div class="modalCard"><h3 id="modalTitle">Settings</h3><div id="modalBody"></div><button class="primary wide" id="modalClose">Done</button></div></div>
+<div id="toast" class="toast"></div>
+<script src="app08.js"></script>
+</body></html>
