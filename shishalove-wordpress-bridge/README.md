@@ -1,68 +1,86 @@
-# ShishaLove WordPress Bridge 1.1.1
+# ShishaLove WordPress Bridge — canonical recovery
 
-Canonical backend/runtime contract for the locked ShishaLove Customer 1.1 and Merchant mobile/web apps.
+Status: **1.1.6 release candidate / NOT FINAL**
 
-Version `1.1.1` is the final phone-polish patch on top of the approved Customer 1.1 design lock. It preserves WordPress/WooCommerce as the single source of truth for products, prices, stock, categories, orders, checkout and merchant writes.
+The bridge is now committed as source code in this repository instead of existing only as an external ZIP artifact. This is the canonical runtime for both ShishaLove Customer and ShishaLove Merchant.
 
-## Deployable package
+## Why the bridge was rebuilt
 
-File: `shishalove-app-bridge-1.1.1.zip`
+The previous deployed bridge was documented as 1.1.1 while the Android wrappers had advanced to 1.1.5 and were compensating with injected DOM/CSS/JavaScript patches. That caused version drift, duplicate navigation, random age verification, wrong category routing, broken drawer sections, inconsistent scrolling and slower reloads.
 
-SHA-256:
+The recovery removes that architecture. The bridge owns the app UI and WooCommerce integration. Native Android/iOS wrappers should become thin WebView containers after the bridge passes live regression.
 
-`5afcb5258c5dc3715d6ccd7f7908bb7d6bc68fc3cbe6718af1ded7ba5bfd8183`
+## Canonical source
 
-Source archive: `shishalove-bridge-source-1.1.1.zip`
+Plugin directory:
 
-SHA-256:
+`shishalove-wordpress-bridge/plugin/shishalove-app-bridge/`
 
-`d6b728f7fe2c2a9c43002941ce253a6d303d69b7a69b9bad12dc5ed73653b25c`
+Entry file:
 
-The deployable ZIP and source archive are distributed as release artifacts rather than committed as binaries to this public repository. This avoids storing large design-lock PNG assets and release binaries in Git history.
+`shishalove-app-bridge.php`
 
-## 1.1.1 final phone-polish lock
+Current candidate version:
 
-- Header is a fixed three-zone grid: hamburger / centered ShishaLove logo / language + cart. The logo can no longer collide with EN or cart on narrow phones.
-- Customer header height and logo scale are reduced for Samsung/iPhone portrait widths while preserving the approved centered-brand composition.
-- Website carousel artwork is shown with `contain` rather than destructive phone cropping, with per-slide aspect-ratio adjustment.
-- Home vertical rhythm is tightened around pickup, Shop by Category and Recent Arrivals without redesigning the approved page.
-- Bottom navigation has stronger Android/iOS safe-area spacing.
-- The same header geometry applies globally across Home, category, product, Search, Favorites, Account and cart/checkout surfaces.
+`1.1.6-rc.1`
 
-## Locked Customer 1.1 surface
+Do **not** label the native apps 1.1.6 until the live WordPress bridge and Samsung A54 regression gates pass.
 
-1. Splash Screen
-2. Age Verification
-3. Home
-4. Category Listing
-5. Product Detail
-6. Search / Filters
-7. Favorites
-8. Cart
-9. Checkout
-10. Account
-11. Side Menu
-12. Language
-13. Stores
-14. Experience
-15. Catering
-16. Blog
-17. Customer Support
-18. About
-
-Core navigation is Home / Search / Favorites / Account. Category and product data remain live WooCommerce data.
-
-## Runtime contract
+## Runtime URLs
 
 - Customer: `https://shishalove.eu/shishalove-app/`
 - Merchant: `https://shishalove.eu/shishalove-merchant/`
-- Current validated native wrappers remain compatible with build selector `build=110`; Bridge 1.1.1 also exposes `build=111` for cache/test verification.
-- WooCommerce/WordPress remains the single source of truth.
-- Customer and Merchant must not fork product, stock, category, price or order data into a separate database.
-- Merchant keeps WordPress authentication/session continuity for management operations.
+- Bridge status: `https://shishalove.eu/wp-json/shishalove/v1/status`
 
-## Native clients
+## Recovery architecture
 
-Android production sources live under `shishalove-mobile/` and iOS production sources live under `shishalove-ios/`. The validated 1.1 native wrappers remain compatible with this runtime patch, so the WordPress Bridge can be updated independently without forcing customers to reinstall the phone app.
+### Customer
 
-The GitHub Actions workflow `.github/workflows/shishalove-release.yml` validates the native clients. Bridge 1.1.1 additionally passed ZIP integrity, PHP syntax and Customer/Merchant JavaScript syntax checks before packaging.
+- Standalone bridge shell; the WordPress theme is not layered underneath it.
+- Official WordPress site logo is read dynamically from the site's Custom Logo setting.
+- Exactly one app-owned legal-age gate, persisted locally after confirmation.
+- No website age-popup DOM suppression is required because the theme popup is never rendered in the bridge shell.
+- Category IDs are resolved from the live `product_cat` taxonomy. Product listings are queried by the resolved term ID, preventing a Wookah/Alpha label from accidentally showing the parent Hookah catalog.
+- Home / Search / Favorites / Account bottom navigation is bridge-owned and persistent.
+- Dark side drawer is bridge-owned and scrollable.
+- Customer categories/products are cached briefly but WooCommerce remains authoritative.
+- Cart mutations use the live WooCommerce cart/session; checkout hands off to WooCommerce.
+- No MutationObserver or continuous DOM rewriting.
+
+### Merchant
+
+- Uses the logged-in WordPress session and checks WooCommerce/product-edit capabilities.
+- Products, orders and stock are server-paginated rather than loading thousands of products into one page.
+- Client UI is stale-while-revalidate/cache-first: cached rows render immediately and refresh in the background.
+- No full-page `Loading...` state during normal navigation.
+- New Product and Edit Product use the same category picker in this order:
+  1. Search categories
+  2. **Quick Picks (Most Used)** — 10 horizontally scrollable categories
+  3. All Categories
+- Quick Picks come from live WooCommerce category product counts, not local tap history.
+- WooCommerce remains the only product/category/order database.
+
+## Validation sequence
+
+The release gate is intentionally strict:
+
+1. Bridge recovery/rebuild.
+2. CI: PHP syntax, Customer JS syntax, Merchant JS syntax, category picker ordering, no DOM MutationObservers, no `Loading...` runtime text.
+3. Package the deployable WordPress ZIP.
+4. Deploy candidate to WordPress.
+5. Direct browser regression on `/shishalove-app/` and `/shishalove-merchant/`.
+6. Only after the bridge passes: remove Customer native DOM patches and reduce both Android wrappers to thin clients.
+7. Apply the final approved Customer/Merchant launcher icons.
+8. Build Android release candidate.
+9. Samsung Galaxy A54 regression.
+10. Only after all gates pass: promote to **1.1.6**.
+
+## CI artifacts
+
+`.github/workflows/shishalove-release.yml` packages:
+
+- `shishalove-app-bridge-1.1.6-rc.1.zip` — install/update this in WordPress.
+- `shishalove-bridge-source-1.1.6-rc.1.zip` — full bridge source archive.
+- SHA-256 manifest.
+
+The existing 1.1.5 Android artifacts remain baseline-only while bridge validation is in progress.
