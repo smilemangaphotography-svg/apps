@@ -1,4 +1,4 @@
-name: ShishaLove Bridge Recovery + 1.1.5 Native Validation
+name: ShishaLove Bridge RC2 + 1.1.5 Native Validation
 
 on:
   push:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   bridge:
-    name: Bridge 1.1.6 RC recovery validation
+    name: Bridge 1.1.6 RC2 validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -33,14 +33,19 @@ jobs:
           php -l "$PLUGIN/shishalove-app-bridge.php"
           node --check "$PLUGIN/assets/customer.js"
           node --check "$PLUGIN/assets/merchant.js"
-          grep -q "Version: 1.1.6-rc.1" "$PLUGIN/shishalove-app-bridge.php"
+          grep -q "Version: 1.1.6-rc.2" "$PLUGIN/shishalove-app-bridge.php"
           grep -q "shishalove-app" "$PLUGIN/shishalove-app-bridge.php"
           grep -q "shishalove-merchant" "$PLUGIN/shishalove-app-bridge.php"
+          grep -q "slb_find_global_exact" "$PLUGIN/shishalove-app-bridge.php"
+          grep -q "html_entity_decode" "$PLUGIN/shishalove-app-bridge.php"
           grep -q "slb_merchant_categories" "$PLUGIN/shishalove-app-bridge.php"
           grep -q "orderby.*count" "$PLUGIN/shishalove-app-bridge.php"
           grep -q "Quick Picks (Most Used)" "$PLUGIN/assets/merchant.js"
           grep -q "slice(0,10)" "$PLUGIN/assets/merchant.js"
           grep -q "Search categories" "$PLUGIN/assets/merchant.js"
+          grep -q "productsByView" "$PLUGIN/assets/merchant.js"
+          grep -q "vkey('slb-bootstrap')" "$PLUGIN/assets/customer.js"
+          grep -q "slb-brand-lockup" "$PLUGIN/assets/bridge.css"
           ! grep -q "MutationObserver" "$PLUGIN/assets/customer.js"
           ! grep -q "MutationObserver" "$PLUGIN/assets/merchant.js"
           ! grep -q "Loading\.\.\." "$PLUGIN/assets/customer.js"
@@ -56,6 +61,8 @@ jobs:
           const quick=s.indexOf('Quick Picks (Most Used)');
           const all=s.indexOf('All Categories');
           if(!(search>=0 && quick>search && all>quick)) throw new Error('Merchant category order must be Search -> Quick Picks -> All Categories');
+          const wanted=['Hookah','Bowls','Accessories'];
+          wanted.forEach(x=>{ if(!s.includes("'"+x+"'")) throw new Error('Missing locked Merchant filter '+x); });
           NODE
 
       - name: Package WordPress bridge release candidate
@@ -63,14 +70,14 @@ jobs:
           set -euo pipefail
           mkdir -p dist/bridge package
           cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
-          (cd package && zip -qr ../dist/bridge/shishalove-app-bridge-1.1.6-rc.1.zip shishalove-app-bridge)
-          zip -qr dist/bridge/shishalove-bridge-source-1.1.6-rc.1.zip shishalove-wordpress-bridge -x '*/.DS_Store'
+          (cd package && zip -qr ../dist/bridge/shishalove-app-bridge-1.1.6-rc.2.zip shishalove-app-bridge)
+          zip -qr dist/bridge/shishalove-bridge-source-1.1.6-rc.2.zip shishalove-wordpress-bridge -x '*/.DS_Store'
           sha256sum dist/bridge/*.zip > dist/bridge/SHA256SUMS.txt
 
       - name: Upload bridge candidate
         uses: actions/upload-artifact@v4
         with:
-          name: shishalove-bridge-1.1.6-rc.1
+          name: shishalove-bridge-1.1.6-rc.2
           path: dist/bridge/
           if-no-files-found: error
           retention-days: 30
