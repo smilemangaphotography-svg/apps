@@ -32,7 +32,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=114";
+    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=115";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7101;
 
@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
     private FrameLayout splashOverlay;
     private ValueCallback<Uri[]> filePathCallback;
     private String phonePolishJs;
+    private String phoneFixJs;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
@@ -85,12 +86,13 @@ public class MainActivity extends Activity {
 
         setContentView(root);
         phonePolishJs = readAsset("customer_phone_polish.js");
+        phoneFixJs = readAsset("customer_phone_fix_115.js");
         configureWebView();
 
         if (savedInstanceState == null) webView.loadUrl(START_URL);
         else {
             webView.restoreState(savedInstanceState);
-            dismissSplash(350);
+            dismissSplash(300);
         }
     }
 
@@ -128,7 +130,7 @@ public class MainActivity extends Activity {
     private void dismissSplash(long delayMs) {
         handler.postDelayed(() -> {
             if (splashOverlay == null || splashOverlay.getVisibility() != View.VISIBLE) return;
-            splashOverlay.animate().alpha(0f).setDuration(160).withEndAction(() -> {
+            splashOverlay.animate().alpha(0f).setDuration(150).withEndAction(() -> {
                 splashOverlay.setVisibility(View.GONE);
                 getWindow().setStatusBarColor(Color.WHITE);
                 getWindow().setNavigationBarColor(Color.WHITE);
@@ -167,7 +169,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) settings.setOffscreenPreRaster(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.1.4");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.1.5");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
@@ -190,7 +192,7 @@ public class MainActivity extends Activity {
                 super.onPageCommitVisible(view, url);
                 applyPhonePolish(view);
                 progressBar.setVisibility(View.GONE);
-                dismissSplash(260);
+                dismissSplash(220);
             }
 
             @Override
@@ -198,7 +200,7 @@ public class MainActivity extends Activity {
                 super.onPageFinished(view, url);
                 applyPhonePolish(view);
                 progressBar.setVisibility(View.GONE);
-                dismissSplash(80);
+                dismissSplash(60);
             }
 
             @Override
@@ -218,6 +220,7 @@ public class MainActivity extends Activity {
             public void onProgressChanged(WebView view, int newProgress) {
                 progressBar.setProgress(newProgress);
                 progressBar.setVisibility(newProgress >= 72 ? View.GONE : View.VISIBLE);
+                if (newProgress >= 18) applyPhonePolish(view);
             }
 
             @Override
@@ -248,6 +251,7 @@ public class MainActivity extends Activity {
 
     private void applyPhonePolish(WebView view) {
         if (phonePolishJs != null && !phonePolishJs.isEmpty()) view.evaluateJavascript(phonePolishJs, null);
+        if (phoneFixJs != null && !phoneFixJs.isEmpty()) view.evaluateJavascript(phoneFixJs, null);
     }
 
     private boolean handleUri(Uri uri) {
