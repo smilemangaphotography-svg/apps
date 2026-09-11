@@ -2,13 +2,13 @@
 /**
  * Plugin Name: ShishaLove App Bridge
  * Description: Canonical Customer and Merchant mobile runtime for ShishaLove. WooCommerce remains the source of truth.
- * Version: 1.1.6-rc.1
+ * Version: 1.1.6-rc.2
  * Author: ShishaLove
  */
 
 if (!defined('ABSPATH')) { exit; }
 
-define('SLB_VERSION', '1.1.6-rc.1');
+define('SLB_VERSION', '1.1.6-rc.2');
 define('SLB_FILE', __FILE__);
 define('SLB_DIR', plugin_dir_path(__FILE__));
 define('SLB_URL', plugin_dir_url(__FILE__));
@@ -32,13 +32,59 @@ function slb_is_merchant_request() {
 }
 
 function slb_site_logo() {
+    $cache_key = 'slb_brand_logo_' . str_replace('.', '_', SLB_VERSION);
+    $cached = get_transient($cache_key);
+    if (is_string($cached) && $cached !== '') { return $cached; }
+
+    $candidates = array();
     $logo_id = (int) get_theme_mod('custom_logo');
-    if ($logo_id) {
-        $src = wp_get_attachment_image_url($logo_id, 'full');
-        if ($src) { return $src; }
+    if ($logo_id) { $candidates[] = $logo_id; }
+
+    $searches = array('shishalove', 'shisha love', 'logo');
+    foreach ($searches as $search) {
+        $ids = get_posts(array(
+            'post_type' => 'attachment',
+            'post_status' => 'inherit',
+            'post_mime_type' => 'image',
+            'posts_per_page' => 30,
+            's' => $search,
+            'fields' => 'ids',
+        ));
+        foreach ((array) $ids as $id) { $candidates[] = (int) $id; }
     }
-    $icon = get_site_icon_url(512);
-    return $icon ? $icon : '';
+
+    $candidates = array_values(array_unique(array_filter($candidates)));
+    $best_url = '';
+    $best_score = -999;
+    foreach ($candidates as $id) {
+        $meta = wp_get_attachment_metadata($id);
+        $width = isset($meta['width']) ? (int) $meta['width'] : 0;
+        $height = isset($meta['height']) ? (int) $meta['height'] : 0;
+        $ratio = $height > 0 ? ($width / $height) : 0;
+        $title = slb_normalize(get_the_title($id));
+        $alt = slb_normalize((string) get_post_meta($id, '_wp_attachment_image_alt', true));
+        $score = 0;
+        if (strpos($title, 'shishalove') !== false || strpos($alt, 'shishalove') !== false) { $score += 80; }
+        if (strpos($title, 'logo') !== false || strpos($alt, 'logo') !== false) { $score += 35; }
+        if ($ratio >= 2.0) { $score += 75; }
+        elseif ($ratio >= 1.4) { $score += 30; }
+        else { $score -= 25; }
+        if ($width >= 300) { $score += 15; }
+        if ($width >= 600) { $score += 10; }
+        if ($id === $logo_id) { $score += 15; }
+        $url = wp_get_attachment_image_url($id, 'full');
+        if ($url && $score > $best_score) { $best_score = $score; $best_url = $url; }
+    }
+
+    if (!$best_url && $logo_id) {
+        $best_url = (string) wp_get_attachment_image_url($logo_id, 'full');
+    }
+    if (!$best_url) {
+        $best_url = (string) get_site_icon_url(512);
+    }
+    $best_url = (string) apply_filters('slb_brand_logo_url', $best_url);
+    if ($best_url) { set_transient($cache_key, $best_url, 12 * HOUR_IN_SECONDS); }
+    return $best_url;
 }
 
 function slb_normalize($value) {
@@ -53,6 +99,10 @@ function slb_all_terms() {
     return $terms = is_wp_error($rows) ? array() : $rows;
 }
 
+function slb_term_depth($term_id) {
+    return count(get_ancestors((int) $term_id, 'product_cat', 'taxonomy'));
+}
+
 function slb_is_descendant($term_id, $ancestor_id) {
     if (!$ancestor_id) { return true; }
     if ((int) $term_id === (int) $ancestor_id) { return true; }
@@ -62,22 +112,55 @@ function slb_is_descendant($term_id, $ancestor_id) {
 
 function slb_find_term($label, $root_id = 0) {
     $needle = slb_normalize($label);
-    $best = null;
-    $best_score = -999;
+    $exact = array();
+    $partial = array();
+
     foreach (slb_all_terms() as $term) {
         if ($root_id && !slb_is_descendant($term->term_id, $root_id)) { continue; }
         $name = slb_normalize($term->name);
         $slug = slb_normalize($term->slug);
+        $is_exact = ($name === $needle || $slug === $needle);
+        if ($is_exact) { $exact[] = $term; continue; }
+        if (strpos($name, $needle) !== false || strpos($needle, $name) !== false || strpos($slug, $needle) !== false || strpos($needle, $slug) !== false) {
+            $partial[] = $term;
+        }
+    }
+
+    $pool = $exact ? $exact : $partial;
+    if (!$pool) { return null; }
+    $best = null;
+    $best_score = -9999;
+    foreach ($pool as $term) {
+        $name = slb_normalize($term->name);
+        $slug = slb_normalize($term->slug);
+        $depth = slb_term_depth($term->term_id);
         $score = 0;
-        if ($name === $needle) { $score += 120; }
-        if ($slug === $needle) { $score += 110; }
-        if (strpos($name, $needle) !== false || strpos($needle, $name) !== false) { $score += 55; }
-        if (strpos($slug, $needle) !== false || strpos($needle, $slug) !== false) { $score += 45; }
-        if ((int) $term->count > 0) { $score += 12; }
-        $score += min(8, count(get_ancestors($term->term_id, 'product_cat', 'taxonomy')));
+        if ($name === $needle) { $score += 180; }
+        if ($slug === $needle) { $score += 160; }
+        if (!$root_id && (int) $term->parent === 0) { $score += 120; }
+        if ($root_id && (int) $term->parent === (int) $root_id) { $score += 100; }
+        if ($root_id && slb_is_descendant($term->term_id, $root_id)) { $score += 35; }
+        $score -= ($depth * 12);
+        $score += min(35, (int) $term->count > 0 ? (int) floor(log((int) $term->count + 1) * 8) : 0);
         if ($score > $best_score) { $best = $term; $best_score = $score; }
     }
-    return $best_score >= 45 ? $best : null;
+    return $best;
+}
+
+function slb_find_global_exact($label) {
+    $needle = slb_normalize($label);
+    $best = null;
+    $best_score = -9999;
+    foreach (slb_all_terms() as $term) {
+        $name = slb_normalize($term->name);
+        $slug = slb_normalize($term->slug);
+        if ($name !== $needle && $slug !== $needle) { continue; }
+        $depth = slb_term_depth($term->term_id);
+        $score = ((int) $term->count * 2) - ($depth * 8);
+        if ((int) $term->parent === 0) { $score += 18; }
+        if ($score > $best_score) { $best = $term; $best_score = $score; }
+    }
+    return $best;
 }
 
 function slb_term_image($term_id) {
@@ -112,18 +195,25 @@ function slb_top_categories() {
 function slb_collection($root_label, $preferred, $limit = 20) {
     $root = slb_find_term($root_label);
     if (!$root) { return array(); }
-    $out = array(); $seen = array();
+    $out = array();
+    $seen = array();
+
     foreach ($preferred as $label) {
         $term = slb_find_term($label, $root->term_id);
+        if (!$term) { $term = slb_find_global_exact($label); }
         if ($term && !isset($seen[$term->term_id])) {
             $seen[$term->term_id] = 1;
             $out[] = slb_term_payload($term);
         }
     }
-    if (count($out) < 2) {
+
+    if (count($out) < min(4, count($preferred))) {
         $children = get_terms(array(
-            'taxonomy' => 'product_cat', 'hide_empty' => true,
-            'child_of' => (int) $root->term_id, 'orderby' => 'count', 'order' => 'DESC',
+            'taxonomy' => 'product_cat',
+            'hide_empty' => true,
+            'parent' => (int) $root->term_id,
+            'orderby' => 'count',
+            'order' => 'DESC',
             'number' => $limit,
         ));
         if (!is_wp_error($children)) {
@@ -136,7 +226,27 @@ function slb_collection($root_label, $preferred, $limit = 20) {
             }
         }
     }
-    return $out;
+
+    if (count($out) < 2) {
+        $children = get_terms(array(
+            'taxonomy' => 'product_cat',
+            'hide_empty' => true,
+            'child_of' => (int) $root->term_id,
+            'orderby' => 'count',
+            'order' => 'DESC',
+            'number' => $limit,
+        ));
+        if (!is_wp_error($children)) {
+            foreach ($children as $term) {
+                if (!isset($seen[$term->term_id])) {
+                    $seen[$term->term_id] = 1;
+                    $out[] = slb_term_payload($term);
+                }
+                if (count($out) >= $limit) { break; }
+            }
+        }
+    }
+    return array_slice($out, 0, $limit);
 }
 
 function slb_customer_bootstrap_data() {
@@ -196,7 +306,7 @@ function slb_product_payload($product) {
         'price' => $product->get_price(),
         'regular_price' => $product->get_regular_price(),
         'sale_price' => $product->get_sale_price(),
-        'price_html' => wp_strip_all_tags($product->get_price_html()),
+        'price_html' => html_entity_decode(wp_strip_all_tags($product->get_price_html()), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
         'stock_status' => $product->get_stock_status(),
         'manage_stock' => (bool) $product->get_manage_stock(),
         'stock_quantity' => $product->get_stock_quantity(),
@@ -227,6 +337,8 @@ function slb_query_products($request, $merchant = false) {
         'order' => $order,
         'fields' => 'ids',
         'no_found_rows' => false,
+        'update_post_meta_cache' => true,
+        'update_post_term_cache' => true,
     );
     if ($search !== '') { $args['s'] = $search; }
     $tax_query = array();
@@ -314,7 +426,7 @@ function slb_save_product($request, $id = 0) {
     if (array_key_exists('stock_quantity', $body) && $body['stock_quantity'] !== '' && $body['stock_quantity'] !== null) { $product->set_stock_quantity((int) $body['stock_quantity']); }
     if (array_key_exists('stock_status', $body) && in_array($body['stock_status'], array('instock','outofstock','onbackorder'), true)) { $product->set_stock_status($body['stock_status']); }
     $saved_id = $product->save();
-    if (!empty($body['category_ids']) && is_array($body['category_ids'])) {
+    if (array_key_exists('category_ids', $body) && is_array($body['category_ids'])) {
         $category_ids = array_values(array_unique(array_filter(array_map('absint', $body['category_ids']))));
         wp_set_object_terms($saved_id, $category_ids, 'product_cat', false);
     }
@@ -334,7 +446,7 @@ function slb_orders($request) {
             'number' => $order->get_order_number(),
             'customer' => trim($order->get_formatted_billing_full_name()),
             'status' => $order->get_status(),
-            'total' => wp_strip_all_tags($order->get_formatted_order_total()),
+            'total' => html_entity_decode(wp_strip_all_tags($order->get_formatted_order_total()), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
             'date' => $order->get_date_created() ? $order->get_date_created()->date_i18n('Y-m-d H:i') : '',
         );
     }
@@ -362,8 +474,8 @@ function slb_cart_payload() {
     return array(
         'items' => $items,
         'count' => (int) WC()->cart->get_cart_contents_count(),
-        'subtotal' => wp_strip_all_tags(WC()->cart->get_cart_subtotal()),
-        'total' => wp_strip_all_tags(WC()->cart->get_total()),
+        'subtotal' => html_entity_decode(wp_strip_all_tags(WC()->cart->get_cart_subtotal()), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+        'total' => html_entity_decode(wp_strip_all_tags(WC()->cart->get_total()), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
     );
 }
 
