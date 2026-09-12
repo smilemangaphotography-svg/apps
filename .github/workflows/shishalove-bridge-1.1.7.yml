@@ -1,4 +1,4 @@
-name: ShishaLove Bridge 1.1.7 RC4
+name: ShishaLove Bridge 1.1.8 Canonical
 
 on:
   push:
@@ -8,12 +8,13 @@ on:
       - 'shishalove-wordpress-bridge/plugin/shishalove-app-bridge/**'
       - 'shishalove-wordpress-bridge/tools/patch-customer-1.1.7-rc2.py'
       - 'shishalove-wordpress-bridge/tools/run-customer-1.1.7-rc2.py'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.8.py'
       - '.github/workflows/shishalove-bridge-1.1.7.yml'
   workflow_dispatch:
 
 jobs:
   build-bridge:
-    name: Validate and package 1.1.7 RC4
+    name: Validate and package 1.1.8
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -25,83 +26,71 @@ jobs:
           php-version: '8.2'
           tools: none
 
-      - name: Validate canonical source
-        run: |
-          set -euo pipefail
-          PLUGIN='shishalove-wordpress-bridge/plugin/shishalove-app-bridge'
-          php -l "$PLUGIN/shishalove-app-bridge.php"
-          node --check "$PLUGIN/assets/customer.js"
-          node --check "$PLUGIN/assets/merchant.js"
-
-      - name: Build patched bridge 1.1.7 RC4
+      - name: Build canonical bridge
         run: |
           set -euo pipefail
           rm -rf package dist
           mkdir -p package dist
           cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
-          python3 shishalove-wordpress-bridge/tools/run-customer-1.1.7-rc2.py package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.8.py package/shishalove-app-bridge
 
           MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
           CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
           MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
 
-          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.7-rc.4/' "$MAIN"
-          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.7-rc.4');/" "$MAIN"
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.8/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.8');/" "$MAIN"
 
           php -l "$MAIN"
           node --check "$CUSTOMER"
           node --check "$MERCHANT"
 
-          grep -q "Version: 1.1.7-rc.4" "$MAIN"
-          grep -q "define('SLB_VERSION', '1.1.7-rc.4')" "$MAIN"
-          grep -q "BUILD='1.1.7-rc.3'" "$CUSTOMER"
+          grep -q "Version: 1.1.8" "$MAIN"
+          grep -q "define('SLB_VERSION', '1.1.8')" "$MAIN"
+          grep -q "BUILD='1.1.8'" "$CUSTOMER"
+          grep -q "slb-age-ok-stable" "$CUSTOMER"
+          grep -q "document.body.style.overflow=''" "$CUSTOMER"
           grep -q "Price: Low to High" "$CUSTOMER"
           grep -q "Price: High to Low" "$CUSTOMER"
           grep -q "Recommended order" "$CUSTOMER"
           grep -q "Recent Arrivals" "$CUSTOMER"
           grep -q "productCategoryShortcuts" "$CUSTOMER"
-          grep -q "slb-product-cat-scroll button img" package/shishalove-app-bridge/assets/bridge.css
-          grep -q "orderby='price'" "$CUSTOMER"
-          grep -q "pagerMarkup" "$CUSTOMER"
-          grep -q "data-add" "$CUSTOMER"
+          grep -q "meta_type.*NUMERIC" "$MAIN"
+          grep -q "price_value" "$MAIN"
+          grep -q "slb-product-detail-image" "$CSS"
           ! grep -q "Last 7 days" "$CUSTOMER"
           ! grep -q "Last 30 days" "$CUSTOMER"
           ! grep -q "Before 30 days" "$CUSTOMER"
 
           grep -q "Search product name or SKU" "$MERCHANT"
-          grep -q "All stock statuses" "$MERCHANT"
-          grep -q "All categories" "$MERCHANT"
-          grep -q "data-page-dir=\\\"next\\\"" "$MERCHANT"
-          grep -q "Product link" "$MERCHANT"
           grep -q "Quick Picks (Most Used)" "$MERCHANT"
           ! grep -q "Laser Engravable Products" "$MERCHANT"
 
-          cat > package/INSTALL-1.1.7-RC4.txt <<'TXT'
-          ShishaLove App Bridge 1.1.7 RC4
+          cat > package/INSTALL-1.1.8.txt <<'TXT'
+          ShishaLove App Bridge 1.1.8
 
-          Customer:
-          - carries forward the customer-side RC3 fixes that passed testing
+          Customer regression lock:
+          - bridge-native navigation only; no website-category fallback in the Android app
+          - official WordPress custom logo is authoritative
+          - stable one-time age confirmation migrated from previous builds
+          - body scrolling is explicitly restored after drawer/navigation changes
+          - cached bootstrap renders immediately without a second full-page redraw
+          - Recommended + Recent Arrivals home feed only
+          - numeric Price Low-to-High / High-to-Low sorting
+          - 1:1 product detail imagery and category shortcuts
+          - working pagination and in-stock filtering
 
-          Merchant precision fixes:
-          - product and stock search now validates matches against product NAME or SKU
-          - search term stays visible in the search bar
-          - Stock defaults to ALL products, including in-stock and out-of-stock products
-          - Stock has an explicit stock-status filter: All / In stock / Out of stock / On backorder
-          - Products and Stock can filter by any WooCommerce product category
-          - working Previous / Next pagination appears whenever more than one page exists
-          - product/stock searches no longer leak into each other when switching tabs
-          - New Product restores a visible WooCommerce product-link preview
-          - Quick Picks are recalculated from the most-used categories
-          - Laser Engravable Products is excluded from Quick Picks
+          Merchant behavior remains WooCommerce-authoritative.
           TXT
 
-          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.7-rc.4.zip shishalove-app-bridge INSTALL-1.1.7-RC4.txt)
-          sha256sum dist/shishalove-app-bridge-1.1.7-rc.4.zip > dist/SHA256SUMS.txt
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.8.zip shishalove-app-bridge INSTALL-1.1.8.txt)
+          sha256sum dist/shishalove-app-bridge-1.1.8.zip > dist/SHA256SUMS.txt
 
       - name: Upload bridge artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shishalove-app-bridge-1.1.7-rc.4
+          name: shishalove-app-bridge-1.1.8
           path: dist/
           if-no-files-found: error
           retention-days: 30
