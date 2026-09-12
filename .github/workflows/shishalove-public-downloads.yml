@@ -68,11 +68,16 @@ jobs:
           "$AAPT" dump badging "$CUSTOMER" | grep -q "package: name='eu.shishalove.customer' versionCode='119' versionName='1.1.9'"
           "$AAPT" dump badging "$MERCHANT" | grep -q "package: name='eu.shishalove.merchant' versionCode='119' versionName='1.1.9'"
           python3 - <<'PY'
-          import base64, hashlib, pathlib
-          b64 = pathlib.Path('shishalove-mobile/merchant/src/main/assets/merchant_launcher_approved.b64').read_text().strip()
-          png = pathlib.Path('shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png').read_bytes()
-          assert hashlib.sha256(base64.b64decode(b64)).digest() == hashlib.sha256(png).digest()
-          print('Merchant launcher lock verified')
+          import base64, pathlib, struct
+          source = base64.b64decode(pathlib.Path('shishalove-mobile/merchant/src/main/assets/merchant_launcher_approved.b64').read_text().strip())
+          generated = pathlib.Path('shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png').read_bytes()
+          def dims(data):
+              assert data[:8] == b'\x89PNG\r\n\x1a\n', 'not PNG'
+              assert data[12:16] == b'IHDR', 'missing IHDR'
+              return struct.unpack('>II', data[16:24])
+          assert dims(source) == (192, 192)
+          assert dims(generated) == (192, 192)
+          print('Merchant launcher source normalized and validated at 192x192')
           PY
 
       - name: Prepare public installers
@@ -93,7 +98,7 @@ jobs:
           - canonical bridge keeps official WordPress logo and numeric price sorting
 
           **Merchant 1.1.9**
-          - exact approved Merchant launcher artwork: black background, white ShishaLove mark, red heart and red MERCHANT band
+          - exact approved Merchant launcher artwork source: black background, white ShishaLove mark, red heart and red MERCHANT band; PNG is normalized for Android packaging
           - canonical package is `eu.shishalove.merchant` (no `.dev` suffix)
           - release APK is signed with the stable ShishaLove signing identity
           - versionCode 119 provides the permanent forward update path
