@@ -27,8 +27,8 @@ android {
         applicationId 'eu.shishalove.customer'
         minSdk 24
         targetSdk 35
-        versionCode 118
-        versionName '1.1.8'
+        versionCode 119
+        versionName '1.1.9'
     }
 
     buildTypes {
@@ -39,6 +39,9 @@ android {
         }
         release {
             minifyEnabled false
+            // Canonical install/update identity. Release must never fall back to an
+            // unsigned APK or an ephemeral debug key.
+            signingConfig signingConfigs.beta
         }
     }
 }
@@ -60,10 +63,11 @@ def materializeCustomerLauncherIcon = tasks.register('materializeCustomerLaunche
 }
 
 // Canonical bridge runtime lock.
-// The old phone-polish scripts are still useful only for legacy website pages. They
-// must immediately exit on /shishalove-app/ or they create a second age gate/drawer,
-// reroute categories to website pages, attach document MutationObservers and break
-// scrolling/performance. This task makes that rule unavoidable in every Android build.
+// Legacy phone-polish scripts are allowed only on legacy website pages. They must
+// never execute on /shishalove-app/: otherwise they can create a second age gate,
+// replace bridge navigation, attach whole-document MutationObservers and break
+// scrolling/performance. Keep this build-time guard as a second line of defence;
+// MainActivity also blocks legacy injection on the canonical bridge route.
 def lockCanonicalCustomerRuntime = tasks.register('lockCanonicalCustomerRuntime') {
     doLast {
         def guard = "if(window.SHISHALOVE_BRIDGE&&location.pathname.toLowerCase().indexOf('/shishalove-app')===0){return;}"
@@ -81,8 +85,10 @@ def lockCanonicalCustomerRuntime = tasks.register('lockCanonicalCustomerRuntime'
 
         def activity = file('src/main/java/eu/shishalove/customer/MainActivity.java')
         def source = activity.getText('UTF-8')
-        source = source.replace('build=115', 'build=118')
-        source = source.replace('ShishaLoveCustomer/1.1.5', 'ShishaLoveCustomer/1.1.8')
+        source = source.replace('build=115', 'build=119')
+        source = source.replace('build=118', 'build=119')
+        source = source.replace('ShishaLoveCustomer/1.1.5', 'ShishaLoveCustomer/1.1.9')
+        source = source.replace('ShishaLoveCustomer/1.1.8', 'ShishaLoveCustomer/1.1.9')
         activity.setText(source, 'UTF-8')
     }
 }
