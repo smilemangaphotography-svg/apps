@@ -1,55 +1,107 @@
-# ShishaLove Customer 1.1 — Full Page Design Lock
+# ShishaLove Customer — Canonical UI / Functional Lock
 
-Status: **LOCKED / IMPLEMENTATION SOURCE OF TRUTH**
+Status: **LOCKED / OWNER-APPROVED SOURCE OF TRUTH**  
+Canonical lineage: `smilemangaphotography-svg/apps` → `shishalove-main`
 
-Reference image: `SHISHALOVE_CUSTOMER_1_1_FULL_PAGE_LOCK.png`
-Reference SHA-256: `9f4334c1b15a3ed23532ed108233ed413bbc6ee56b015858c84b697217809603`
+## Non-negotiable runtime rule
+
+The Android/iOS customer wrappers must load the canonical `/shishalove-app/` bridge and **must not inject legacy website DOM patches into that bridge page**. Legacy `customer_phone_polish.js` / `customer_phone_fix_115.js` logic may never replace bridge navigation, create a second drawer, create a second age gate, or reroute bridge category taps to `/product-category/...` website pages.
+
+WooCommerce remains the product/category/price/stock source of truth. The bridge is the customer-app presentation layer.
 
 ## Locked visual system
-- White customer commerce UI with ShishaLove red accent `#D72A40`.
-- Black/white/red ShishaLove hookah-heart launcher/splash mark.
-- Centered ShishaLove brand in the top bar.
-- Hamburger on the left; language + cart on the right. No duplicate top-right search icon.
-- Header geometry is permanently split into three independent zones so logo, language and cart never overlap on narrow phones.
-- Customer logo is intentionally smaller on phone portrait widths; header height remains compact and consistent across every page.
-- Website carousel must show the full artwork on phone. Do not use destructive left/right `cover` cropping; use contained artwork with responsive/per-slide height.
-- Bottom navigation is exactly: **Home / Search / Favorites / Account** and must stay above Android/iOS safe areas.
-- Mobile-first spacing, 2-column product grid, clean 1:1 product imagery, no desktop-style clutter.
-- Home spacing around pickup, Shop by Category and Recent Arrivals is compact; do not reintroduce excessive blank vertical space.
-- Customer category/subcategory routing remains canonical WooCommerce path based.
-- Payment remains a secure WooCommerce handoff.
 
-## Locked screens
-1. **Splash** — black, hookah-heart mark, ShishaLove wordmark, “MORE THAN SHISHA · A LIFESTYLE”.
-2. **Age Verification** — centered white verification card and one primary confirmation CTA.
-3. **Home** — live ShishaLove carousel, pickup message, Shop by Category, Recent Arrivals, bottom nav.
-4. **Category Listing** — back, title, See all, optional subcategory tiles, sort/per-page, 2-column products.
-5. **Product Detail** — gallery, favorite/share, price/stock, quantity/add, accordion details.
-6. **Search / Filters** — query, category, sort, price range, compact list results; keyboard does not auto-open.
-7. **Favorites** — dedicated saved-product list and Clear all. No reused Search page.
-8. **Cart** — item list, quantity controls, subtotal/pickup/total, Checkout CTA.
-9. **Checkout** — delivery choice, personal details, order estimate, then WooCommerce payment handoff.
-10. **Account** — app-style account dashboard: Orders, Addresses, Payment Methods, Favorites, Loyalty, Account Details.
-11. **Side Menu** — dark ShishaLove drawer; commerce hierarchy + About, Stores, Experience, Catering, Blog, Laser, Loyalty, FAQs, Contact.
-12. **Language** — English, Greek, German, French, Dutch, Arabic, Simplified Chinese; radio-list UI.
-13. **Stores** — Nicosia, Limassol, Larnaca, Famagusta, Paphos rows; live site details.
-14. **Experience** — premium ShishaLove Experience hero and live CTA.
-15. **Catering** — event/catering hero and live enquiry CTA.
-16. **Blog** — WordPress posts rendered as a native-style list with site fallback.
-17. **Customer Support** — Contact, Call, FAQs, Store Locations + store phone list.
-18. **About** — ShishaLove logo, brand description, “MORE THAN SHISHA · A LIFESTYLE”.
+- White premium customer commerce UI with ShishaLove red accent `#D72A40`.
+- Use the **official WordPress website custom logo** exactly. Do not synthesize a text wordmark beside it and do not pick a random media-library logo.
+- Hamburger left; official centered ShishaLove logo; language + cart right.
+- Bottom navigation exactly: **Home / Search / Favorites / Account** and always above Android/iOS safe areas.
+- Mobile-first 2-column product grid.
+- Product images use square **1:1 contain** presentation: no destructive crop, no missing sides.
+- Scrolling must remain native and continuous on Home, categories, search, products, drawer and account surfaces.
 
-## Functional locks
-- Never show unrelated products when a category cannot resolve.
-- Favorites/cart persist locally between launches.
-- WooCommerce remains authoritative for product price, stock and checkout validation.
-- Search accepts product name, SKU, category and brand.
-- Category imagery is merchant-managed and may fall back cleanly.
-- Android and iOS wrappers must load the same canonical customer app.
-- Header spacing and carousel behavior are global shell behavior, not page-specific overrides.
+## Locked Home — September 12 owner approval
 
-## Final phone-polish amendment — 1.1.1
-The September 10 Samsung phone review is incorporated into the lock: reduce top-header logo scale, prevent EN/cart collision, show complete carousel art, tighten Home whitespace, and protect the bottom navigation from system gesture/navigation areas. These are corrective implementation details, not a redesign.
+Home is intentionally simplified. Do **not** restore the old large “Shop by category” tile section.
 
-## Change control
-Future UI changes must preserve this lock unless explicitly approved by the owner. Implementation changes may fix bugs, performance, accessibility, security or platform compatibility without altering the approved page hierarchy and visual language.
+Home contains:
+1. Header / hamburger navigation.
+2. **Recommended** feed — default and always useful.
+3. **Recent Arrivals** as the second feed option.
+4. Product sorting for the feed: Recommended order / Newest / Price Low→High / Price High→Low / A–Z.
+5. Working product grid, Add to Cart and pagination when more results exist.
+
+Removed from Home and forbidden unless the owner explicitly asks to restore them:
+- old Shop by Category block,
+- Last 7 days,
+- Last 30 days,
+- Before 30 days.
+
+Catalogue discovery belongs in the hamburger drawer and category screens.
+
+## Locked category behavior
+
+- Hamburger catalogue hierarchy: Hookah, Bowls, Hoses, Accessories, Charcoal, Flavors, Merchandise.
+- Parent category screens may show their live WooCommerce subcategories/brands.
+- **See all means all available live child brands/subcategories**, not an arbitrary short subset.
+- Category product lists are bridge-native, not website pages.
+- Customer lists display in-stock products only.
+- Sort options must actually change data order: Newest / Price Low→High / Price High→Low / A–Z.
+- Price sorting is numeric WooCommerce `_price` ordering, not text ordering.
+- Previous / Next pagination must work whenever more than one page exists.
+- Refreshing a category keeps/restores the category route instead of returning to Home.
+
+## Locked product detail
+
+Every tapped product opens an app-style product detail view containing, in this order:
+- category shortcut chips/images where available,
+- full square 1:1 contained product image,
+- product name,
+- price,
+- stock status,
+- description where available,
+- quantity + Add to Cart when purchasable.
+
+Category shortcuts must be tappable and return to bridge-native category pages.
+
+## Locked age verification
+
+- One canonical bridge age gate only.
+- A successful confirmation persists across normal refresh, relaunch and navigation using stable first-party storage/cookie migration.
+- Older accepted keys are migrated; the customer must not be repeatedly asked after already confirming.
+- The Android wrapper must never inject an older second age popup.
+
+## Performance lock
+
+- Cached bootstrap may paint immediately.
+- Fresh bootstrap data may refresh state/cache in the background without forcing an unnecessary second full-page redraw.
+- Do not show a long blocking “Loading…” page when cached/current content can be displayed.
+- Do not attach legacy whole-document MutationObservers to the bridge page.
+- Versioned caches must be invalidated when runtime behavior changes.
+
+## Search / Favorites / Cart / Account
+
+- Search accepts product name, SKU and category; results remain in the app shell.
+- Favorites persist locally.
+- Add to Cart must work from Home, categories, search, favorites and product details.
+- Cart state persists through the WooCommerce session and checkout securely hands off to WooCommerce.
+- Account entry points must preserve the app shell wherever an app-native equivalent exists; never replace the entire customer experience with an unrelated desktop website view.
+
+## Merchant boundary
+
+Customer icon is already approved and must not be changed by Merchant work. Merchant uses its separate app/package/icon lineage.
+
+## Regression gate
+
+A customer build is not complete until all of the following are true on Samsung A54-class portrait Android:
+- Home scroll works.
+- Drawer opens/closes without leaving body scroll locked.
+- Age confirmation does not reappear after accepted refresh/relaunch.
+- Header shows the official ShishaLove website logo.
+- Wookah/Hookah and other category taps remain inside bridge-native category UI.
+- Low→High visibly starts with lower-priced products than High→Low for the same category.
+- Product images are 1:1 contain.
+- Add to Cart works.
+- Next page works when available.
+- Refresh keeps the current bridge route.
+
+Future work must preserve this file unless the owner explicitly approves a design/behavior change.
