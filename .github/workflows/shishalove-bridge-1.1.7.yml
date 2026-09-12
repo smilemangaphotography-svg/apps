@@ -7,6 +7,7 @@ on:
     paths:
       - 'shishalove-wordpress-bridge/plugin/shishalove-app-bridge/**'
       - 'shishalove-wordpress-bridge/tools/patch-customer-1.1.7-rc2.py'
+      - 'shishalove-wordpress-bridge/tools/run-customer-1.1.7-rc2.py'
       - '.github/workflows/shishalove-bridge-1.1.7.yml'
   workflow_dispatch:
 
@@ -38,7 +39,7 @@ jobs:
           rm -rf package dist
           mkdir -p package dist
           cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
-          python3 shishalove-wordpress-bridge/tools/patch-customer-1.1.7-rc2.py package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/run-customer-1.1.7-rc2.py package/shishalove-app-bridge
 
           MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
           CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
