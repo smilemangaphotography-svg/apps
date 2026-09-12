@@ -1,4 +1,4 @@
-name: ShishaLove Bridge RC2 + 1.1.5 Native Validation
+name: ShishaLove Bridge RC2 + Merchant 1.1.6 Native Validation
 
 on:
   push:
@@ -83,22 +83,27 @@ jobs:
           retention-days: 30
 
   android:
-    name: Android Customer + Merchant existing 1.1.5
+    name: Android Customer 1.1.5 + Merchant 1.1.6
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate Android 1.1.5 metadata
+      - name: Validate Android metadata and order notifications
         run: |
           grep -q "versionCode 115" shishalove-mobile/customer/build.gradle
           grep -q "versionName '1.1.5'" shishalove-mobile/customer/build.gradle
-          grep -q "versionCode 115" shishalove-mobile/merchant/build.gradle
-          grep -q "versionName '1.1.5'" shishalove-mobile/merchant/build.gradle
+          grep -q "versionCode 116" shishalove-mobile/merchant/build.gradle
+          grep -q "versionName '1.1.6'" shishalove-mobile/merchant/build.gradle
           grep -q 'build=115' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
           grep -q 'ShishaLoveCustomer/1.1.5' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
-          grep -q 'build=115' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
-          grep -q 'ShishaLoveMerchant/1.1.5' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q 'build=116' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q 'ShishaLoveMerchant/1.1.6' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q 'POST_NOTIFICATIONS' shishalove-mobile/merchant/src/main/AndroidManifest.xml
+          grep -q 'addJavascriptInterface' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q 'notifyOrder' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q 'merchant/orders?page=1&per_page=5' shishalove-mobile/merchant/src/main/assets/merchant_order_watch.js
+          grep -q 'setInterval' shishalove-mobile/merchant/src/main/assets/merchant_order_watch.js
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -117,23 +122,23 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Build existing Android baseline
+      - name: Build Android apps
         working-directory: shishalove-mobile
         run: gradle :customer:assembleDebug :merchant:assembleDebug :customer:bundleRelease :merchant:bundleRelease --stacktrace
 
-      - name: Collect Android baseline artifacts
+      - name: Collect Android artifacts
         run: |
           mkdir -p dist/android
           cp shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk dist/android/ShishaLove-Customer-1.1.5-Install.apk
-          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/android/ShishaLove-Merchant-1.1.5-Install.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/android/ShishaLove-Merchant-1.1.6-Install.apk
           cp shishalove-mobile/customer/build/outputs/bundle/release/customer-release.aab dist/android/ShishaLove-Customer-1.1.5-Unsigned.aab
-          cp shishalove-mobile/merchant/build/outputs/bundle/release/merchant-release.aab dist/android/ShishaLove-Merchant-1.1.5-Unsigned.aab
+          cp shishalove-mobile/merchant/build/outputs/bundle/release/merchant-release.aab dist/android/ShishaLove-Merchant-1.1.6-Unsigned.aab
           sha256sum dist/android/* > dist/android/SHA256SUMS.txt
 
-      - name: Upload Android baseline artifacts
+      - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: shishalove-1.1.5-android
+          name: shishalove-android-customer-1.1.5-merchant-1.1.6
           path: dist/android/
           if-no-files-found: error
           retention-days: 30
