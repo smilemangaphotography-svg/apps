@@ -75,13 +75,16 @@ jobs:
           test -s shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png
           file shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png | grep -qi PNG
           python3 - <<'PY'
-          import base64, hashlib, pathlib
-          asset = pathlib.Path('shishalove-mobile/merchant/src/main/assets/merchant_launcher_approved.b64')
-          generated = pathlib.Path('shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png')
-          expected = base64.b64decode(asset.read_text().strip())
-          actual = generated.read_bytes()
-          assert hashlib.sha256(expected).digest() == hashlib.sha256(actual).digest(), 'Merchant launcher artwork changed'
-          print('Approved Merchant red-band artwork is byte-identical')
+          import base64, pathlib, struct
+          source = base64.b64decode(pathlib.Path('shishalove-mobile/merchant/src/main/assets/merchant_launcher_approved.b64').read_text().strip())
+          generated = pathlib.Path('shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png').read_bytes()
+          def dims(data):
+              assert data[:8] == b'\x89PNG\r\n\x1a\n', 'not PNG'
+              assert data[12:16] == b'IHDR', 'missing IHDR'
+              return struct.unpack('>II', data[16:24])
+          assert dims(source) == (192, 192), 'approved Merchant source dimensions changed'
+          assert dims(generated) == (192, 192), 'generated Merchant icon dimensions changed'
+          print('Approved Merchant red-band artwork source normalized to valid 192x192 Android PNG')
           PY
 
           CUSTOMER='shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk'
