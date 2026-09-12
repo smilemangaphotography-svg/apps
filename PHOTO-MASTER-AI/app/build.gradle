@@ -13,7 +13,8 @@ android {
         versionCode 5
         versionName '0.13.0-beta'
 
-        def endpoint = project.findProperty('PHOTO_MASTER_AI_ENDPOINT') ?: ''
+        def defaultEndpoint = 'https://photo-master-ai-backend-smilemangaphotography-2924.vercel.app/api/edit'
+        def endpoint = project.findProperty('PHOTO_MASTER_AI_ENDPOINT') ?: defaultEndpoint
         buildConfigField 'String', 'AI_ENDPOINT', '"' + endpoint.toString().replace('\\', '\\\\').replace('"', '\\"') + '"'
     }
 
