@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/shishalove-public-downloads.yml'
       - 'shishalove-mobile/**'
+      - 'shishalove-branding/**'
   workflow_dispatch:
 
 permissions:
@@ -29,7 +30,7 @@ jobs:
           grep -q "versionName '1.1.9'" shishalove-mobile/merchant/build.gradle
           grep -q "signingConfig signingConfigs.beta" shishalove-mobile/customer/build.gradle
           grep -q "signingConfig signingConfigs.beta" shishalove-mobile/merchant/build.gradle
-          grep -q "merchant_launcher_approved.b64" shishalove-mobile/merchant/build.gradle
+          grep -q "merchant-icon.b64.part" shishalove-mobile/merchant/build.gradle
           grep -q "red MERCHANT band" shishalove-mobile/merchant/build.gradle
           grep -q 'POST_NOTIFICATIONS' shishalove-mobile/merchant/src/main/AndroidManifest.xml
           grep -q 'notifyOrder' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
@@ -69,15 +70,17 @@ jobs:
           "$AAPT" dump badging "$MERCHANT" | grep -q "package: name='eu.shishalove.merchant' versionCode='119' versionName='1.1.9'"
           python3 - <<'PY'
           import base64, pathlib, struct
-          source = base64.b64decode(pathlib.Path('shishalove-mobile/merchant/src/main/assets/merchant_launcher_approved.b64').read_text().strip())
+          parts = sorted(pathlib.Path('shishalove-branding').glob('merchant-icon.b64.part*'))
+          assert parts, 'missing Merchant branding parts'
+          source = base64.b64decode(''.join(p.read_text().strip() for p in parts))
           generated = pathlib.Path('shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png').read_bytes()
           def dims(data):
               assert data[:8] == b'\x89PNG\r\n\x1a\n', 'not PNG'
               assert data[12:16] == b'IHDR', 'missing IHDR'
               return struct.unpack('>II', data[16:24])
-          assert dims(source) == (192, 192)
-          assert dims(generated) == (192, 192)
-          print('Merchant launcher source normalized and validated at 192x192')
+          assert dims(source) == (512, 512)
+          assert generated == source
+          print('Merchant locked red-band launcher verified at 512x512')
           PY
 
       - name: Prepare public installers
@@ -91,21 +94,21 @@ jobs:
           # ShishaLove Mobile 1.1.9
 
           **Customer 1.1.9**
-          - canonical `/shishalove-app/` bridge is now protected inside MainActivity itself
+          - canonical `/shishalove-app/` bridge is protected inside MainActivity itself
           - legacy website DOM scripts are never injected into the canonical customer page
           - repeated progress-event JavaScript injection removed
           - scrolling, age-gate duplication and slow refresh regression hardened
           - canonical bridge keeps official WordPress logo and numeric price sorting
 
           **Merchant 1.1.9**
-          - exact approved Merchant launcher artwork source: black background, white ShishaLove mark, red heart and red MERCHANT band; PNG is normalized for Android packaging
+          - exact locked Merchant launcher artwork from `shishalove-branding/merchant-icon.b64.part*`: black background, white ShishaLove mark, red heart and red MERCHANT band
           - canonical package is `eu.shishalove.merchant` (no `.dev` suffix)
           - release APK is signed with the stable ShishaLove signing identity
-          - versionCode 119 provides the permanent forward update path
+          - versionCode 119 establishes the permanent forward update line
 
-          The Customer icon is intentionally unchanged.
+          The Customer launcher icon is intentionally unchanged.
 
-          If an old Merchant beta was installed from an earlier ephemeral/debug-signed build, Android cannot cryptographically update that old package. Install this canonical release package; if Android still reports a signature conflict for the same package, uninstall the old Merchant app once and install 1.1.9. From this canonical line onward, future builds retain the same package/signing identity.
+          If an old Merchant beta was installed from an earlier ephemeral/debug-signed build, Android cannot cryptographically update that old package. If Android reports a signature conflict, uninstall the old Merchant app once and install 1.1.9. From this canonical line onward, future builds retain the same package/signing identity.
           TXT
 
       - name: Publish permanent GitHub release
