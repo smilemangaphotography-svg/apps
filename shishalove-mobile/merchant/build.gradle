@@ -46,15 +46,24 @@ android {
     }
 }
 
-// Exact owner-approved Merchant icon: black icon, white ShishaLove mark,
-// red heart and red MERCHANT band. Customer launcher artwork is untouched.
+// Exact owner-approved Merchant artwork source: black icon, white ShishaLove mark,
+// red heart and red MERCHANT band. Re-encode the source pixels as a clean Android
+// PNG so malformed/legacy PNG metadata can never crash AAPT2. Customer artwork is untouched.
 def materializeMerchantLauncherIcon = tasks.register('materializeMerchantLauncherIcon') {
     doLast {
         def approved = file('src/main/assets/merchant_launcher_approved.b64')
         if (!approved.exists()) throw new GradleException('Missing approved red-band Merchant launcher artwork')
+        byte[] sourceBytes = java.util.Base64.decoder.decode(approved.getText('UTF-8').trim())
+        def image = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(sourceBytes))
+        if (image == null) throw new GradleException('Approved Merchant launcher artwork is not a readable PNG')
+        if (image.width != 192 || image.height != 192) {
+            throw new GradleException("Approved Merchant icon must remain 192x192; got ${image.width}x${image.height}")
+        }
         def output = file('src/main/res/drawable-nodpi/ic_shishalove_merchant.png')
         output.parentFile.mkdirs()
-        output.bytes = java.util.Base64.decoder.decode(approved.getText('UTF-8').trim())
+        if (!javax.imageio.ImageIO.write(image, 'png', output)) {
+            throw new GradleException('Unable to normalize approved Merchant launcher PNG')
+        }
     }
 }
 
