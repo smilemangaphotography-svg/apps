@@ -29,7 +29,7 @@ def must_sub(text, pattern, repl, label):
     return out
 
 # Runtime/build version and Home sorting state.
-js = must_replace(js, "var BUILD='1.1.7-rc.1';", "var BUILD='1.1.7-rc.2';", 'build version')
+js = must_replace(js, "var BUILD='1.1.7-rc.1';", "var BUILD='1.1.7-rc.3';", 'build version')
 js = must_replace(
     js,
     "  homeFilter:'recommended',\n  feedPage:1,",
@@ -102,7 +102,7 @@ product_repl = r'''function productCategoryShortcuts(p){
     seen[c.id]=1;return true;
   });
   if(!cats.length)return '';
-  return '<div class="slb-product-cats"><span class="slb-product-cats-label">Categories</span><div class="slb-product-cat-scroll">'+cats.map(function(c){return '<button data-product-cat="'+c.id+'" data-product-cat-name="'+esc(c.name)+'">'+esc(c.name)+'</button>';}).join('')+'</div></div>';
+  return '<div class="slb-product-cats"><span class="slb-product-cats-label">Categories</span><div class="slb-product-cat-scroll">'+cats.map(function(c){return '<button data-product-cat="'+c.id+'" data-product-cat-name="'+esc(c.name)+'">'+(c.image?'<img src="'+esc(c.image)+'" alt="">':'')+'<span>'+esc(c.name)+'</span></button>';}).join('')+'</div></div>';
 }
 function openProductCategory(id,name){
   var cat=categoryById(id)||{id:Number(id),name:name||'Products',image:'',parent:0};
@@ -181,7 +181,7 @@ php = must_replace(
 # CSS overrides for legible sort labels, 1:1 product detail images and category chips.
 css += r'''
 
-/* ShishaLove Customer 1.1.7 RC2 precision fixes */
+/* ShishaLove Customer 1.1.7 RC3 precision fixes */
 .slb-toolbar{grid-template-columns:minmax(0,1fr) minmax(184px,48%)}
 .slb-toolbar.secondary{grid-template-columns:minmax(0,1fr) minmax(184px,48%)}
 .slb-toolbar select{font-size:15px;white-space:nowrap;text-overflow:clip}
@@ -194,11 +194,13 @@ css += r'''
 .slb-product-cats-label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#777;font-weight:800;margin:0 0 8px}
 .slb-product-cat-scroll{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
 .slb-product-cat-scroll::-webkit-scrollbar{display:none}
-.slb-product-cat-scroll button{white-space:nowrap;border:1px solid #ddd;background:#fff;border-radius:999px;padding:9px 13px;font-weight:800;font-size:13px}
+.slb-product-cat-scroll button{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border:1px solid #ddd;background:#fff;border-radius:999px;padding:7px 12px;font-weight:800;font-size:13px}
+.slb-product-cat-scroll button img{width:28px;height:28px;border-radius:8px;object-fit:contain;background:#fff}
+.slb-product-cat-scroll button span{display:inline-block}
 @media(max-width:390px){.slb-toolbar,.slb-toolbar.secondary{grid-template-columns:minmax(0,1fr) minmax(174px,50%)}.slb-feed-tools{grid-template-columns:1fr minmax(174px,55%)}}
 '''
 
 js_path.write_text(js, encoding='utf-8')
 css_path.write_text(css, encoding='utf-8')
 php_path.write_text(php, encoding='utf-8')
-print('ShishaLove customer RC2 precision patch applied')
+print('ShishaLove customer RC3 precision patch applied')
