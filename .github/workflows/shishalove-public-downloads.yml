@@ -1,0 +1,100 @@
+name: ShishaLove Public Downloads
+
+on:
+  push:
+    branches:
+      - shishalove-main
+    paths:
+      - '.github/workflows/shishalove-public-downloads.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-android:
+    name: Build and publish public Android installers
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate locked mobile versions
+        run: |
+          set -euo pipefail
+          grep -q "versionCode 115" shishalove-mobile/customer/build.gradle
+          grep -q "versionName '1.1.5'" shishalove-mobile/customer/build.gradle
+          grep -q "versionCode 116" shishalove-mobile/merchant/build.gradle
+          grep -q "versionName '1.1.6'" shishalove-mobile/merchant/build.gradle
+          grep -q 'POST_NOTIFICATIONS' shishalove-mobile/merchant/src/main/AndroidManifest.xml
+          grep -q 'notifyOrder' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build installable Android apps
+        working-directory: shishalove-mobile
+        run: gradle :customer:assembleDebug :merchant:assembleDebug --stacktrace
+
+      - name: Prepare public installers
+        run: |
+          set -euo pipefail
+          mkdir -p dist/public
+          cp shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk dist/public/ShishaLove-Customer-Android.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/public/ShishaLove-Merchant-Android.apk
+          sha256sum dist/public/*.apk > dist/public/SHA256SUMS.txt
+          cat > dist/public/RELEASE_NOTES.md <<'TXT'
+          # ShishaLove Mobile Apps
+
+          Public Android installers for ShishaLove.
+
+          **Customer** — Android 1.1.5  
+          **Merchant** — Android 1.1.6
+
+          ## Android installation
+          Download the correct APK below, open it on the Android phone, and allow installation from the browser/files app if Android asks.
+
+          ## Apple / iPhone
+          Native iPhone installation requires Apple signing and distribution through TestFlight or the App Store. Until the native iOS release is signed, the live web apps are available at:
+
+          Customer: https://shishalove.eu/shishalove-app/
+          Merchant: https://shishalove.eu/shishalove-merchant/
+
+          On iPhone, open the relevant link in Safari, tap Share, then **Add to Home Screen**.
+          TXT
+
+      - name: Publish permanent GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-mobile-c1.1.5-m1.1.6'
+          TITLE='ShishaLove Mobile — Customer 1.1.5 / Merchant 1.1.6'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/public/ShishaLove-Customer-Android.apk dist/public/ShishaLove-Merchant-Android.apk dist/public/SHA256SUMS.txt --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes-file dist/public/RELEASE_NOTES.md
+          else
+            gh release create "$TAG" dist/public/ShishaLove-Customer-Android.apk dist/public/ShishaLove-Merchant-Android.apk dist/public/SHA256SUMS.txt --title "$TITLE" --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
+          fi
+
+      - name: Confirm public asset URLs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-mobile-c1.1.5-m1.1.6'
+          gh release view "$TAG" --json url,assets
