@@ -1,4 +1,4 @@
-name: ShishaLove Customer Bridge 1.1.7 RC3
+name: ShishaLove Bridge 1.1.7 RC4
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
 
 jobs:
   build-bridge:
-    name: Validate and package 1.1.7 RC3
+    name: Validate and package 1.1.7 RC4
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -33,7 +33,7 @@ jobs:
           node --check "$PLUGIN/assets/customer.js"
           node --check "$PLUGIN/assets/merchant.js"
 
-      - name: Build patched bridge 1.1.7 RC3
+      - name: Build patched bridge 1.1.7 RC4
         run: |
           set -euo pipefail
           rm -rf package dist
@@ -43,16 +43,17 @@ jobs:
 
           MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
           CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
 
-          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.7-rc.3/' "$MAIN"
-          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.7-rc.3');/" "$MAIN"
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.7-rc.4/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.7-rc.4');/" "$MAIN"
 
           php -l "$MAIN"
           node --check "$CUSTOMER"
-          node --check package/shishalove-app-bridge/assets/merchant.js
+          node --check "$MERCHANT"
 
-          grep -q "Version: 1.1.7-rc.3" "$MAIN"
-          grep -q "define('SLB_VERSION', '1.1.7-rc.3')" "$MAIN"
+          grep -q "Version: 1.1.7-rc.4" "$MAIN"
+          grep -q "define('SLB_VERSION', '1.1.7-rc.4')" "$MAIN"
           grep -q "BUILD='1.1.7-rc.3'" "$CUSTOMER"
           grep -q "Price: Low to High" "$CUSTOMER"
           grep -q "Price: High to Low" "$CUSTOMER"
@@ -67,28 +68,40 @@ jobs:
           ! grep -q "Last 30 days" "$CUSTOMER"
           ! grep -q "Before 30 days" "$CUSTOMER"
 
-          cat > package/INSTALL-1.1.7-RC3.txt <<'TXT'
-          ShishaLove App Bridge 1.1.7 RC3
+          grep -q "Search product name or SKU" "$MERCHANT"
+          grep -q "All stock statuses" "$MERCHANT"
+          grep -q "All categories" "$MERCHANT"
+          grep -q "data-page-dir=\\\"next\\\"" "$MERCHANT"
+          grep -q "Product link" "$MERCHANT"
+          grep -q "Quick Picks (Most Used)" "$MERCHANT"
+          ! grep -q "Laser Engravable Products" "$MERCHANT"
 
-          Customer precision fixes:
-          - Recommended and Recent Arrivals only; removed day-window tabs
-          - Recommended/Recent feeds have sorting
-          - true numeric Price Low-to-High and High-to-Low sorting
-          - category sorting remains available in every catalogue
-          - product detail uses uncropped large imagery in a true 1:1 contain frame
-          - product detail shows category shortcuts above the image, including category thumbnails when available
-          - product detail keeps name, price, stock and Add to Cart visible in app layout
-          - category/feed sort state survives refresh/navigation
-          - in-stock-only display and working pagination preserved
+          cat > package/INSTALL-1.1.7-RC4.txt <<'TXT'
+          ShishaLove App Bridge 1.1.7 RC4
+
+          Customer:
+          - carries forward the customer-side RC3 fixes that passed testing
+
+          Merchant precision fixes:
+          - product and stock search now validates matches against product NAME or SKU
+          - search term stays visible in the search bar
+          - Stock defaults to ALL products, including in-stock and out-of-stock products
+          - Stock has an explicit stock-status filter: All / In stock / Out of stock / On backorder
+          - Products and Stock can filter by any WooCommerce product category
+          - working Previous / Next pagination appears whenever more than one page exists
+          - product/stock searches no longer leak into each other when switching tabs
+          - New Product restores a visible WooCommerce product-link preview
+          - Quick Picks are recalculated from the most-used categories
+          - Laser Engravable Products is excluded from Quick Picks
           TXT
 
-          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.7-rc.3.zip shishalove-app-bridge INSTALL-1.1.7-RC3.txt)
-          sha256sum dist/shishalove-app-bridge-1.1.7-rc.3.zip > dist/SHA256SUMS.txt
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.7-rc.4.zip shishalove-app-bridge INSTALL-1.1.7-RC4.txt)
+          sha256sum dist/shishalove-app-bridge-1.1.7-rc.4.zip > dist/SHA256SUMS.txt
 
       - name: Upload bridge artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shishalove-app-bridge-1.1.7-rc.3
+          name: shishalove-app-bridge-1.1.7-rc.4
           path: dist/
           if-no-files-found: error
           retention-days: 30
