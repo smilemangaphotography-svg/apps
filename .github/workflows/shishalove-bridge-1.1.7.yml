@@ -1,0 +1,78 @@
+name: ShishaLove Customer Bridge 1.1.7 RC1
+
+on:
+  push:
+    branches:
+      - shishalove-main
+    paths:
+      - 'shishalove-wordpress-bridge/plugin/shishalove-app-bridge/**'
+      - '.github/workflows/shishalove-bridge-1.1.7.yml'
+  workflow_dispatch:
+
+jobs:
+  build-bridge:
+    name: Validate and package 1.1.7 RC1
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Validate source
+        run: |
+          set -euo pipefail
+          PLUGIN='shishalove-wordpress-bridge/plugin/shishalove-app-bridge'
+          php -l "$PLUGIN/shishalove-app-bridge.php"
+          node --check "$PLUGIN/assets/customer.js"
+          node --check "$PLUGIN/assets/merchant.js"
+          grep -q "BUILD='1.1.7-rc.1'" "$PLUGIN/assets/customer.js"
+          grep -q "Recommended" "$PLUGIN/assets/customer.js"
+          grep -q "Recent Arrivals" "$PLUGIN/assets/customer.js"
+          grep -q "Price: Low to High" "$PLUGIN/assets/customer.js"
+          grep -q "Price: High to Low" "$PLUGIN/assets/customer.js"
+          grep -q "pagerMarkup" "$PLUGIN/assets/customer.js"
+          grep -q "data-add" "$PLUGIN/assets/customer.js"
+          grep -q "stock_status.*instock" "$PLUGIN/assets/customer.js"
+          grep -q "u.searchParams.set('cat'" "$PLUGIN/assets/customer.js"
+          grep -q "feedPage" "$PLUGIN/assets/customer.js"
+          ! grep -q "Shop by category" "$PLUGIN/assets/customer.js"
+
+      - name: Package installable bridge 1.1.7 RC1
+        run: |
+          set -euo pipefail
+          rm -rf package dist
+          mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.7-rc.1/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.7-rc.1');/" "$MAIN"
+          php -l "$MAIN"
+          grep -q "Version: 1.1.7-rc.1" "$MAIN"
+          grep -q "define('SLB_VERSION', '1.1.7-rc.1')" "$MAIN"
+          cat > package/INSTALL-1.1.7-RC1.txt <<'TXT'
+          ShishaLove App Bridge 1.1.7 RC1
+          Customer regression fixes:
+          - category route survives refresh
+          - Recommended is the default Home feed
+          - Recent Arrivals/date filters never leave Home blank
+          - Newest / price low-high / price high-low / A-Z sorting
+          - working Previous/Next pagination
+          - Add to Cart rebinds after asynchronous feed refresh
+          - customer lists display in-stock products only
+          - search supports product names and known app categories
+          TXT
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.7-rc.1.zip shishalove-app-bridge INSTALL-1.1.7-RC1.txt)
+          sha256sum dist/shishalove-app-bridge-1.1.7-rc.1.zip > dist/SHA256SUMS.txt
+
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.7-rc.1
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
