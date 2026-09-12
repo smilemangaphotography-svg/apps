@@ -10,8 +10,8 @@ android {
         applicationId 'com.ilia.photomasterai'
         minSdk 26
         targetSdk 35
-        versionCode 3
-        versionName '0.11.0-beta'
+        versionCode 4
+        versionName '0.12.0-beta'
 
         def endpoint = project.findProperty('PHOTO_MASTER_AI_ENDPOINT') ?: ''
         buildConfigField 'String', 'AI_ENDPOINT', '"' + endpoint.toString().replace('\\', '\\\\').replace('"', '\\"') + '"'
