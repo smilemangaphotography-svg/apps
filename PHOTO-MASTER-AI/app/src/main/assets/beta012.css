@@ -7,7 +7,7 @@
 .upload-stage.ratio-story{width:min(66vw,300px)!important;aspect-ratio:9/16!important;max-height:52vh}
 .upload-stage.ratio-portrait45{width:min(82vw,360px)!important;aspect-ratio:4/5!important;max-height:50vh}
 .upload-stage.ratio-wide{width:100%!important;aspect-ratio:16/9!important}
-.upload-stage.ratio-free{width:100%!important;height:300px;aspect-ratio:auto!important}
+.upload-stage.ratio-free{width:100%!important;height:300px!important;aspect-ratio:auto!important}
 .upload-stage.mode-ecommerce{border-color:#c9b586!important;box-shadow:0 0 0 1px #d8c39422,0 12px 30px #0005}
 .upload-stage.mode-instagram916{border-color:#7292b8!important}
 .upload-stage.mode-instagram11{border-color:#b39a7c!important}
