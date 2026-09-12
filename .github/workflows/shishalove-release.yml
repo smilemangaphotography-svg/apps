@@ -74,8 +74,10 @@ jobs:
 
           CUSTOMER='shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk'
           MERCHANT='shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk'
-          apksigner verify --print-certs "$CUSTOMER"
-          apksigner verify --print-certs "$MERCHANT"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --print-certs "$CUSTOMER"
+          "$APKSIGNER" verify --print-certs "$MERCHANT"
 
       - name: Collect APKs
         run: |
