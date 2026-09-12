@@ -12,6 +12,9 @@ on:
       - '.github/workflows/shishalove-bridge-1.1.7.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-bridge:
     name: Validate and package 1.1.8
@@ -67,8 +70,16 @@ jobs:
           grep -q "Quick Picks (Most Used)" "$MERCHANT"
           ! grep -q "Laser Engravable Products" "$MERCHANT"
 
-          cat > package/INSTALL-1.1.8.txt <<'TXT'
+          cat > package/shishalove-app-bridge/INSTALL-1.1.8.txt <<'TXT'
           ShishaLove App Bridge 1.1.8
+
+          In WordPress, open Plugins > Add New Plugin > Upload Plugin.
+          Select shishalove-app-bridge-1.1.8.zip without extracting it.
+          Install, then choose Replace current with uploaded if prompted.
+          Activate if needed. Keep the existing WooCommerce data.
+
+          Confirm /wp-json/shishalove/v1/status reports version 1.1.8.
+          Live Customer/Merchant and Samsung A54 testing is still required.
 
           Customer regression lock:
           - bridge-native navigation only; no website-category fallback in the Android app
@@ -84,8 +95,32 @@ jobs:
           Merchant behavior remains WooCommerce-authoritative.
           TXT
 
-          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.8.zip shishalove-app-bridge INSTALL-1.1.8.txt)
-          sha256sum dist/shishalove-app-bridge-1.1.8.zip > dist/SHA256SUMS.txt
+          # WordPress only descends into the plugin folder when it is the sole
+          # top-level entry. A sibling INSTALL file makes plugin detection fail.
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.8.zip shishalove-app-bridge)
+          python3 - dist/shishalove-app-bridge-1.1.8.zip <<'PY'
+          import re
+          import sys
+          import zipfile
+          from pathlib import PurePosixPath
+
+          with zipfile.ZipFile(sys.argv[1]) as archive:
+              assert archive.testzip() is None, 'Corrupt plugin ZIP'
+              names = archive.namelist()
+              assert len(names) == len(set(names)), 'Duplicate ZIP entries'
+              paths = [PurePosixPath(name) for name in names]
+              assert all(not path.is_absolute() and '..' not in path.parts for path in paths)
+              assert {path.parts[0] for path in paths} == {'shishalove-app-bridge'}, 'ZIP must contain exactly one plugin folder'
+              main = archive.read('shishalove-app-bridge/shishalove-app-bridge.php').decode('utf-8')
+              assert re.search(r'^\s*\* Plugin Name: ShishaLove App Bridge\s*$', main, re.M)
+              assert re.search(r'^\s*\* Version: 1\.1\.8\s*$', main, re.M)
+              assert "define('SLB_VERSION', '1.1.8');" in main
+              for asset in ('bridge.css', 'customer.js', 'merchant.js'):
+                  assert archive.read('shishalove-app-bridge/assets/' + asset), 'Empty runtime asset'
+          print('WordPress plugin ZIP structure and version verified')
+          PY
+          (cd dist && sha256sum shishalove-app-bridge-1.1.8.zip > SHA256SUMS.txt)
+          cp dist/SHA256SUMS.txt dist/shishalove-app-bridge-1.1.8.zip.sha256
 
       - name: Upload bridge artifact
         uses: actions/upload-artifact@v4
@@ -94,3 +129,13 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish permanent WordPress installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release upload shishalove-mobile-1.1.8-beta \
+            dist/shishalove-app-bridge-1.1.8.zip \
+            dist/shishalove-app-bridge-1.1.8.zip.sha256 \
+            --clobber
