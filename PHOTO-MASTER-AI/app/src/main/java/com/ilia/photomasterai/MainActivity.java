@@ -161,7 +161,7 @@ public class MainActivity extends Activity {
             if (endpoint.isEmpty()) {
                 result.put("ok", false);
                 result.put("type", "backend");
-                result.put("message", "Backend not configured");
+                result.put("message", "Cloud not configured");
                 return result;
             }
             HttpURLConnection c = (HttpURLConnection) new URL(endpoint).openConnection();
@@ -175,14 +175,20 @@ public class MainActivity extends Activity {
             JSONObject payload;
             try { payload = raw.isEmpty() ? new JSONObject() : new JSONObject(raw); }
             catch (Exception e) { payload = new JSONObject(); }
-            result.put("ok", code >= 200 && code < 300 && payload.optBoolean("ok", true));
+            boolean serviceOk = code >= 200 && code < 300 && payload.optBoolean("ok", false);
+            boolean keyReady = payload.optBoolean("api_key_configured", false);
+            result.put("ok", serviceOk && keyReady);
+            result.put("configured", serviceOk);
             result.put("type", "backend");
-            result.put("message", payload.optString("message", code >= 200 && code < 300 ? "Secure AI cloud connected" : "Backend unavailable"));
+            if (!serviceOk) result.put("message", "Secure AI cloud unavailable");
+            else if (!keyReady) result.put("message", "Secure cloud online · AI service setup required");
+            else result.put("message", "Secure AI cloud connected");
         } catch (Exception e) {
             try {
                 result.put("ok", false);
+                result.put("configured", false);
                 result.put("type", "backend");
-                result.put("message", "Backend unavailable");
+                result.put("message", "Secure AI cloud unavailable");
             } catch (Exception ignored) {}
         }
         return result;
@@ -204,10 +210,10 @@ public class MainActivity extends Activity {
             try {
                 JSONObject j = new JSONObject();
                 boolean configured = !backendEndpoint().isEmpty();
-                j.put("ok", configured);
+                j.put("ok", false);
                 j.put("configured", configured);
                 j.put("type", "backend");
-                j.put("message", configured ? "Secure backend configured" : "Secure backend not configured");
+                j.put("message", configured ? "Checking secure AI cloud" : "Secure backend not configured");
                 return j.toString();
             } catch (Exception e) {
                 return "{\"ok\":false,\"configured\":false,\"type\":\"backend\"}";
