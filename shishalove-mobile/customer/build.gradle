@@ -2,22 +2,40 @@ plugins {
     id 'com.android.application'
 }
 
+def betaKeystoreB64 = rootProject.file('signing/shishalove-beta-keystore.b64')
+def betaKeystore = rootProject.file('signing/shishalove-beta.keystore')
+if (!betaKeystore.exists()) {
+    if (!betaKeystoreB64.exists()) throw new GradleException('Missing stable ShishaLove beta signing identity')
+    betaKeystore.parentFile.mkdirs()
+    betaKeystore.bytes = java.util.Base64.decoder.decode(betaKeystoreB64.getText('UTF-8').trim())
+}
+
 android {
     namespace 'eu.shishalove.customer'
     compileSdk 35
+
+    signingConfigs {
+        beta {
+            storeFile betaKeystore
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
 
     defaultConfig {
         applicationId 'eu.shishalove.customer'
         minSdk 24
         targetSdk 35
-        versionCode 115
-        versionName '1.1.5'
+        versionCode 118
+        versionName '1.1.8'
     }
 
     buildTypes {
         debug {
             applicationIdSuffix '.dev'
             versionNameSuffix '-dev'
+            signingConfig signingConfigs.beta
         }
         release {
             minifyEnabled false
@@ -41,6 +59,35 @@ def materializeCustomerLauncherIcon = tasks.register('materializeCustomerLaunche
     }
 }
 
+// Canonical bridge runtime lock.
+// The old phone-polish scripts are still useful only for legacy website pages. They
+// must immediately exit on /shishalove-app/ or they create a second age gate/drawer,
+// reroute categories to website pages, attach document MutationObservers and break
+// scrolling/performance. This task makes that rule unavoidable in every Android build.
+def lockCanonicalCustomerRuntime = tasks.register('lockCanonicalCustomerRuntime') {
+    doLast {
+        def guard = "if(window.SHISHALOVE_BRIDGE&&location.pathname.toLowerCase().indexOf('/shishalove-app')===0){return;}"
+        ['customer_phone_polish.js', 'customer_phone_fix_115.js'].each { name ->
+            def asset = file("src/main/assets/${name}")
+            if (!asset.exists()) throw new GradleException("Missing ${name}")
+            def text = asset.getText('UTF-8')
+            if (!text.contains(guard)) {
+                def anchor = "'use strict';"
+                if (!text.contains(anchor)) throw new GradleException("Cannot lock ${name}")
+                text = text.replace(anchor, anchor + "\n" + guard)
+                asset.setText(text, 'UTF-8')
+            }
+        }
+
+        def activity = file('src/main/java/eu/shishalove/customer/MainActivity.java')
+        def source = activity.getText('UTF-8')
+        source = source.replace('build=115', 'build=118')
+        source = source.replace('ShishaLoveCustomer/1.1.5', 'ShishaLoveCustomer/1.1.8')
+        activity.setText(source, 'UTF-8')
+    }
+}
+
 tasks.named('preBuild').configure {
     dependsOn materializeCustomerLauncherIcon
+    dependsOn lockCanonicalCustomerRuntime
 }
