@@ -28,28 +28,27 @@ jobs:
           test -s PHOTO-MASTER-AI/app/src/main/assets/beta011.css
           test -s PHOTO-MASTER-AI/app/src/main/assets/beta012.js
           test -s PHOTO-MASTER-AI/app/src/main/assets/beta012.css
+          test -s PHOTO-MASTER-AI/app/src/main/assets/beta013.js
+          test -s PHOTO-MASTER-AI/app/src/main/assets/beta013.css
+          test -s PHOTO-MASTER-AI/backend/api/edit.mjs
+          test -s PHOTO-MASTER-AI/backend/api/health.mjs
           grep -q "ChatGPT Shortcut Editor" PHOTO-MASTER-AI/app/src/main/assets/index.html
           grep -q "E-Commerce" PHOTO-MASTER-AI/app/src/main/assets/index.html
           grep -q "Instagram 9:16" PHOTO-MASTER-AI/app/src/main/assets/index.html
-          grep -q "Wedding" PHOTO-MASTER-AI/app/src/main/assets/index.html
-          grep -q "Architecture" PHOTO-MASTER-AI/app/src/main/assets/index.html
-          grep -q "Portrait" PHOTO-MASTER-AI/app/src/main/assets/index.html
-          grep -q "Fix Only" PHOTO-MASTER-AI/app/src/main/assets/index.html
-          grep -q "Refine Result" PHOTO-MASTER-AI/app/src/main/assets/index.html
           grep -q "Reference Match" PHOTO-MASTER-AI/app/src/main/assets/index.html
-          grep -q "API & Account" PHOTO-MASTER-AI/app/src/main/assets/beta011.js
           grep -q "History" PHOTO-MASTER-AI/app/src/main/assets/beta011.js
-          grep -q "Custom Master" PHOTO-MASTER-AI/app/src/main/assets/beta011.js
           grep -q "ratio-story" PHOTO-MASTER-AI/app/src/main/assets/beta012.css
           grep -q "applyCategoryFrame" PHOTO-MASTER-AI/app/src/main/assets/beta012.js
-          grep -q "beta012.css" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/BetaActivity.java
-          grep -q "beta012.js" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/BetaActivity.java
+          grep -q "Secure AI Cloud" PHOTO-MASTER-AI/app/src/main/assets/beta013.js
+          grep -q "checkBackendStatus" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/MainActivity.java
+          grep -q "beta013.css" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/BetaActivity.java
+          grep -q "beta013.js" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/BetaActivity.java
           grep -q "BetaActivity" PHOTO-MASTER-AI/app/src/main/AndroidManifest.xml
-          grep -q "getConnectionStatus" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/MainActivity.java
-          grep -q "editImage" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/MainActivity.java
           node --check PHOTO-MASTER-AI/app/src/main/assets/beta011.js
           node --check PHOTO-MASTER-AI/app/src/main/assets/beta012.js
+          node --check PHOTO-MASTER-AI/app/src/main/assets/beta013.js
           node --check PHOTO-MASTER-AI/backend/api/edit.mjs
+          node --check PHOTO-MASTER-AI/backend/api/health.mjs
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -59,6 +58,17 @@ jobs:
           Path('/tmp/pmai-app.js').write_text('\n'.join(scripts))
           PY
           node --check /tmp/pmai-app.js
+
+      - name: Require secure backend endpoint
+        env:
+          PHOTO_MASTER_AI_ENDPOINT: ${{ secrets.PHOTO_MASTER_AI_ENDPOINT }}
+        shell: bash
+        run: |
+          test -n "$PHOTO_MASTER_AI_ENDPOINT" || { echo "PHOTO_MASTER_AI_ENDPOINT secret is required for backend-only Beta 0.13"; exit 1; }
+          case "$PHOTO_MASTER_AI_ENDPOINT" in
+            https://*) ;;
+            *) echo "PHOTO_MASTER_AI_ENDPOINT must use HTTPS"; exit 1;;
+          esac
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -89,7 +99,7 @@ jobs:
             -PPHOTO_MASTER_AI_ENDPOINT="$PHOTO_MASTER_AI_ENDPOINT" \
             :app:assembleDebug
 
-      - name: Verify package, version and packaged mockup UI
+      - name: Verify package, version and packaged secure-cloud UI
         shell: bash
         run: |
           APK="PHOTO-MASTER-AI/app/build/outputs/apk/debug/app-debug.apk"
@@ -97,25 +107,25 @@ jobs:
           AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging "$APK" | tee badging.txt
           grep -q "package: name='com.ilia.photomasterai'" badging.txt
-          grep -q "versionName='0.12.0-beta'" badging.txt
+          grep -q "versionName='0.13.0-beta'" badging.txt
           unzip -l "$APK" | tee apk-files.txt
           grep -q "assets/index.html" apk-files.txt
           grep -q "assets/beta011.js" apk-files.txt
-          grep -q "assets/beta011.css" apk-files.txt
           grep -q "assets/beta012.js" apk-files.txt
-          grep -q "assets/beta012.css" apk-files.txt
+          grep -q "assets/beta013.js" apk-files.txt
+          grep -q "assets/beta013.css" apk-files.txt
 
       - name: Collect artifact
         shell: bash
         run: |
           mkdir -p beta-artifact
-          cp PHOTO-MASTER-AI/app/build/outputs/apk/debug/app-debug.apk beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.12.0.apk
-          sha256sum beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.12.0.apk > beta-artifact/SHA256SUMS.txt
+          cp PHOTO-MASTER-AI/app/build/outputs/apk/debug/app-debug.apk beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.13.0.apk
+          sha256sum beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.13.0.apk > beta-artifact/SHA256SUMS.txt
 
       - name: Upload beta APK
         uses: actions/upload-artifact@v4
         with:
-          name: CHATGPT-SHORTCUT-EDITOR-FUNCTIONAL-BETA-0.12.0-A54
+          name: CHATGPT-SHORTCUT-EDITOR-FUNCTIONAL-BETA-0.13.0-A54
           path: beta-artifact/*
           if-no-files-found: error
           retention-days: 30
