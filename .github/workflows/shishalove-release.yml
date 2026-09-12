@@ -36,7 +36,7 @@ jobs:
           grep -q 'notifyOrder' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
           grep -q 'setInterval' shishalove-mobile/merchant/src/main/assets/merchant_order_watch.js
 
-          grep -q "bridge-native navigation only" shishalove-wordpress-bridge/design-lock/SHISHALOVE_CUSTOMER_1_1_LOCK.md
+          grep -q "legacy website DOM patches" shishalove-wordpress-bridge/design-lock/SHISHALOVE_CUSTOMER_1_1_LOCK.md
           grep -q "Price Low→High" shishalove-wordpress-bridge/design-lock/SHISHALOVE_CUSTOMER_1_1_LOCK.md
 
       - name: Set up Java 17
