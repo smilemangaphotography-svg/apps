@@ -1,7 +1,14 @@
 package eu.shishalove.merchant;
 
+import android.Manifest;
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -13,6 +20,7 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -30,9 +38,11 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=115";
+    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=116";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7201;
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 7301;
+    private static final String ORDER_CHANNEL_ID = "shishalove_orders";
 
     private FrameLayout root;
     private WebView webView;
@@ -41,6 +51,7 @@ public class MainActivity extends Activity {
     private Bitmap lastSnapshot;
     private ValueCallback<Uri[]> filePathCallback;
     private String phonePolishJs;
+    private String orderWatchJs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +60,9 @@ public class MainActivity extends Activity {
         window.setStatusBarColor(Color.WHITE);
         window.setNavigationBarColor(Color.WHITE);
         window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+
+        createOrderNotificationChannel();
+        requestOrderNotificationPermission();
 
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
@@ -87,10 +101,72 @@ public class MainActivity extends Activity {
 
         setContentView(root);
         phonePolishJs = readAsset("merchant_phone_polish.js");
+        orderWatchJs = readAsset("merchant_order_watch.js");
         configureWebView();
 
         if (savedInstanceState == null) webView.loadUrl(START_URL);
         else webView.restoreState(savedInstanceState);
+    }
+
+    private void createOrderNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+        NotificationChannel channel = new NotificationChannel(
+                ORDER_CHANNEL_ID,
+                "New orders",
+                NotificationManager.IMPORTANCE_HIGH
+        );
+        channel.setDescription("Notifications when a new ShishaLove WooCommerce order arrives");
+        manager.createNotificationChannel(channel);
+    }
+
+    private void requestOrderNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION_REQUEST);
+        }
+    }
+
+    private void showOrderNotification(String number, String customer, String total) {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+
+        Intent openIntent = new Intent(this, MainActivity.class);
+        openIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) pendingFlags |= PendingIntent.FLAG_IMMUTABLE;
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, openIntent, pendingFlags);
+
+        String safeNumber = number == null || number.trim().isEmpty() ? "" : " #" + number.trim();
+        String safeCustomer = customer == null || customer.trim().isEmpty() ? "Customer" : customer.trim();
+        String safeTotal = total == null ? "" : total.trim();
+        String text = safeCustomer + (safeTotal.isEmpty() ? "" : " · " + safeTotal);
+
+        Notification.Builder builder;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder = new Notification.Builder(this, ORDER_CHANNEL_ID);
+        } else {
+            builder = new Notification.Builder(this);
+            builder.setPriority(Notification.PRIORITY_HIGH);
+        }
+        builder.setSmallIcon(R.drawable.ic_shishalove)
+                .setContentTitle("New ShishaLove order" + safeNumber)
+                .setContentText(text)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent);
+
+        int notificationId = (int) (System.currentTimeMillis() & 0x7fffffff);
+        manager.notify(notificationId, builder.build());
+    }
+
+    private final class MerchantNativeBridge {
+        @JavascriptInterface
+        public void notifyOrder(String number, String customer, String total) {
+            runOnUiThread(() -> showOrderNotification(number, customer, total));
+        }
     }
 
     private String readAsset(String name) {
@@ -153,11 +229,12 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) settings.setOffscreenPreRaster(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.5");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.6");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
         cookies.setAcceptThirdPartyCookies(webView, true);
+        webView.addJavascriptInterface(new MerchantNativeBridge(), "ShishaLoveNative");
         WebView.setWebContentsDebuggingEnabled(false);
 
         webView.setWebViewClient(new WebViewClient() {
@@ -175,13 +252,13 @@ public class MainActivity extends Activity {
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
                 showLastSnapshot();
-                applyPhonePolish(view);
+                applyRuntimeJs(view);
             }
 
             @Override
             public void onPageCommitVisible(WebView view, String url) {
                 super.onPageCommitVisible(view, url);
-                applyPhonePolish(view);
+                applyRuntimeJs(view);
                 progressBar.setVisibility(View.GONE);
                 hideLastSnapshot();
             }
@@ -189,7 +266,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                applyPhonePolish(view);
+                applyRuntimeJs(view);
                 progressBar.setVisibility(View.GONE);
                 hideLastSnapshot();
                 captureSnapshot();
@@ -211,7 +288,7 @@ public class MainActivity extends Activity {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
                 progressBar.setVisibility(View.GONE);
-                if (newProgress >= 5) applyPhonePolish(view);
+                if (newProgress >= 5) applyRuntimeJs(view);
             }
 
             @Override
@@ -240,8 +317,9 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void applyPhonePolish(WebView view) {
+    private void applyRuntimeJs(WebView view) {
         if (phonePolishJs != null && !phonePolishJs.isEmpty()) view.evaluateJavascript(phonePolishJs, null);
+        if (orderWatchJs != null && !orderWatchJs.isEmpty()) view.evaluateJavascript(orderWatchJs, null);
     }
 
     private boolean handleUri(Uri uri) {
@@ -266,6 +344,15 @@ public class MainActivity extends Activity {
             Uri[] results = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
             filePathCallback.onReceiveValue(results);
             filePathCallback = null;
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (webView != null) {
+            webView.postDelayed(() -> webView.evaluateJavascript(
+                    "if(window.SLM_CHECK_ORDERS){window.SLM_CHECK_ORDERS();}", null), 1200);
         }
     }
 
