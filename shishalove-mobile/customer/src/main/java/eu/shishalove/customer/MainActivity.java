@@ -32,8 +32,9 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=115";
+    private static final String START_URL = "https://shishalove.eu/shishalove-app/?app=android&build=119";
     private static final String SHOP_HOST = "shishalove.eu";
+    private static final String CANONICAL_BRIDGE_PATH = "/shishalove-app";
     private static final int FILE_CHOOSER_REQUEST = 7101;
 
     private WebView webView;
@@ -65,6 +66,8 @@ public class MainActivity extends Activity {
         webView = new WebView(this);
         webView.setBackgroundColor(Color.WHITE);
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        webView.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        webView.setNestedScrollingEnabled(true);
         root.addView(webView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -92,7 +95,7 @@ public class MainActivity extends Activity {
         if (savedInstanceState == null) webView.loadUrl(START_URL);
         else {
             webView.restoreState(savedInstanceState);
-            dismissSplash(300);
+            dismissSplash(0);
         }
     }
 
@@ -130,7 +133,7 @@ public class MainActivity extends Activity {
     private void dismissSplash(long delayMs) {
         handler.postDelayed(() -> {
             if (splashOverlay == null || splashOverlay.getVisibility() != View.VISIBLE) return;
-            splashOverlay.animate().alpha(0f).setDuration(150).withEndAction(() -> {
+            splashOverlay.animate().alpha(0f).setDuration(100).withEndAction(() -> {
                 splashOverlay.setVisibility(View.GONE);
                 getWindow().setStatusBarColor(Color.WHITE);
                 getWindow().setNavigationBarColor(Color.WHITE);
@@ -148,6 +151,19 @@ public class MainActivity extends Activity {
             return new String(output.toByteArray(), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
             return "";
+        }
+    }
+
+    private boolean isCanonicalBridge(String url) {
+        if (url == null || url.isEmpty()) return false;
+        try {
+            Uri uri = Uri.parse(url);
+            String host = uri.getHost();
+            String path = uri.getPath();
+            boolean ownHost = host != null && (SHOP_HOST.equalsIgnoreCase(host) || ("www." + SHOP_HOST).equalsIgnoreCase(host));
+            return ownHost && path != null && (path.equalsIgnoreCase(CANONICAL_BRIDGE_PATH) || path.equalsIgnoreCase(CANONICAL_BRIDGE_PATH + "/"));
+        } catch (Exception ignored) {
+            return false;
         }
     }
 
@@ -169,7 +185,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) settings.setOffscreenPreRaster(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.1.5");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveCustomer/1.1.9");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
@@ -190,17 +206,17 @@ public class MainActivity extends Activity {
             @Override
             public void onPageCommitVisible(WebView view, String url) {
                 super.onPageCommitVisible(view, url);
-                applyPhonePolish(view);
+                applyLegacyPhonePolishIfNeeded(view, url);
                 progressBar.setVisibility(View.GONE);
-                dismissSplash(220);
+                dismissSplash(60);
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                applyPhonePolish(view);
+                applyLegacyPhonePolishIfNeeded(view, url);
                 progressBar.setVisibility(View.GONE);
-                dismissSplash(60);
+                dismissSplash(0);
             }
 
             @Override
@@ -220,7 +236,9 @@ public class MainActivity extends Activity {
             public void onProgressChanged(WebView view, int newProgress) {
                 progressBar.setProgress(newProgress);
                 progressBar.setVisibility(newProgress >= 72 ? View.GONE : View.VISIBLE);
-                if (newProgress >= 18) applyPhonePolish(view);
+                // Deliberately do not inject legacy DOM scripts from progress events.
+                // Repeated document-wide injection was a major source of slow refresh,
+                // duplicate age UI and broken scrolling on the canonical app shell.
             }
 
             @Override
@@ -249,7 +267,8 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void applyPhonePolish(WebView view) {
+    private void applyLegacyPhonePolishIfNeeded(WebView view, String url) {
+        if (isCanonicalBridge(url)) return;
         if (phonePolishJs != null && !phonePolishJs.isEmpty()) view.evaluateJavascript(phonePolishJs, null);
         if (phoneFixJs != null && !phoneFixJs.isEmpty()) view.evaluateJavascript(phoneFixJs, null);
     }
