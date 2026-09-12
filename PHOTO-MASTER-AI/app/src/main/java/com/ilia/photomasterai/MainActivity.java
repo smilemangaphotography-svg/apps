@@ -3,12 +3,9 @@ package com.ilia.photomasterai;
 import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.security.keystore.KeyGenParameterSpec;
-import android.security.keystore.KeyProperties;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
@@ -18,31 +15,18 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyStore;
-import java.util.UUID;
-
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.GCMParameterSpec;
 
 public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 1001;
-    private static final String PREFS = "pmai_secure";
-    private static final String KEY_ALIAS = "pmai_openai_key";
-    private static final String PREF_KEY = "api_key_cipher";
-    private static final String PREF_IV = "api_key_iv";
 
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
@@ -108,58 +92,6 @@ public class MainActivity extends Activity {
         filePathCallback = null;
     }
 
-    private SecretKey getOrCreateKey() throws Exception {
-        KeyStore store = KeyStore.getInstance("AndroidKeyStore");
-        store.load(null);
-        if (store.containsAlias(KEY_ALIAS)) {
-            return ((KeyStore.SecretKeyEntry) store.getEntry(KEY_ALIAS, null)).getSecretKey();
-        }
-        KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
-        generator.init(new KeyGenParameterSpec.Builder(KEY_ALIAS,
-                KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setRandomizedEncryptionRequired(true)
-                .build());
-        return generator.generateKey();
-    }
-
-    private boolean storeApiKey(String value) {
-        try {
-            SecretKey key = getOrCreateKey();
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.ENCRYPT_MODE, key);
-            byte[] encrypted = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                    .putString(PREF_KEY, Base64.encodeToString(encrypted, Base64.NO_WRAP))
-                    .putString(PREF_IV, Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP))
-                    .apply();
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private String readApiKey() {
-        try {
-            SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
-            String enc = p.getString(PREF_KEY, null);
-            String iv = p.getString(PREF_IV, null);
-            if (enc == null || iv == null) return null;
-            SecretKey key = getOrCreateKey();
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)));
-            byte[] plain = cipher.doFinal(Base64.decode(enc, Base64.NO_WRAP));
-            return new String(plain, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private void clearApiKeyInternal() {
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(PREF_KEY).remove(PREF_IV).apply();
-    }
-
     private static class DataImage {
         final byte[] bytes;
         final String mime;
@@ -177,28 +109,6 @@ public class MainActivity extends Activity {
         return new DataImage(bytes, mime.isEmpty() ? "image/jpeg" : mime);
     }
 
-    private String sizeForRatio(String ratio) {
-        if ("1:1".equals(ratio)) return "1024x1024";
-        if ("4:5".equals(ratio) || "9:16".equals(ratio)) return "1024x1536";
-        if ("16:9".equals(ratio)) return "1536x1024";
-        return "auto";
-    }
-
-    private void writeTextPart(DataOutputStream out, String boundary, String name, String value) throws Exception {
-        out.writeBytes("--" + boundary + "\r\n");
-        out.writeBytes("Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n");
-        out.write(value.getBytes(StandardCharsets.UTF_8));
-        out.writeBytes("\r\n");
-    }
-
-    private void writeImagePart(DataOutputStream out, String boundary, String name, String filename, DataImage img) throws Exception {
-        out.writeBytes("--" + boundary + "\r\n");
-        out.writeBytes("Content-Disposition: form-data; name=\"" + name + "\"; filename=\"" + filename + "\"\r\n");
-        out.writeBytes("Content-Type: " + img.mime + "\r\n\r\n");
-        out.write(img.bytes);
-        out.writeBytes("\r\n");
-    }
-
     private String readStream(InputStream stream) throws Exception {
         if (stream == null) return "";
         BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
@@ -208,86 +118,73 @@ public class MainActivity extends Activity {
         return b.toString();
     }
 
+    private String backendEndpoint() {
+        return BuildConfig.AI_ENDPOINT == null ? "" : BuildConfig.AI_ENDPOINT.trim();
+    }
+
+    private String healthEndpoint() {
+        String endpoint = backendEndpoint();
+        if (endpoint.endsWith("/api/edit")) return endpoint.substring(0, endpoint.length() - 9) + "/api/health";
+        if (endpoint.endsWith("/api/edit/")) return endpoint.substring(0, endpoint.length() - 10) + "/api/health";
+        return endpoint;
+    }
+
     private JSONObject callBackend(JSONObject request) throws Exception {
-        String endpoint = BuildConfig.AI_ENDPOINT == null ? "" : BuildConfig.AI_ENDPOINT.trim();
-        URL url = new URL(endpoint);
-        HttpURLConnection c = (HttpURLConnection) url.openConnection();
+        String endpoint = backendEndpoint();
+        if (endpoint.isEmpty()) throw new Exception("Secure AI backend is not configured for this build.");
+
+        HttpURLConnection c = (HttpURLConnection) new URL(endpoint).openConnection();
         c.setRequestMethod("POST");
         c.setConnectTimeout(20000);
         c.setReadTimeout(180000);
         c.setDoOutput(true);
         c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+        c.setRequestProperty("Accept", "application/json");
+        c.setRequestProperty("X-PMAI-Client", BuildConfig.VERSION_NAME);
         byte[] body = request.toString().getBytes(StandardCharsets.UTF_8);
         try (OutputStream out = c.getOutputStream()) { out.write(body); }
         int code = c.getResponseCode();
         String raw = readStream(code >= 200 && code < 300 ? c.getInputStream() : c.getErrorStream());
-        JSONObject json = raw.isEmpty() ? new JSONObject() : new JSONObject(raw);
-        if (code < 200 || code >= 300) throw new Exception(json.optString("error", "AI backend failed (" + code + ")."));
+        JSONObject json;
+        try { json = raw.isEmpty() ? new JSONObject() : new JSONObject(raw); }
+        catch (Exception parse) { json = new JSONObject(); }
+        if (code < 200 || code >= 300) {
+            throw new Exception(json.optString("error", "Secure AI backend failed (" + code + ")."));
+        }
         return json;
     }
 
-    private JSONObject callOpenAI(JSONObject request) throws Exception {
-        String apiKey = readApiKey();
-        if (apiKey == null || apiKey.trim().isEmpty()) throw new Exception("OpenAI API key is not configured.");
-
-        String boundary = "----PMAI" + UUID.randomUUID().toString().replace("-", "");
-        HttpURLConnection c = (HttpURLConnection) new URL("https://api.openai.com/v1/images/edits").openConnection();
-        c.setRequestMethod("POST");
-        c.setConnectTimeout(20000);
-        c.setReadTimeout(180000);
-        c.setDoOutput(true);
-        c.setRequestProperty("Authorization", "Bearer " + apiKey);
-        c.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
-        c.setRequestProperty("Accept", "application/json");
-
-        JSONObject settings = request.optJSONObject("settings");
-        String ratio = settings == null ? "Original" : settings.optString("ratio", "Original");
-        String quality = settings == null ? "high" : settings.optString("quality", "high");
-        if (!(quality.equals("medium") || quality.equals("high") || quality.equals("xhigh"))) quality = "high";
-
-        try (DataOutputStream out = new DataOutputStream(c.getOutputStream())) {
-            writeTextPart(out, boundary, "model", "gpt-image-2.5-sunburst");
-            writeTextPart(out, boundary, "prompt", request.optString("prompt", "Professional realistic photo edit."));
-            writeTextPart(out, boundary, "quality", quality);
-            writeTextPart(out, boundary, "size", sizeForRatio(ratio));
-            writeTextPart(out, boundary, "output_format", "png");
-            writeTextPart(out, boundary, "moderation", "auto");
-            writeImagePart(out, boundary, "image[]", "source.jpg", decodeDataUrl(request.getString("source_image")));
-            JSONArray refs = request.optJSONArray("reference_images");
-            if (refs != null) {
-                for (int i = 0; i < refs.length() && i < 5; i++) {
-                    writeImagePart(out, boundary, "image[]", "reference-" + (i + 1) + ".jpg", decodeDataUrl(refs.getString(i)));
-                }
-            }
-            out.writeBytes("--" + boundary + "--\r\n");
-            out.flush();
-        }
-
-        int code = c.getResponseCode();
-        String requestId = c.getHeaderField("x-request-id");
-        String raw = readStream(code >= 200 && code < 300 ? c.getInputStream() : c.getErrorStream());
-        JSONObject upstream;
-        try { upstream = new JSONObject(raw); } catch (Exception parse) { upstream = new JSONObject(); }
-        if (code < 200 || code >= 300) {
-            JSONObject e = upstream.optJSONObject("error");
-            String message = e == null ? "OpenAI image edit failed (" + code + ")." : e.optString("message", "OpenAI image edit failed.");
-            throw new Exception(message + (requestId == null ? "" : " [" + requestId + "]"));
-        }
-
-        JSONArray images = new JSONArray();
-        JSONArray data = upstream.optJSONArray("data");
-        if (data != null) {
-            for (int i = 0; i < data.length(); i++) {
-                JSONObject item = data.optJSONObject(i);
-                if (item == null) continue;
-                String b64 = item.optString("b64_json", "");
-                if (!b64.isEmpty()) images.put(b64);
-            }
-        }
-        if (images.length() == 0) throw new Exception("The image service returned no image data.");
+    private JSONObject checkBackend() {
         JSONObject result = new JSONObject();
-        result.put("images", images);
-        if (requestId != null) result.put("request_id", requestId);
+        try {
+            String endpoint = healthEndpoint();
+            if (endpoint.isEmpty()) {
+                result.put("ok", false);
+                result.put("type", "backend");
+                result.put("message", "Backend not configured");
+                return result;
+            }
+            HttpURLConnection c = (HttpURLConnection) new URL(endpoint).openConnection();
+            c.setRequestMethod("GET");
+            c.setConnectTimeout(7000);
+            c.setReadTimeout(7000);
+            c.setRequestProperty("Accept", "application/json");
+            c.setRequestProperty("X-PMAI-Client", BuildConfig.VERSION_NAME);
+            int code = c.getResponseCode();
+            String raw = readStream(code >= 200 && code < 300 ? c.getInputStream() : c.getErrorStream());
+            JSONObject payload;
+            try { payload = raw.isEmpty() ? new JSONObject() : new JSONObject(raw); }
+            catch (Exception e) { payload = new JSONObject(); }
+            result.put("ok", code >= 200 && code < 300 && payload.optBoolean("ok", true));
+            result.put("type", "backend");
+            result.put("message", payload.optString("message", code >= 200 && code < 300 ? "Secure AI cloud connected" : "Backend unavailable"));
+        } catch (Exception e) {
+            try {
+                result.put("ok", false);
+                result.put("type", "backend");
+                result.put("message", "Backend unavailable");
+            } catch (Exception ignored) {}
+        }
         return result;
     }
 
@@ -296,39 +193,38 @@ public class MainActivity extends Activity {
         runOnUiThread(() -> webView.evaluateJavascript(js, null));
     }
 
+    private void backendStatusCallback(String requestId, JSONObject payload) {
+        String js = "window.__nativeBackendStatus&&window.__nativeBackendStatus(" + JSONObject.quote(requestId) + "," + JSONObject.quote(payload.toString()) + ")";
+        runOnUiThread(() -> webView.evaluateJavascript(js, null));
+    }
+
     public class NativeBridge {
         @JavascriptInterface
         public String getConnectionStatus() {
             try {
                 JSONObject j = new JSONObject();
-                String endpoint = BuildConfig.AI_ENDPOINT == null ? "" : BuildConfig.AI_ENDPOINT.trim();
-                if (!endpoint.isEmpty()) {
-                    j.put("ok", true); j.put("type", "backend");
-                } else {
-                    String apiKey = readApiKey();
-                    boolean ok = apiKey != null && !apiKey.trim().isEmpty();
-                    j.put("ok", ok); j.put("type", ok ? "direct" : "none");
-                }
+                boolean configured = !backendEndpoint().isEmpty();
+                j.put("ok", configured);
+                j.put("configured", configured);
+                j.put("type", "backend");
+                j.put("message", configured ? "Secure backend configured" : "Secure backend not configured");
                 return j.toString();
-            } catch (Exception e) { return "{\"ok\":false,\"type\":\"none\"}"; }
+            } catch (Exception e) {
+                return "{\"ok\":false,\"configured\":false,\"type\":\"backend\"}";
+            }
         }
 
         @JavascriptInterface
-        public boolean setApiKey(String key) {
-            if (key == null || key.trim().length() < 20) return false;
-            return storeApiKey(key.trim());
+        public void checkBackendStatus(String requestId) {
+            new Thread(() -> backendStatusCallback(requestId, checkBackend()), "PMAI-HEALTH").start();
         }
-
-        @JavascriptInterface
-        public void clearApiKey() { clearApiKeyInternal(); }
 
         @JavascriptInterface
         public void editImage(String requestId, String requestJson) {
             new Thread(() -> {
                 try {
                     JSONObject req = new JSONObject(requestJson);
-                    String endpoint = BuildConfig.AI_ENDPOINT == null ? "" : BuildConfig.AI_ENDPOINT.trim();
-                    JSONObject result = endpoint.isEmpty() ? callOpenAI(req) : callBackend(req);
+                    JSONObject result = callBackend(req);
                     callback(requestId, result);
                 } catch (Exception e) {
                     try {
