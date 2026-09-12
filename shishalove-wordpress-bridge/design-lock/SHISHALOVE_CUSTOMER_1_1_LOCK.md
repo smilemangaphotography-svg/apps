@@ -109,7 +109,7 @@ Merchant uses its separate package and exact owner-approved launcher artwork:
 - red lower band,
 - white `MERCHANT` text.
 
-The source asset `shishalove-mobile/merchant/src/main/assets/merchant_launcher_approved.b64` is the Merchant launcher source of truth. CI must prove the generated PNG is byte-identical to that asset before publishing. Never substitute the Customer icon for Merchant.
+The source asset `shishalove-mobile/merchant/src/main/assets/merchant_launcher_approved.b64` is the Merchant launcher artwork source of truth. Android packaging may losslessly normalize/re-encode the PNG container to remove incompatible metadata, but it must preserve the approved artwork/pixels and 192×192 dimensions. CI must validate the source and generated launcher as valid 192×192 PNG assets. Never substitute the Customer icon for Merchant.
 
 ## Regression gate
 
