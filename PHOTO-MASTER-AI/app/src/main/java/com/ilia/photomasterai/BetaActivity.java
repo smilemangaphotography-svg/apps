@@ -36,6 +36,8 @@ public class BetaActivity extends MainActivity {
                     injectAsset("beta011.js", false);
                     injectAsset("beta012.css", true);
                     injectAsset("beta012.js", false);
+                    injectAsset("beta013.css", true);
+                    injectAsset("beta013.js", false);
                 }
             });
             patchedWebView.reload();
