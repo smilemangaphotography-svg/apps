@@ -33,7 +33,7 @@ jobs:
           grep -q "versionCode 119" shishalove-mobile/merchant/build.gradle
           grep -q "versionName '1.1.9'" shishalove-mobile/merchant/build.gradle
           grep -q "signingConfig signingConfigs.beta" shishalove-mobile/merchant/build.gradle
-          grep -q "merchant_launcher_approved.b64" shishalove-mobile/merchant/build.gradle
+          grep -q "merchant-icon.b64.part" shishalove-mobile/merchant/build.gradle
           grep -q "red MERCHANT band" shishalove-mobile/merchant/build.gradle
           grep -q 'POST_NOTIFICATIONS' shishalove-mobile/merchant/src/main/AndroidManifest.xml
           grep -q 'notifyOrder' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
@@ -76,15 +76,17 @@ jobs:
           file shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png | grep -qi PNG
           python3 - <<'PY'
           import base64, pathlib, struct
-          source = base64.b64decode(pathlib.Path('shishalove-mobile/merchant/src/main/assets/merchant_launcher_approved.b64').read_text().strip())
+          parts = sorted(pathlib.Path('shishalove-branding').glob('merchant-icon.b64.part*'))
+          assert parts, 'missing Merchant branding parts'
+          source = base64.b64decode(''.join(p.read_text().strip() for p in parts))
           generated = pathlib.Path('shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png').read_bytes()
           def dims(data):
               assert data[:8] == b'\x89PNG\r\n\x1a\n', 'not PNG'
               assert data[12:16] == b'IHDR', 'missing IHDR'
               return struct.unpack('>II', data[16:24])
-          assert dims(source) == (192, 192), 'approved Merchant source dimensions changed'
-          assert dims(generated) == (192, 192), 'generated Merchant icon dimensions changed'
-          print('Approved Merchant red-band artwork source normalized to valid 192x192 Android PNG')
+          assert dims(source) == (512, 512), 'locked Merchant source dimensions changed'
+          assert generated == source, 'generated Merchant launcher is not the locked source artwork'
+          print('Locked Merchant red-band artwork verified at 512x512')
           PY
 
           CUSTOMER='shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk'
