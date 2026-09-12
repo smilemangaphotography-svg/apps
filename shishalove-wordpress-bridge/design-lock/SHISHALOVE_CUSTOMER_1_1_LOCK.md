@@ -5,7 +5,9 @@ Canonical lineage: `smilemangaphotography-svg/apps` → `shishalove-main`
 
 ## Non-negotiable runtime rule
 
-The Android/iOS customer wrappers must load the canonical `/shishalove-app/` bridge and **must not inject legacy website DOM patches into that bridge page**. Legacy `customer_phone_polish.js` / `customer_phone_fix_115.js` logic may never replace bridge navigation, create a second drawer, create a second age gate, or reroute bridge category taps to `/product-category/...` website pages.
+The Android/iOS customer wrappers must load the canonical `/shishalove-app/` bridge and **must not inject legacy website DOM patches into that bridge page**. Legacy `customer_phone_polish.js` / `customer_phone_fix_115.js` logic may never replace bridge navigation, create a second drawer, create a second age gate, reroute bridge category taps to `/product-category/...` website pages, attach a whole-document MutationObserver to the bridge, or run repeatedly from WebView progress callbacks.
+
+The Android wrapper itself must enforce this rule before any legacy JavaScript can execute. A build-time text patch alone is not sufficient protection.
 
 WooCommerce remains the product/category/price/stock source of truth. The bridge is the customer-app presentation layer.
 
@@ -46,7 +48,7 @@ Catalogue discovery belongs in the hamburger drawer and category screens.
 - Category product lists are bridge-native, not website pages.
 - Customer lists display in-stock products only.
 - Sort options must actually change data order: Newest / Price Low→High / Price High→Low / A–Z.
-- Price sorting is numeric WooCommerce `_price` ordering, not text ordering.
+- Price sorting is numeric WooCommerce `_price` ordering, not text ordering. The canonical bridge endpoint is authoritative; do not fall back to a legacy website/WooCommerce dropdown for app sorting.
 - Previous / Next pagination must work whenever more than one page exists.
 - Refreshing a category keeps/restores the category route instead of returning to Home.
 
@@ -76,6 +78,7 @@ Category shortcuts must be tappable and return to bridge-native category pages.
 - Fresh bootstrap data may refresh state/cache in the background without forcing an unnecessary second full-page redraw.
 - Do not show a long blocking “Loading…” page when cached/current content can be displayed.
 - Do not attach legacy whole-document MutationObservers to the bridge page.
+- Do not evaluate legacy phone-polish JavaScript on every WebView progress event.
 - Versioned caches must be invalidated when runtime behavior changes.
 
 ## Search / Favorites / Cart / Account
@@ -86,9 +89,27 @@ Category shortcuts must be tappable and return to bridge-native category pages.
 - Cart state persists through the WooCommerce session and checkout securely hands off to WooCommerce.
 - Account entry points must preserve the app shell wherever an app-native equivalent exists; never replace the entire customer experience with an unrelated desktop website view.
 
-## Merchant boundary
+## Android canonical installer lock
 
-Customer icon is already approved and must not be changed by Merchant work. Merchant uses its separate app/package/icon lineage.
+- Customer canonical package: `eu.shishalove.customer`.
+- Merchant canonical package: `eu.shishalove.merchant`.
+- Public/canonical installers are **release APKs**, never `.dev` debug-package APKs presented as final installers.
+- Both canonical release APKs use the stable ShishaLove signing identity. Never return to ephemeral GitHub/Android debug signing.
+- VersionCode must monotonically increase for every canonical installer so Android can update it normally.
+- CI must verify the final APK package name, versionCode/versionName and signature before publishing.
+
+## Merchant boundary / icon lock
+
+Customer icon is approved and must **not** be changed by Merchant work.
+
+Merchant uses its separate package and exact owner-approved launcher artwork:
+- black background,
+- white ShishaLove hookah/wordmark,
+- red heart,
+- red lower band,
+- white `MERCHANT` text.
+
+The source asset `shishalove-mobile/merchant/src/main/assets/merchant_launcher_approved.b64` is the Merchant launcher source of truth. CI must prove the generated PNG is byte-identical to that asset before publishing. Never substitute the Customer icon for Merchant.
 
 ## Regression gate
 
@@ -103,5 +124,8 @@ A customer build is not complete until all of the following are true on Samsung 
 - Add to Cart works.
 - Next page works when available.
 - Refresh keeps the current bridge route.
+- Canonical customer APK reports package `eu.shishalove.customer` and not `.dev`.
+- Canonical Merchant APK reports package `eu.shishalove.merchant` and not `.dev`.
+- Merchant launcher displays the locked red `MERCHANT` band artwork; Customer launcher remains unchanged.
 
 Future work must preserve this file unless the owner explicitly approves a design/behavior change.
