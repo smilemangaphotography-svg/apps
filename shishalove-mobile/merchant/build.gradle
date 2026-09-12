@@ -2,22 +2,40 @@ plugins {
     id 'com.android.application'
 }
 
+def betaKeystoreB64 = rootProject.file('signing/shishalove-beta-keystore.b64')
+def betaKeystore = rootProject.file('signing/shishalove-beta.keystore')
+if (!betaKeystore.exists()) {
+    if (!betaKeystoreB64.exists()) throw new GradleException('Missing stable ShishaLove beta signing identity')
+    betaKeystore.parentFile.mkdirs()
+    betaKeystore.bytes = java.util.Base64.decoder.decode(betaKeystoreB64.getText('UTF-8').trim())
+}
+
 android {
     namespace 'eu.shishalove.merchant'
     compileSdk 35
+
+    signingConfigs {
+        beta {
+            storeFile betaKeystore
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
 
     defaultConfig {
         applicationId 'eu.shishalove.merchant'
         minSdk 24
         targetSdk 35
-        versionCode 116
-        versionName '1.1.6'
+        versionCode 118
+        versionName '1.1.8'
     }
 
     buildTypes {
         debug {
             applicationIdSuffix '.dev'
             versionNameSuffix '-dev'
+            signingConfig signingConfigs.beta
         }
         release {
             minifyEnabled false
@@ -25,22 +43,31 @@ android {
     }
 }
 
+// Exact owner-approved Merchant icon: black icon, white ShishaLove mark,
+// red heart and red MERCHANT band. Customer launcher artwork is untouched.
 def materializeMerchantLauncherIcon = tasks.register('materializeMerchantLauncherIcon') {
     doLast {
-        def brandingDir = rootProject.file('../shishalove-branding')
-        def parts = fileTree(brandingDir) {
-            include 'merchant-icon.b64.part*'
-        }.files.sort { a, b -> a.name <=> b.name }
-        if (parts.isEmpty()) {
-            throw new GradleException('Missing locked ShishaLove Merchant launcher artwork')
-        }
-        def encoded = parts.collect { it.getText('UTF-8').trim() }.join('')
+        def approved = file('src/main/assets/merchant_launcher_approved.b64')
+        if (!approved.exists()) throw new GradleException('Missing approved red-band Merchant launcher artwork')
         def output = file('src/main/res/drawable-nodpi/ic_shishalove_merchant.png')
         output.parentFile.mkdirs()
-        output.bytes = java.util.Base64.decoder.decode(encoded)
+        output.bytes = java.util.Base64.decoder.decode(approved.getText('UTF-8').trim())
+    }
+}
+
+// Keep wrapper metadata in sync with the installable 1.1.8 build without allowing
+// future workflow edits to silently ship an old build query/User-Agent.
+def lockMerchantRuntimeVersion = tasks.register('lockMerchantRuntimeVersion') {
+    doLast {
+        def activity = file('src/main/java/eu/shishalove/merchant/MainActivity.java')
+        def source = activity.getText('UTF-8')
+        source = source.replace('build=116', 'build=118')
+        source = source.replace('ShishaLoveMerchant/1.1.6', 'ShishaLoveMerchant/1.1.8')
+        activity.setText(source, 'UTF-8')
     }
 }
 
 tasks.named('preBuild').configure {
     dependsOn materializeMerchantLauncherIcon
+    dependsOn lockMerchantRuntimeVersion
 }
