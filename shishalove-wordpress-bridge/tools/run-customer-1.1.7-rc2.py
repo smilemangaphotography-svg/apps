@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import re
 
 base = Path(__file__).with_name('patch-customer-1.1.7-rc2.py')
 src = base.read_text(encoding='utf-8')
 
-fixes = {
-    "feed_block = r'''function feedTabs(){.*?\\\\n}\\\\nfunction updateHomeFeed'''":
-        "feed_block = r'''function feedTabs\\(\\)\\{.*?function updateHomeFeed'''",
-    "category_pattern = r'''function categoryRequest\\\\(cat\\\\)\\\\{.*?\\\\n}\\\\nfunction loadCategory'''":
-        "category_pattern = r'''function categoryRequest\\(cat\\)\\{.*?function loadCategory'''",
-    "product_pattern = r'''function productView\\\\(\\\\)\\\\{.*?\\\\n}\\\\nfunction openProduct'''":
-        "product_pattern = r'''function productView\\(\\)\\{.*?function openProduct'''",
-}
+replacements = [
+    (r"^feed_block\s*=.*$", "feed_block = r'''function feedTabs\\(\\)\\{.*?function updateHomeFeed'''") ,
+    (r"^category_pattern\s*=.*$", "category_pattern = r'''function categoryRequest\\(cat\\)\\{.*?function loadCategory'''") ,
+    (r"^product_pattern\s*=.*$", "product_pattern = r'''function productView\\(\\)\\{.*?function openProduct'''") ,
+]
 
-for old, new in fixes.items():
-    if old not in src:
-        raise SystemExit('RC2 runner could not locate expected regex source')
-    src = src.replace(old, new, 1)
+for pattern, replacement in replacements:
+    src, count = re.subn(pattern, replacement, src, count=1, flags=re.M)
+    if count != 1:
+        raise SystemExit(f'RC2 runner could not rewrite: {pattern}')
 
 code = compile(src, str(base), 'exec')
 exec(code, {'__name__': '__main__', '__file__': str(base)})
