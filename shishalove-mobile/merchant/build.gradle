@@ -47,9 +47,9 @@ android {
 }
 
 // Owner-approved Merchant artwork is stored in the canonical branding bundle as
-// split base64 text: black background, white ShishaLove mark, red heart and red
-// MERCHANT band. Do not use the old 192px merchant_launcher_approved.b64 file:
-// its PNG image stream is corrupt and AAPT/ImageIO cannot decode it reliably.
+// split base64 text: black background, white ShishaLove mark, red heart and red MERCHANT band.
+// Do not use the old 192px merchant_launcher_approved.b64 file: its PNG image stream
+// is corrupt and AAPT/ImageIO cannot decode it reliably.
 // The Customer launcher artwork is separate and must never be touched here.
 def materializeMerchantLauncherIcon = tasks.register('materializeMerchantLauncherIcon') {
     doLast {
