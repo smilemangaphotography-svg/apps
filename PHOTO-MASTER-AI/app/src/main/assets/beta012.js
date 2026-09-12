@@ -43,14 +43,14 @@
     let h=Math.round(parentWidth*.78);
     if(img.naturalWidth&&img.naturalHeight){h=Math.round(parentWidth*img.naturalHeight/img.naturalWidth)}
     const maxH=Math.min(window.innerHeight*.48,470),minH=230;
-    stage.style.height=Math.round(Math.max(minH,Math.min(maxH,h)))+'px';
+    stage.style.setProperty('height',Math.round(Math.max(minH,Math.min(maxH,h)))+'px','important');
   }
   function applyCategoryFrame(){
     const stage=byId('uploadStage'),img=byId('uploadPreview');
     if(!stage||!state.category)return;
     clearRatioClasses(stage);
     stage.classList.add(ratioKind(state.category),modeClass(state.category));
-    stage.style.height='';stage.style.width='';stage.style.aspectRatio='';
+    stage.style.removeProperty('height');stage.style.removeProperty('width');stage.style.removeProperty('aspect-ratio');
     setCategoryTitle();ensureRatioBadge(stage);
     if(img){
       img.style.objectFit='contain';img.style.objectPosition='center';
@@ -75,10 +75,7 @@
   }
 
   const baseChoose=window.chooseCategory;
-  window.chooseCategory=function(id){
-    baseChoose(id);
-    applyCategoryFrame();
-  };
+  window.chooseCategory=function(id){baseChoose(id);applyCategoryFrame()};
   const baseShow=window.showScreen;
   window.showScreen=function(id,push=true){
     baseShow(id,push);
