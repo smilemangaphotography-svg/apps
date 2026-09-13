@@ -1,4 +1,4 @@
-name: ShishaLove 1.1.9 Canonical Android Regression
+name: ShishaLove 1.1.11 Canonical Android Regression
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
 
 jobs:
   android:
-    name: Customer + Merchant 1.1.9
+    name: Customer + Merchant 1.1.11
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -22,24 +22,29 @@ jobs:
       - name: Validate permanent regression locks
         run: |
           set -euo pipefail
-          grep -q "versionCode 119" shishalove-mobile/customer/build.gradle
-          grep -q "versionName '1.1.9'" shishalove-mobile/customer/build.gradle
+          grep -q "applicationId 'eu.shishalove.customer'" shishalove-mobile/customer/build.gradle
+          grep -q "versionCode 120" shishalove-mobile/customer/build.gradle
+          grep -q "versionName '1.1.11'" shishalove-mobile/customer/build.gradle
           grep -q "signingConfig signingConfigs.beta" shishalove-mobile/customer/build.gradle
           grep -q "lockCanonicalCustomerRuntime" shishalove-mobile/customer/build.gradle
           grep -q "isCanonicalBridge" shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
           grep -q "Repeated document-wide injection" shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
           grep -q "shishalove-beta-keystore.b64" shishalove-mobile/customer/build.gradle
 
-          grep -q "versionCode 119" shishalove-mobile/merchant/build.gradle
-          grep -q "versionName '1.1.9'" shishalove-mobile/merchant/build.gradle
+          grep -q "applicationId 'eu.shishalove.merchant'" shishalove-mobile/merchant/build.gradle
+          grep -q "versionCode 120" shishalove-mobile/merchant/build.gradle
+          grep -q "versionName '1.1.11'" shishalove-mobile/merchant/build.gradle
           grep -q "signingConfig signingConfigs.beta" shishalove-mobile/merchant/build.gradle
           grep -q "merchant-icon.b64.part" shishalove-mobile/merchant/build.gradle
           grep -q "red MERCHANT band" shishalove-mobile/merchant/build.gradle
           grep -q 'POST_NOTIFICATIONS' shishalove-mobile/merchant/src/main/AndroidManifest.xml
           grep -q 'notifyOrder' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
 
-          grep -q "legacy website DOM patches" shishalove-wordpress-bridge/design-lock/SHISHALOVE_CUSTOMER_1_1_LOCK.md
-          grep -q "Price Low→High" shishalove-wordpress-bridge/design-lock/SHISHALOVE_CUSTOMER_1_1_LOCK.md
+          grep -q "Never create a replacement package" shishalove-wordpress-bridge/design-lock/SHISHALOVE_CUSTOMER_1_1_LOCK.md
+          grep -q "versionCode 120" shishalove-wordpress-bridge/design-lock/SHISHALOVE_CUSTOMER_1_1_LOCK.md
+          grep -q "Wookah, Alpha, Steamulation" shishalove-wordpress-bridge/design-lock/SHISHALOVE_CUSTOMER_1_1_LOCK.md
+          grep -q "Merchant-native order detail" shishalove-wordpress-bridge/design-lock/SHISHALOVE_CUSTOMER_1_1_LOCK.md
+          grep -q "top-left three-line Merchant hamburger" shishalove-wordpress-bridge/design-lock/SHISHALOVE_CUSTOMER_1_1_LOCK.md
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -65,12 +70,12 @@ jobs:
       - name: Verify generated runtime, package identity and icon locks
         run: |
           set -euo pipefail
-          grep -q "build=119" shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
-          grep -q "ShishaLoveCustomer/1.1.9" shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
+          grep -q "build=120" shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
+          grep -q "ShishaLoveCustomer/1.1.11" shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
           grep -q "SHISHALOVE_BRIDGE" shishalove-mobile/customer/src/main/assets/customer_phone_polish.js
           grep -q "SHISHALOVE_BRIDGE" shishalove-mobile/customer/src/main/assets/customer_phone_fix_115.js
-          grep -q "build=119" shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
-          grep -q "ShishaLoveMerchant/1.1.9" shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q "build=120" shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q "ShishaLoveMerchant/1.1.11" shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
 
           test -s shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png
           file shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png | grep -qi PNG
@@ -97,23 +102,41 @@ jobs:
           test -x "$AAPT"
           "$APKSIGNER" verify --print-certs "$CUSTOMER"
           "$APKSIGNER" verify --print-certs "$MERCHANT"
-          "$AAPT" dump badging "$CUSTOMER" | grep -q "package: name='eu.shishalove.customer' versionCode='119' versionName='1.1.9'"
-          "$AAPT" dump badging "$MERCHANT" | grep -q "package: name='eu.shishalove.merchant' versionCode='119' versionName='1.1.9'"
+          "$AAPT" dump badging "$CUSTOMER" | grep -q "package: name='eu.shishalove.customer' versionCode='120' versionName='1.1.11'"
+          "$AAPT" dump badging "$MERCHANT" | grep -q "package: name='eu.shishalove.merchant' versionCode='120' versionName='1.1.11'"
           ! "$AAPT" dump badging "$CUSTOMER" | grep -q 'eu.shishalove.customer.dev'
           ! "$AAPT" dump badging "$MERCHANT" | grep -q 'eu.shishalove.merchant.dev'
+
+      - name: Prove signing compatibility with installed 1.1.9 lineage
+        run: |
+          set -euo pipefail
+          mkdir -p dist/previous
+          curl -fL 'https://github.com/smilemangaphotography-svg/apps/releases/download/shishalove-mobile-1.1.9/ShishaLove-Customer-Android-1.1.9.apk' -o dist/previous/customer-1.1.9.apk
+          curl -fL 'https://github.com/smilemangaphotography-svg/apps/releases/download/shishalove-mobile-1.1.9/ShishaLove-Merchant-Android-1.1.9.apk' -o dist/previous/merchant-1.1.9.apk
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
+          OLD_CUSTOMER="$(digest dist/previous/customer-1.1.9.apk)"
+          NEW_CUSTOMER="$(digest shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk)"
+          OLD_MERCHANT="$(digest dist/previous/merchant-1.1.9.apk)"
+          NEW_MERCHANT="$(digest shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk)"
+          test -n "$OLD_CUSTOMER" && test -n "$NEW_CUSTOMER" && test "$OLD_CUSTOMER" = "$NEW_CUSTOMER"
+          test -n "$OLD_MERCHANT" && test -n "$NEW_MERCHANT" && test "$OLD_MERCHANT" = "$NEW_MERCHANT"
+          echo "Customer signing certificate continuity verified: $NEW_CUSTOMER"
+          echo "Merchant signing certificate continuity verified: $NEW_MERCHANT"
+          echo 'Android package + signing identity + higher versionCode satisfy normal in-place update requirements.'
 
       - name: Collect APKs
         run: |
           set -euo pipefail
           mkdir -p dist/android
-          cp shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk dist/android/ShishaLove-Customer-1.1.9.apk
-          cp shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk dist/android/ShishaLove-Merchant-1.1.9.apk
+          cp shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk dist/android/ShishaLove-Customer-1.1.11.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk dist/android/ShishaLove-Merchant-1.1.11.apk
           sha256sum dist/android/*.apk > dist/android/SHA256SUMS.txt
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: shishalove-android-1.1.9
+          name: shishalove-android-1.1.11
           path: dist/android/
           if-no-files-found: error
           retention-days: 30
