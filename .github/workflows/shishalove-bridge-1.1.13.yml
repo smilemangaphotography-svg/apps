@@ -6,7 +6,6 @@ on:
       - shishalove-main
     paths:
       - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.13.py'
-      - 'shishalove-wordpress-bridge/plugin/shishalove-app-bridge/assets/customer-drawer-logo.png'
       - '.github/workflows/shishalove-bridge-1.1.13.yml'
   workflow_dispatch:
 
@@ -39,7 +38,6 @@ jobs:
           CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
           MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
           CSS='package/shishalove-app-bridge/assets/bridge.css'
-          LOGO='package/shishalove-app-bridge/assets/customer-drawer-logo.png'
 
           sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.13/' "$MAIN"
           sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.13');/" "$MAIN"
@@ -48,27 +46,22 @@ jobs:
           node --check "$CUSTOMER"
           node --check "$MERCHANT"
 
-          python3 - "$MAIN" "$CUSTOMER" "$MERCHANT" "$CSS" "$LOGO" <<'PY'
-          import base64,struct,sys
+          python3 - "$MAIN" "$CUSTOMER" "$MERCHANT" "$CSS" <<'PY'
+          import sys
           from pathlib import Path
           main=Path(sys.argv[1]).read_text(encoding='utf-8')
           customer=Path(sys.argv[2]).read_text(encoding='utf-8')
           merchant=Path(sys.argv[3]).read_text(encoding='utf-8')
           css=Path(sys.argv[4]).read_text(encoding='utf-8')
-          logo_raw=Path(sys.argv[5]).read_bytes()
-          logo_b64=base64.b64encode(logo_raw).decode('ascii')
 
-          # Validate the actual repository image rather than a derived checksum.
-          assert logo_raw[:8] == b'\x89PNG\r\n\x1a\n', 'customer drawer logo is not a PNG'
-          assert logo_raw[12:16] == b'IHDR', 'customer drawer logo missing PNG IHDR'
-          width,height=struct.unpack('>II',logo_raw[16:24])
-          assert (width,height)==(480,209), f'unexpected customer drawer logo dimensions: {(width,height)}'
-
+          official='https://shishalove.eu/wp-content/uploads/2023/08/Shishalove-Transparent-Logo-01-min-1024x456.png'
           assert 'Version: 1.1.13' in main
           assert "define('SLB_VERSION', '1.1.13')" in main
           assert "BUILD='1.1.13'" in customer
-          assert ('data:image/png;base64,'+logo_b64) in customer, 'drawer is not embedding the exact packaged PNG'
-          assert 'slb-drawer-logo-final' in customer
+          assert official in customer, 'Customer drawer must use the official ShishaLove master artwork'
+          assert 'slb-drawer-logo-white' in customer and 'slb-drawer-logo-red' in customer
+          assert 'brightness(0) invert(1)' in css
+          assert 'clip-path:polygon(25% 0,61% 0,61% 60%,22% 60%)' in css
           assert 'ShishaLove 1.1.13 exact owner drawer logo lock' in css
 
           lock=main[main.index('function slb_collection_all'):main.index('function slb_customer_bootstrap_data')]
@@ -92,7 +85,7 @@ jobs:
           WebView-only validation release. Do not install/update Android APKs until this web view is approved.
 
           Locked corrections:
-          - Customer drawer uses the owner-supplied black-background ShishaLove logo with white mark/text and red heart
+          - Customer drawer uses the official ShishaLove master artwork on black: white mark/text with the original red heart
           - KRAKEN, FRNKN STEIN, Shishalove and Wind Cover are excluded from Hookah brands only
           - those WooCommerce categories/products are not deleted or moved; they remain in their existing storefront catalogues
           - all previously approved Hookah brands remain preserved
@@ -118,6 +111,6 @@ jobs:
           set -euo pipefail
           TAG='shishalove-bridge-1.1.13'
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --title 'ShishaLove App Bridge 1.1.13' --notes 'WebView validation: owner-supplied Customer drawer logo and corrected Hookah catalogue exclusions. No APK update yet.' --target shishalove-main
+            gh release create "$TAG" --title 'ShishaLove App Bridge 1.1.13' --notes 'WebView validation: corrected Customer drawer branding and Hookah catalogue exclusions. No APK update yet.' --target shishalove-main
           fi
           gh release upload "$TAG" dist/shishalove-app-bridge-1.1.13.zip dist/shishalove-app-bridge-1.1.13.zip.sha256 --clobber
