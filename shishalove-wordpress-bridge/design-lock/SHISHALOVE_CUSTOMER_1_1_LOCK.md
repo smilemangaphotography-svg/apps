@@ -9,6 +9,8 @@ The Android/iOS customer wrappers must load the canonical `/shishalove-app/` bri
 
 The Android wrapper itself must enforce this rule before any legacy JavaScript can execute. A build-time text patch alone is not sufficient protection.
 
+**Customer UI and runtime behavior are Bridge-owned.** Future fixes to Home, categories, sorting, drawer, age verification, logo/header, scrolling, search, favorites, cart presentation, product detail, loading/caching and navigation must be delivered through the WordPress Bridge whenever technically possible. Do not create a replacement Customer APK merely to change those surfaces. Android/iOS wrappers should remain thin containers. Native-only concerns such as launcher icons, signing identity, package ID, permissions and OS integration remain app-package responsibilities.
+
 WooCommerce remains the product/category/price/stock source of truth. The bridge is the customer-app presentation layer.
 
 ## Locked visual system
