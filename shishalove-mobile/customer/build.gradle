@@ -27,8 +27,8 @@ android {
         applicationId 'eu.shishalove.customer'
         minSdk 24
         targetSdk 35
-        versionCode 121
-        versionName '1.1.19'
+        versionCode 122
+        versionName '1.1.20'
     }
 
     buildTypes {
@@ -75,8 +75,17 @@ def lockCanonicalCustomerRuntime = tasks.register('lockCanonicalCustomerRuntime'
 
         def activity = file('src/main/java/eu/shishalove/customer/MainActivity.java')
         def source = activity.getText('UTF-8')
-        ['build=115','build=118','build=119','build=120'].each { oldValue -> source = source.replace(oldValue, 'build=129') }
-        ['ShishaLoveCustomer/1.1.5','ShishaLoveCustomer/1.1.8','ShishaLoveCustomer/1.1.9','ShishaLoveCustomer/1.1.10','ShishaLoveCustomer/1.1.11'].each { oldValue -> source = source.replace(oldValue, 'ShishaLoveCustomer/1.1.19') }
+        ['build=115','build=118','build=119','build=120','build=129'].each { oldValue -> source = source.replace(oldValue, 'build=129') }
+        ['ShishaLoveCustomer/1.1.5','ShishaLoveCustomer/1.1.8','ShishaLoveCustomer/1.1.9','ShishaLoveCustomer/1.1.10','ShishaLoveCustomer/1.1.11','ShishaLoveCustomer/1.1.19'].each { oldValue -> source = source.replace(oldValue, 'ShishaLoveCustomer/1.1.20') }
+
+        // Samsung/Android 15+ wrapper-only safe-area correction.
+        // Keep the approved Bridge 1.1.19 WebView untouched. Add a small top breathing
+        // margin so the ShishaLove header/logo sits safely below the status area, while
+        // reducing the oversized bottom system inset that created the large empty band.
+        source = source.replace(
+                'v.setPadding(bars.left, bars.top, bars.right, bars.bottom);',
+                'v.setPadding(bars.left, bars.top + dp(6), bars.right, Math.max(dp(10), bars.bottom - dp(28)));'
+        )
         activity.setText(source, 'UTF-8')
     }
 }
