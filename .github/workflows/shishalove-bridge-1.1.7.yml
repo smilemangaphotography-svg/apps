@@ -51,37 +51,64 @@ jobs:
           node --check "$CUSTOMER"
           node --check "$MERCHANT"
 
-          grep -q "Version: 1.1.9" "$MAIN"
-          grep -q "define('SLB_VERSION', '1.1.9')" "$MAIN"
-          grep -q "BUILD='1.1.9'" "$CUSTOMER"
-          grep -q "neutralizeLegacyWrapper" "$CUSTOMER"
-          grep -q "legacySafeLabel" "$CUSTOMER"
-          grep -q "__sl114obs" "$CUSTOMER"
-          grep -q "__sl115Obs" "$CUSTOMER"
-          grep -q "__sl115RouteCapture" "$CUSTOMER"
-          grep -q 'aria-label=\\"Navigation\\"' "$CUSTOMER"
-          ! grep -q 'aria-label=\\"Menu\\">☰' "$CUSTOMER"
-          grep -q "slb-age-ok-stable" "$CUSTOMER"
-          grep -q "Age confirmation is required to enter this shop" "$CUSTOMER"
-          grep -q "document.body.style.overflow=''" "$CUSTOMER"
-          grep -q "Price: Low to High" "$CUSTOMER"
-          grep -q "Price: High to Low" "$CUSTOMER"
-          grep -q "Recommended order" "$CUSTOMER"
-          grep -q "Recent Arrivals" "$CUSTOMER"
-          grep -q "numericProductPrice" "$CUSTOMER"
-          grep -q "productCategoryShortcuts" "$CUSTOMER"
-          grep -q "meta_type.*NUMERIC" "$MAIN"
-          grep -q "price_value" "$MAIN"
-          grep -q "slb-menu-lines" "$CSS"
-          grep -q "safe-area-inset-bottom" "$CSS"
-          grep -q "#sl114-drawer" "$CSS"
-          ! grep -q "Last 7 days" "$CUSTOMER"
-          ! grep -q "Last 30 days" "$CUSTOMER"
-          ! grep -q "Before 30 days" "$CUSTOMER"
+          python3 - "$MAIN" "$CUSTOMER" "$MERCHANT" "$CSS" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
 
-          grep -q "Search product name or SKU" "$MERCHANT"
-          grep -q "Quick Picks (Most Used)" "$MERCHANT"
-          ! grep -q "Laser Engravable Products" "$MERCHANT"
+          main = Path(sys.argv[1]).read_text(encoding='utf-8')
+          customer = Path(sys.argv[2]).read_text(encoding='utf-8')
+          merchant = Path(sys.argv[3]).read_text(encoding='utf-8')
+          css = Path(sys.argv[4]).read_text(encoding='utf-8')
+
+          required_main = [
+              'Version: 1.1.9',
+              "define('SLB_VERSION', '1.1.9')",
+              'price_value',
+              'meta_type',
+              'NUMERIC',
+          ]
+          required_customer = [
+              "BUILD='1.1.9'",
+              'neutralizeLegacyWrapper',
+              'legacySafeLabel',
+              'numericProductPrice',
+              '__sl114obs',
+              '__sl115Obs',
+              '__sl115RouteCapture',
+              'aria-label=\\"Navigation\\"',
+              'slb-age-ok-stable',
+              'Age confirmation is required to enter this shop',
+              "document.body.style.overflow=''",
+              'Price: Low to High',
+              'Price: High to Low',
+              'Recommended order',
+              'Recent Arrivals',
+              'productCategoryShortcuts',
+          ]
+          required_css = [
+              'slb-menu-lines',
+              'safe-area-inset-bottom',
+              '#sl114-drawer',
+          ]
+          required_merchant = ['Search product name or SKU', 'Quick Picks (Most Used)']
+
+          for value in required_main:
+              assert value in main, f'missing PHP lock: {value}'
+          for value in required_customer:
+              assert value in customer, f'missing Customer lock: {value}'
+          for value in required_css:
+              assert value in css, f'missing CSS lock: {value}'
+          for value in required_merchant:
+              assert value in merchant, f'missing Merchant behavior: {value}'
+
+          assert 'aria-label=\\"Menu\\">☰' not in customer, 'legacy-capturable hamburger still present'
+          assert 'Last 7 days' not in customer
+          assert 'Last 30 days' not in customer
+          assert 'Before 30 days' not in customer
+          assert 'Laser Engravable Products' not in merchant
+          print('Bridge 1.1.9 runtime regression checks passed')
+          PY
 
           cat > package/shishalove-app-bridge/INSTALL-1.1.9.txt <<'TXT'
           ShishaLove App Bridge 1.1.9
