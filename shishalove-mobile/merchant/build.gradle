@@ -44,20 +44,38 @@ android {
     }
 }
 
-// Exact owner-approved Merchant launcher artwork: black background, white ShishaLove,
-// red heart, and red MERCHANT rectangle/band with white MERCHANT text.
-// These exact parts already existed in the approved 1.1.8 stable-signing baseline.
+// PERMANENT OWNER LOCK — exact approved Merchant launcher artwork shown on the
+// Samsung home screen: black background, white ShishaLove script/hookah,
+// red heart, and red MERCHANT band with white MERCHANT text.
+// Future Android builds MUST materialize only these four locked source parts.
 def materializeMerchantLauncherIcon = tasks.register('materializeMerchantLauncherIcon') {
     doLast {
         def brandingDir = rootProject.file('../shishalove-branding')
-        def parts = fileTree(brandingDir) {
+        def expectedNames = (0..<4).collect { String.format('merchant-icon.b64.part%02d', it) }
+        def discoveredNames = fileTree(brandingDir) {
             include 'merchant-icon.b64.part*'
-        }.files.sort { a, b -> a.name <=> b.name }
-        if (parts.isEmpty()) throw new GradleException('Missing locked red-band ShishaLove Merchant launcher artwork')
+        }.files.collect { it.name }.sort()
+        if (discoveredNames != expectedNames) {
+            throw new GradleException("Merchant launcher lock violated. Expected ${expectedNames}, found ${discoveredNames}")
+        }
+        def parts = expectedNames.collect { new File(brandingDir, it) }
+        if (parts.any { !it.exists() }) throw new GradleException('Missing permanent red-band ShishaLove Merchant launcher artwork')
         def encoded = parts.collect { it.getText('UTF-8').trim() }.join('')
+        byte[] raw = java.util.Base64.decoder.decode(encoded)
+
+        byte[] pngSig = [(byte)0x89,(byte)0x50,(byte)0x4e,(byte)0x47,(byte)0x0d,(byte)0x0a,(byte)0x1a,(byte)0x0a] as byte[]
+        if (raw.length < 24 || !(0..<8).every { raw[it] == pngSig[it] }) {
+            throw new GradleException('Permanent Merchant launcher source is not a valid PNG')
+        }
+        int width = ((raw[16] & 0xff) << 24) | ((raw[17] & 0xff) << 16) | ((raw[18] & 0xff) << 8) | (raw[19] & 0xff)
+        int height = ((raw[20] & 0xff) << 24) | ((raw[21] & 0xff) << 16) | ((raw[22] & 0xff) << 8) | (raw[23] & 0xff)
+        if (width != 512 || height != 512) {
+            throw new GradleException("Permanent Merchant launcher source must stay 512x512, got ${width}x${height}")
+        }
+
         def output = file('src/main/res/drawable-nodpi/ic_shishalove_merchant.png')
         output.parentFile.mkdirs()
-        output.bytes = java.util.Base64.decoder.decode(encoded)
+        output.bytes = raw
     }
 }
 
