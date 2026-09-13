@@ -1,0 +1,146 @@
+name: ShishaLove Bridge 1.1.12 WebView Validation
+
+on:
+  push:
+    branches:
+      - shishalove-main
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.12.py'
+      - '.github/workflows/shishalove-bridge-1.1.12.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-bridge:
+    name: Validate and package 1.1.12 web bridge
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build canonical 1.1.12 bridge
+        run: |
+          set -euo pipefail
+          rm -rf package dist
+          mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.12.py package/shishalove-app-bridge
+
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.12/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.12');/" "$MAIN"
+
+          php -l "$MAIN"
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+
+          python3 - "$MAIN" "$CUSTOMER" "$MERCHANT" "$CSS" <<'PY'
+          import sys
+          from pathlib import Path
+          main=Path(sys.argv[1]).read_text(encoding='utf-8')
+          customer=Path(sys.argv[2]).read_text(encoding='utf-8')
+          merchant=Path(sys.argv[3]).read_text(encoding='utf-8')
+          css=Path(sys.argv[4]).read_text(encoding='utf-8')
+
+          assert 'Version: 1.1.12' in main
+          assert "define('SLB_VERSION', '1.1.12')" in main
+          assert "BUILD='1.1.12'" in customer
+
+          # Hookah catalogue must no longer depend only on descendants.
+          lock=main[main.index('function slb_collection_all'):main.index('function slb_customer_bootstrap_data')]
+          assert "post_type' => 'product'" in lock
+          assert "include_children' => true" in lock
+          assert 'get_the_terms' in lock
+          assert 'slb_find_global_exact' in lock
+          for brand in ['Wookah','Alpha','Steamulation','Union','MIG','El-Badia','Moze','Meduse','Anima','Gold Miner','YKAP','Maklaud','Mexanika','DIAVLA','Karma','Darkside','Shadow Hookah','KAYA','KORESS','El Bomber','OVO','Orden','Hooligan','SHI CARVER','Voodoo','Pandora','Mamay','Shisha Original','Prisma','VZ Hookah','Pushka','DSH','Tempus','Retrofit','First']:
+              assert brand in lock, f'missing owner-visible Hookah brand lock: {brand}'
+
+          # Drawer must use a wide crop of the approved red-heart/white artwork,
+          # not render the source as a small square app icon.
+          assert 'CUSTOMER_DRAWER_LOGO' in customer
+          assert 'slb-drawer-logo-final' in customer
+          assert 'slb-drawer-logo-crop' in customer
+          assert 'ShishaLove 1.1.12 customer drawer brand lock' in css
+          assert 'width:240px' in css and 'height:124px' in css
+
+          # Carry-forward locks from 1.1.11.
+          assert 'brandPagerMarkup' in customer
+          assert 'Next brands' in customer
+          assert 'Price: Low to High' in customer
+          assert 'Price: High to Low' in customer
+          assert "return ['purchases','DESC']" in customer
+          assert 'merchantMenu' in merchant
+          assert 'orderPanel' in merchant
+          assert 'data-order=' in merchant
+          assert 'Last 7 days' not in customer
+          assert 'Last 30 days' not in customer
+          assert 'Before 30 days' not in customer
+          print('ShishaLove Bridge 1.1.12 web-view regression checks passed')
+          PY
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.12.txt <<'TXT'
+          ShishaLove App Bridge 1.1.12
+
+          Web-view correction release. Install this WordPress plugin BEFORE any APK update.
+
+          Locked fixes:
+          - Hookah brands are no longer limited to descendants of the Hookah category
+          - previous/owner-visible Hookah brands are preserved when their WooCommerce terms exist
+          - brands attached globally to real Hookah products are discovered automatically
+          - future nested Hookah brands are still appended automatically
+          - approved Customer red-heart + white ShishaLove artwork is displayed as a wide drawer logo, not as a square app icon
+          - brand Previous/Next paging remains functional
+          - Search Low-to-High / High-to-Low sorting remains functional
+          - Recommended remains based on WooCommerce purchases
+          - Merchant menu and native order details from 1.1.11 remain locked
+
+          No Android APK should be installed until this WebView is visually approved.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.12.zip shishalove-app-bridge)
+          python3 - dist/shishalove-app-bridge-1.1.12.zip <<'PY'
+          import re,sys,zipfile
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              assert z.testzip() is None
+              main=z.read('shishalove-app-bridge/shishalove-app-bridge.php').decode()
+              customer=z.read('shishalove-app-bridge/assets/customer.js').decode()
+              css=z.read('shishalove-app-bridge/assets/bridge.css').decode()
+              assert re.search(r'^\s*\* Version: 1\.1\.12\s*$',main,re.M)
+              assert "define('SLB_VERSION', '1.1.12');" in main
+              assert "BUILD='1.1.12'" in customer
+              assert 'slb-drawer-logo-final' in customer
+              assert 'ShishaLove 1.1.12 customer drawer brand lock' in css
+          print('WordPress plugin ZIP 1.1.12 verified')
+          PY
+          (cd dist && sha256sum shishalove-app-bridge-1.1.12.zip > shishalove-app-bridge-1.1.12.zip.sha256)
+
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.12
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish permanent WordPress installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.12'
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title 'ShishaLove App Bridge 1.1.12' --notes 'Web-view validation release: restores the complete Hookah brand source and corrects the Customer drawer logo presentation. Validate in browser before any APK update.' --target shishalove-main
+          fi
+          gh release upload "$TAG" dist/shishalove-app-bridge-1.1.12.zip dist/shishalove-app-bridge-1.1.12.zip.sha256 --clobber
