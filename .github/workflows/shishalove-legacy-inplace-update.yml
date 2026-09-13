@@ -1,0 +1,147 @@
+name: ShishaLove Legacy Beta In-place Update 1.1.19
+
+on:
+  push:
+    branches:
+      - shishalove-main
+    paths:
+      - '.github/workflows/shishalove-legacy-inplace-update.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-legacy-update:
+    name: Build 1.1.19 updates for installed 1.1.8 beta apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate approved wrapper state
+        run: |
+          set -euo pipefail
+          grep -q "applicationIdSuffix '.dev'" shishalove-mobile/customer/build.gradle
+          grep -q "applicationIdSuffix '.dev'" shishalove-mobile/merchant/build.gradle
+          grep -q "versionCode 121" shishalove-mobile/customer/build.gradle
+          grep -q "versionCode 121" shishalove-mobile/merchant/build.gradle
+          grep -q "versionName '1.1.19'" shishalove-mobile/customer/build.gradle
+          grep -q "versionName '1.1.19'" shishalove-mobile/merchant/build.gradle
+          grep -q "signingConfig signingConfigs.beta" shishalove-mobile/customer/build.gradle
+          grep -q "signingConfig signingConfigs.beta" shishalove-mobile/merchant/build.gradle
+          grep -q "build=129" shishalove-mobile/customer/build.gradle
+          grep -q "build=129" shishalove-mobile/merchant/build.gradle
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build legacy-compatible debug update APKs
+        working-directory: shishalove-mobile
+        run: gradle :customer:assembleDebug :merchant:assembleDebug --stacktrace
+
+      - name: Download installed-line 1.1.8 beta references
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/old
+          gh release download shishalove-mobile-1.1.8-beta \
+            --pattern 'ShishaLove-Customer-Android-1.1.8.apk' \
+            --pattern 'ShishaLove-Merchant-Android-1.1.8.apk' \
+            --dir dist/old
+
+      - name: Prove exact in-place update compatibility
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          OLD_C='dist/old/ShishaLove-Customer-Android-1.1.8.apk'
+          OLD_M='dist/old/ShishaLove-Merchant-Android-1.1.8.apk'
+          NEW_C='shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk'
+          NEW_M='shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk'
+
+          echo '=== PACKAGE IDENTITIES ==='
+          "$AAPT" dump badging "$OLD_C" | head -n1
+          "$AAPT" dump badging "$NEW_C" | head -n1
+          "$AAPT" dump badging "$OLD_M" | head -n1
+          "$AAPT" dump badging "$NEW_M" | head -n1
+
+          "$AAPT" dump badging "$OLD_C" | grep -q "package: name='eu.shishalove.customer.dev' versionCode='118'"
+          "$AAPT" dump badging "$NEW_C" | grep -q "package: name='eu.shishalove.customer.dev' versionCode='121'"
+          "$AAPT" dump badging "$OLD_M" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='118'"
+          "$AAPT" dump badging "$NEW_M" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='121'"
+
+          digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
+          OLD_C_CERT="$(digest "$OLD_C")"
+          NEW_C_CERT="$(digest "$NEW_C")"
+          OLD_M_CERT="$(digest "$OLD_M")"
+          NEW_M_CERT="$(digest "$NEW_M")"
+          test -n "$OLD_C_CERT" && test "$OLD_C_CERT" = "$NEW_C_CERT"
+          test -n "$OLD_M_CERT" && test "$OLD_M_CERT" = "$NEW_M_CERT"
+          echo "Customer 1.1.8 beta -> 1.1.19 legacy update certificate verified: $NEW_C_CERT"
+          echo "Merchant 1.1.8 beta -> 1.1.19 legacy update certificate verified: $NEW_M_CERT"
+
+      - name: Verify approved WebView runtime
+        run: |
+          set -euo pipefail
+          grep -q 'build=129' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
+          grep -q 'build=129' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+          grep -q 'ShishaLoveCustomer/1.1.19' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
+          grep -q 'ShishaLoveMerchant/1.1.19' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+
+      - name: Prepare legacy in-place update installers
+        run: |
+          set -euo pipefail
+          mkdir -p dist/public
+          cp shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk dist/public/ShishaLove-Customer-Android-1.1.19-UPDATE-1.1.8-BETA.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/public/ShishaLove-Merchant-Android-1.1.19-UPDATE-1.1.8-BETA.apk
+          sha256sum dist/public/*.apk > dist/public/SHA256SUMS.txt
+          cat > dist/public/RELEASE_NOTES.md <<'TXT'
+          # ShishaLove Mobile 1.1.19 — Legacy Beta In-place Update
+
+          Use these APKs only to update phones that already have the public ShishaLove 1.1.8 Beta installed.
+
+          Customer retains package `eu.shishalove.customer.dev` and the exact 1.1.8 beta signing certificate, with versionCode increased 118 -> 121.
+          Merchant retains package `eu.shishalove.merchant.dev` and the exact 1.1.8 beta signing certificate, with versionCode increased 118 -> 121.
+
+          Both load the final approved Bridge/WebView build 129 / app version 1.1.19.
+
+          These exist because the public 1.1.8 beta was built from the debug variant, which appended `.dev` to the Android package ID. Android package IDs cannot be changed by an in-place update.
+
+          Do not uninstall the existing 1.1.8 beta. Android should present these as Update.
+          TXT
+
+      - name: Publish permanent legacy update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-mobile-1.1.19-legacy-beta-update'
+          TITLE='ShishaLove Mobile 1.1.19 — Update Existing 1.1.8 Beta'
+          ASSETS=(dist/public/ShishaLove-Customer-Android-1.1.19-UPDATE-1.1.8-BETA.apk dist/public/ShishaLove-Merchant-Android-1.1.19-UPDATE-1.1.8-BETA.apk dist/public/SHA256SUMS.txt)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
+          else
+            gh release create "$TAG" "${ASSETS[@]}" --title "$TITLE" --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
+          fi
+
+      - name: Confirm release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release view shishalove-mobile-1.1.19-legacy-beta-update --json url,assets
