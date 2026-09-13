@@ -1,4 +1,4 @@
-name: ShishaLove Merchant 1.1.22 Final Android Fix
+name: ShishaLove Merchant 1.1.23 Launcher Icon Fix
 
 on:
   push:
@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   publish-merchant:
-    name: Build and verify Merchant 1.1.22 final wrapper
+    name: Build and verify Merchant 1.1.23 icon-only update
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -23,23 +23,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate permanent source locks
+      - name: Validate permanent icon-only source locks
         run: |
           set -euo pipefail
           grep -q "applicationId 'eu.shishalove.merchant'" shishalove-mobile/merchant/build.gradle
-          grep -q "versionCode 124" shishalove-mobile/merchant/build.gradle
-          grep -q "versionName '1.1.22'" shishalove-mobile/merchant/build.gradle
+          grep -q "versionCode 125" shishalove-mobile/merchant/build.gradle
+          grep -q "versionName '1.1.23'" shishalove-mobile/merchant/build.gradle
           grep -q 'android:name=".MerchantActivityV121"' shishalove-mobile/merchant/src/main/AndroidManifest.xml
           grep -q 'android:icon="@mipmap/ic_launcher"' shishalove-mobile/merchant/src/main/AndroidManifest.xml
           grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' shishalove-mobile/merchant/src/main/AndroidManifest.xml
-          grep -q '@color/sl_icon_black' shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher.xml
-          grep -q '@drawable/ic_shishalove_merchant' shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher.xml
+          grep -q '@drawable/ic_shishalove_merchant_legacy' shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher.xml
+          grep -q '@drawable/ic_shishalove_merchant_legacy' shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher_round.xml
+          grep -q '@color/sl_icon_black' shishalove-mobile/merchant/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q '@drawable/ic_shishalove_merchant_foreground' shishalove-mobile/merchant/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q '@drawable/ic_shishalove_merchant_art' shishalove-mobile/merchant/src/main/res/drawable/ic_shishalove_merchant_foreground.xml
+          grep -q 'RoundRectangle2D.Float' shishalove-mobile/merchant/build.gradle
+          grep -q 'adaptiveSize = 384' shishalove-mobile/merchant/build.gradle
+          grep -q 'legacySize = 448' shishalove-mobile/merchant/build.gradle
           grep -q 'v.setPadding(bars.left, bars.top, bars.right, 0)' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java
           grep -q "nav.style.setProperty('bottom','0','important')" shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java
-          grep -q "nav.style.setProperty('padding-bottom',inset,'important')" shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java
-          grep -q "padding-bottom','calc(118px + '+inset+')','important" shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java
           grep -q "overflow-y','auto','important" shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java
-          grep -q "merchant-icon.b64.part" shishalove-mobile/merchant/build.gradle
           git diff --exit-code bd70d49208100a82700ce7fc104ab514f5b6ce63 -- \
             shishalove-branding/merchant-icon.b64.part00 \
             shishalove-branding/merchant-icon.b64.part01 \
@@ -67,7 +70,7 @@ jobs:
         working-directory: shishalove-mobile
         run: gradle :merchant:assembleRelease :merchant:assembleDebug --stacktrace
 
-      - name: Verify APK package, version, signing, launcher framing and native fixes
+      - name: Verify APK identity, signing and permanent rounded launcher assets
         run: |
           set -euo pipefail
           RELEASE='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
@@ -76,81 +79,86 @@ jobs:
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
           "$APKSIGNER" verify --print-certs "$RELEASE"
           "$APKSIGNER" verify --print-certs "$DEBUG"
-          "$AAPT" dump badging "$RELEASE" | grep -q "package: name='eu.shishalove.merchant' versionCode='124' versionName='1.1.22'"
-          "$AAPT" dump badging "$DEBUG" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='124' versionName='1.1.22-dev'"
+          "$AAPT" dump badging "$RELEASE" | grep -q "package: name='eu.shishalove.merchant' versionCode='125' versionName='1.1.23'"
+          "$AAPT" dump badging "$DEBUG" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='125' versionName='1.1.23-dev'"
           "$AAPT" dump xmltree "$RELEASE" AndroidManifest.xml | grep -q 'MerchantActivityV121'
-          grep -q 'android:icon="@mipmap/ic_launcher"' shishalove-mobile/merchant/src/main/AndroidManifest.xml
-          grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' shishalove-mobile/merchant/src/main/AndroidManifest.xml
           grep -q 'ShishaLoveMerchant/1.1.22' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
           grep -q 'build=129' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
           python3 - <<'PY'
           import base64, pathlib, struct
           parts = sorted(pathlib.Path('shishalove-branding').glob('merchant-icon.b64.part*'))
           source = base64.b64decode(''.join(p.read_text().strip() for p in parts))
-          generated = pathlib.Path('shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png').read_bytes()
-          assert source[:8] == b'\x89PNG\r\n\x1a\n'
-          assert struct.unpack('>II', source[16:24]) == (512, 512)
-          assert generated == source
-          launcher = pathlib.Path('shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher.xml').read_text()
-          round_launcher = pathlib.Path('shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher_round.xml').read_text()
-          for xml in (launcher, round_launcher):
-              assert '@color/sl_icon_black' in xml
-              assert '@drawable/ic_shishalove_merchant' in xml
-          print('PASS: approved red-band artwork uses permanent black Android launcher framing')
+          exact = pathlib.Path('shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant.png').read_bytes()
+          adaptive = pathlib.Path('shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant_art.png').read_bytes()
+          legacy = pathlib.Path('shishalove-mobile/merchant/src/main/res/drawable-nodpi/ic_shishalove_merchant_legacy.png').read_bytes()
+          sig = b'\x89PNG\r\n\x1a\n'
+          assert source[:8] == sig and exact == source
+          for payload in (adaptive, legacy):
+              assert payload[:8] == sig
+              assert struct.unpack('>II', payload[16:24]) == (512, 512)
+          legacy_xml = pathlib.Path('shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher.xml').read_text()
+          adaptive_xml = pathlib.Path('shishalove-mobile/merchant/src/main/res/mipmap-anydpi-v26/ic_launcher.xml').read_text()
+          foreground_xml = pathlib.Path('shishalove-mobile/merchant/src/main/res/drawable/ic_shishalove_merchant_foreground.xml').read_text()
+          assert '@drawable/ic_shishalove_merchant_legacy' in legacy_xml
+          assert '@color/sl_icon_black' in adaptive_xml
+          assert '@drawable/ic_shishalove_merchant_foreground' in adaptive_xml
+          assert '@drawable/ic_shishalove_merchant_art' in foreground_xml
+          print('PASS: exact approved logo preserved; rounded fallback and adaptive safe foreground generated')
           PY
 
-      - name: Prove canonical signing continuity from 1.1.21
+      - name: Prove canonical signing continuity from 1.1.22
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p dist/previous
-          gh release download shishalove-merchant-1.1.21 \
-            --pattern 'ShishaLove-Merchant-Android-1.1.21.apk' \
+          gh release download shishalove-merchant-1.1.22 \
+            --pattern 'ShishaLove-Merchant-Android-1.1.22.apk' \
             --dir dist/previous
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
           digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
-          test "$(digest dist/previous/ShishaLove-Merchant-Android-1.1.21.apk)" = "$(digest shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk)"
+          test "$(digest dist/previous/ShishaLove-Merchant-Android-1.1.22.apk)" = "$(digest shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk)"
 
-      - name: Prove stable legacy-beta signing continuity from 1.1.21
+      - name: Prove stable legacy-beta signing continuity from 1.1.22
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p dist/legacy
-          gh release download shishalove-merchant-1.1.21 \
-            --pattern 'ShishaLove-Merchant-Android-1.1.21-LEGACY-BETA.apk' \
+          gh release download shishalove-merchant-1.1.22 \
+            --pattern 'ShishaLove-Merchant-Android-1.1.22-LEGACY-BETA.apk' \
             --dir dist/legacy
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
           digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
-          test "$(digest dist/legacy/ShishaLove-Merchant-Android-1.1.21-LEGACY-BETA.apk)" = "$(digest shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk)"
+          test "$(digest dist/legacy/ShishaLove-Merchant-Android-1.1.22-LEGACY-BETA.apk)" = "$(digest shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk)"
+
+      - name: Prove Customer app was not changed by this update
+        run: |
+          set -euo pipefail
+          test -z "$(git diff --name-only HEAD~4..HEAD -- shishalove-mobile/customer || true)"
 
       - name: Prepare installers
         run: |
           set -euo pipefail
           mkdir -p dist/public
           cp shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk \
-             dist/public/ShishaLove-Merchant-Android-1.1.22.apk
+             dist/public/ShishaLove-Merchant-Android-1.1.23.apk
           cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk \
-             dist/public/ShishaLove-Merchant-Android-1.1.22-LEGACY-BETA.apk
+             dist/public/ShishaLove-Merchant-Android-1.1.23-LEGACY-BETA.apk
           sha256sum dist/public/*.apk > dist/public/SHA256SUMS.txt
           cat > dist/public/RELEASE_NOTES.md <<'TXT'
-          # ShishaLove Merchant 1.1.22 — Final Android System-Bar + Launcher Fix
+          # ShishaLove Merchant 1.1.23 — Permanent Rounded Launcher Icon
 
-          The active WordPress Bridge and Merchant business logic remain unchanged.
+          Icon-only Merchant update. Customer app, Merchant WebView/UI, Bridge and business logic are unchanged.
 
-          Permanent Android fixes:
-          - WebView keeps top status-bar safety without native bottom padding
-          - Merchant bottom navigation now paints through the Android navigation area
-          - menu items stay above the real navigation inset while the white nav background covers it
-          - long Orders / Products / Stock pages receive enough bottom clearance to scroll fully above the fixed nav
-          - vertical touch scrolling remains forced on
-          - launcher returns to the approved black Android framing around the exact red-band Merchant artwork; no white side panels
-          - WebView build remains 129
-
-          Two signed update lines are published:
-          - canonical: eu.shishalove.merchant
-          - stable legacy beta: eu.shishalove.merchant.dev
+          Permanent launcher fix:
+          - exact existing approved ShishaLove Merchant logo source remains unchanged
+          - modern Android uses a proper adaptive icon with black background and safely inset transparent Merchant artwork
+          - legacy/fallback Android uses a real rounded-square PNG with transparent corners
+          - prevents the sharp black square seen on Samsung launchers
+          - keeps the logo proportional and safely centered under different launcher masks
+          - package IDs and signing identities are unchanged
+          - WebView remains build 129 and Merchant runtime behavior remains unchanged
           TXT
 
       - name: Publish release
@@ -158,16 +166,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG='shishalove-merchant-1.1.22'
-          ASSETS=(dist/public/ShishaLove-Merchant-Android-1.1.22.apk dist/public/ShishaLove-Merchant-Android-1.1.22-LEGACY-BETA.apk dist/public/SHA256SUMS.txt)
+          TAG='shishalove-merchant-1.1.23'
+          ASSETS=(dist/public/ShishaLove-Merchant-Android-1.1.23.apk dist/public/ShishaLove-Merchant-Android-1.1.23-LEGACY-BETA.apk dist/public/SHA256SUMS.txt)
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${ASSETS[@]}" --clobber
-            gh release edit "$TAG" --title 'ShishaLove Merchant 1.1.22 — Final Android Fix' --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
+            gh release edit "$TAG" --title 'ShishaLove Merchant 1.1.23 — Rounded Launcher Icon' --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
           else
-            gh release create "$TAG" "${ASSETS[@]}" --title 'ShishaLove Merchant 1.1.22 — Final Android Fix' --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
+            gh release create "$TAG" "${ASSETS[@]}" --title 'ShishaLove Merchant 1.1.23 — Rounded Launcher Icon' --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
           fi
 
       - name: Confirm public assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release view shishalove-merchant-1.1.22 --json url,assets
+        run: gh release view shishalove-merchant-1.1.23 --json url,assets
