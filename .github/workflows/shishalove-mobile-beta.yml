@@ -21,12 +21,15 @@ jobs:
       - name: Verify dev lineage and regression locks
         run: |
           set -euo pipefail
+          test -s shishalove-mobile/signing/shishalove-beta-keystore.b64
           grep -Fq "applicationIdSuffix '.dev'" shishalove-mobile/customer/build.gradle
           grep -Fq "versionCode 116" shishalove-mobile/customer/build.gradle
           grep -Fq "versionName '1.1.6'" shishalove-mobile/customer/build.gradle
+          grep -Fq 'signingConfig signingConfigs.beta' shishalove-mobile/customer/build.gradle
           grep -Fq "applicationIdSuffix '.dev'" shishalove-mobile/merchant/build.gradle
           grep -Fq "versionCode 117" shishalove-mobile/merchant/build.gradle
           grep -Fq "versionName '1.1.7'" shishalove-mobile/merchant/build.gradle
+          grep -Fq 'signingConfig signingConfigs.beta' shishalove-mobile/merchant/build.gradle
           grep -Fq 'customer_phone_fix_116.js' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
           grep -Fq 'build=116' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
           grep -Fq '@drawable/ic_shishalove_merchant' shishalove-mobile/merchant/src/main/AndroidManifest.xml
