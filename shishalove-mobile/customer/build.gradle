@@ -27,8 +27,8 @@ android {
         applicationId 'eu.shishalove.customer'
         minSdk 24
         targetSdk 35
-        versionCode 119
-        versionName '1.1.9'
+        versionCode 120
+        versionName '1.1.11'
     }
 
     buildTypes {
@@ -85,10 +85,8 @@ def lockCanonicalCustomerRuntime = tasks.register('lockCanonicalCustomerRuntime'
 
         def activity = file('src/main/java/eu/shishalove/customer/MainActivity.java')
         def source = activity.getText('UTF-8')
-        source = source.replace('build=115', 'build=119')
-        source = source.replace('build=118', 'build=119')
-        source = source.replace('ShishaLoveCustomer/1.1.5', 'ShishaLoveCustomer/1.1.9')
-        source = source.replace('ShishaLoveCustomer/1.1.8', 'ShishaLoveCustomer/1.1.9')
+        ['build=115','build=118','build=119'].each { oldValue -> source = source.replace(oldValue, 'build=120') }
+        ['ShishaLoveCustomer/1.1.5','ShishaLoveCustomer/1.1.8','ShishaLoveCustomer/1.1.9','ShishaLoveCustomer/1.1.10'].each { oldValue -> source = source.replace(oldValue, 'ShishaLoveCustomer/1.1.11') }
         activity.setText(source, 'UTF-8')
     }
 }
