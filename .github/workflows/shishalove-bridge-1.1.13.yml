@@ -6,7 +6,7 @@ on:
       - shishalove-main
     paths:
       - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.13.py'
-      - 'shishalove-branding/customer-drawer-logo-1.1.13.b64'
+      - 'shishalove-wordpress-bridge/plugin/shishalove-app-bridge/assets/customer-drawer-logo.png'
       - '.github/workflows/shishalove-bridge-1.1.13.yml'
   workflow_dispatch:
 
@@ -39,7 +39,7 @@ jobs:
           CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
           MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
           CSS='package/shishalove-app-bridge/assets/bridge.css'
-          LOGO_B64='shishalove-branding/customer-drawer-logo-1.1.13.b64'
+          LOGO='package/shishalove-app-bridge/assets/customer-drawer-logo.png'
 
           sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.13/' "$MAIN"
           sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.13');/" "$MAIN"
@@ -48,15 +48,15 @@ jobs:
           node --check "$CUSTOMER"
           node --check "$MERCHANT"
 
-          python3 - "$MAIN" "$CUSTOMER" "$MERCHANT" "$CSS" "$LOGO_B64" <<'PY'
-          import base64,hashlib,re,sys
+          python3 - "$MAIN" "$CUSTOMER" "$MERCHANT" "$CSS" "$LOGO" <<'PY'
+          import base64,hashlib,sys
           from pathlib import Path
           main=Path(sys.argv[1]).read_text(encoding='utf-8')
           customer=Path(sys.argv[2]).read_text(encoding='utf-8')
           merchant=Path(sys.argv[3]).read_text(encoding='utf-8')
           css=Path(sys.argv[4]).read_text(encoding='utf-8')
-          logo_b64=Path(sys.argv[5]).read_text(encoding='utf-8').strip()
-          logo_raw=base64.b64decode(logo_b64)
+          logo_raw=Path(sys.argv[5]).read_bytes()
+          logo_b64=base64.b64encode(logo_raw).decode('ascii')
           assert hashlib.sha256(logo_raw).hexdigest()=='a2ef59bc4a09e339246ae2e5ef77089097eb2056d833c1a163c3a481e8a7bfb9'
           assert 'Version: 1.1.13' in main
           assert "define('SLB_VERSION', '1.1.13')" in main
@@ -66,15 +66,13 @@ jobs:
           assert 'ShishaLove 1.1.13 exact owner drawer logo lock' in css
 
           lock=main[main.index('function slb_collection_all'):main.index('function slb_customer_bootstrap_data')]
+          preferred=lock[lock.index('$preferred = array('):lock.index(');',lock.index('$preferred = array('))]
           for forbidden in ['KRAKEN','FRNKN STEIN','Shishalove','Wind Cover']:
-              # may exist only in the exclusion set, never the preferred Hookah brand list
-              preferred=lock[lock.index('$preferred = array('):lock.index(');',lock.index('$preferred = array('))]
               assert forbidden not in preferred, f'non-brand remained preferred: {forbidden}'
               assert forbidden in lock, f'missing Hookah exclusion lock: {forbidden}'
           for brand in ['Wookah','Alpha','Steamulation','Union','MIG','El-Badia','Moze','Meduse','Anima','Gold Miner','YKAP','Maklaud','Mexanika','DIAVLA','Karma','Darkside','Matt Pear','Shadow Hookah','KAYA','KORESS','El Bomber','OVO','Orden','Hooligan','SHI CARVER','Voodoo','Pandora','Mamay','Shisha Original','IZZY','Prisma','VZ Hookah','Nube','Mashisha','BATR','Pushka','DSH','Tempus','Retrofit','First','Octopuz']:
               assert brand in lock, f'missing retained Hookah brand: {brand}'
 
-          # Carry-forward functional locks.
           assert 'brandPagerMarkup' in customer and 'Next brands' in customer
           assert 'Price: Low to High' in customer and 'Price: High to Low' in customer
           assert "return ['purchases','DESC']" in customer
@@ -89,10 +87,7 @@ jobs:
 
           Locked corrections:
           - Customer drawer uses the exact owner-supplied black-background ShishaLove logo with white mark/text and red heart
-          - KRAKEN is excluded from Hookah brands only
-          - FRNKN STEIN is excluded from Hookah brands only
-          - Shishalove is excluded from Hookah brands only
-          - Wind Cover is excluded from Hookah brands only
+          - KRAKEN, FRNKN STEIN, Shishalove and Wind Cover are excluded from Hookah brands only
           - those WooCommerce categories/products are not deleted or moved; they remain in their existing storefront catalogues
           - all previously approved Hookah brands remain preserved
           - Hookah Previous/Next brand paging remains functional
