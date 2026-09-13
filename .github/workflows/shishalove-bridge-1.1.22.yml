@@ -1,0 +1,123 @@
+name: ShishaLove Bridge 1.1.22 Permanent Merchant Header Scroll Fix
+
+on:
+  push:
+    branches:
+      - shishalove-main
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.22.py'
+      - '.github/workflows/shishalove-bridge-1.1.22.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-bridge:
+    name: Freeze 1.1.21; permanently fix Merchant header/scroll only
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build locked 1.1.21 baseline and 1.1.22 candidate
+        run: |
+          set -euo pipefail
+          rm -rf baseline package dist
+          mkdir -p baseline package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge baseline/shishalove-app-bridge
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.21.py baseline/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.22.py package/shishalove-app-bridge
+
+          BASE_CUSTOMER='baseline/shishalove-app-bridge/assets/customer.js'
+          BASE_MERCHANT='baseline/shishalove-app-bridge/assets/merchant.js'
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          # Absolute functional freeze: this release is CSS-only.
+          cmp --silent "$BASE_CUSTOMER" "$CUSTOMER" || { echo 'ERROR: Customer JS changed'; exit 1; }
+          cmp --silent "$BASE_MERCHANT" "$MERCHANT" || { echo 'ERROR: Merchant JS changed'; exit 1; }
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.22/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.22');/" "$MAIN"
+
+          php -l "$MAIN"
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+
+          python3 - "$MAIN" "$CSS" <<'PY'
+          import sys
+          from pathlib import Path
+          main=Path(sys.argv[1]).read_text(encoding='utf-8')
+          css=Path(sys.argv[2]).read_text(encoding='utf-8')
+          assert 'Version: 1.1.22' in main
+          assert "define('SLB_VERSION', '1.1.22')" in main
+          assert 'ShishaLove 1.1.22 PERMANENT Merchant Android header + scroll correction' in css
+          assert 'height:88px!important' in css
+          assert 'transform:translateY(-20px)!important' in css
+          assert 'overflow-y:scroll!important' in css
+          assert 'min-height:calc(100dvh + 1px)!important' in css
+          assert 'padding-bottom:150px!important' in css
+          assert 'position:fixed!important' in css
+          assert 'ShishaLove 1.1.19 Merchant Products/Stock search-row edge spacing only' in css
+          print('PASS: Merchant brand lifted, compact header restored, long-page scrolling guaranteed; JS frozen')
+          PY
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.22.txt <<'TXT'
+          ShishaLove App Bridge 1.1.22
+
+          WORDPRESS BRIDGE UPDATE ONLY. DO NOT REINSTALL OR REPLACE ANDROID APPS.
+
+          PERMANENT MERCHANT FIXES:
+          - Reverses the incorrect 1.1.21 downward logo movement.
+          - Restores the Merchant header to a compact 88px row.
+          - Moves the approved Merchant brand upward so the red MERCHANT band aligns visually with the hamburger and refresh controls.
+          - Forces real document-level vertical touch scrolling for Orders / Products / Stock.
+          - Adds enough content clearance above the fixed bottom navigation so the final rows are reachable.
+
+          LOCKED / UNCHANGED:
+          - Customer app UI and behaviour.
+          - Merchant artwork and dimensions.
+          - Merchant menu, Orders data/details, Products, Stock, editor, search and navigation logic.
+          - Android APK/package/signing files.
+
+          NATIVE LIMITATION:
+          - Any blank strip physically outside the WebView caused by an older Android wrapper's system-bar padding cannot be removed by a WordPress Bridge CSS update.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.22.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.22.zip > shishalove-app-bridge-1.1.22.zip.sha256)
+
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.22
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish permanent WordPress installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.22'
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title 'ShishaLove App Bridge 1.1.22' --notes 'Permanent Merchant Android header alignment + vertical scrolling correction. Customer/Merchant JS remains frozen. No APK update.' --target shishalove-main
+          fi
+          gh release upload "$TAG" dist/shishalove-app-bridge-1.1.22.zip dist/shishalove-app-bridge-1.1.22.zip.sha256 --clobber
+
+      - name: Confirm release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release view shishalove-bridge-1.1.22 --json url,assets
