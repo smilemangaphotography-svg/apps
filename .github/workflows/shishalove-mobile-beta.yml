@@ -18,6 +18,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify dev lineage and regression locks
+        run: |
+          set -euo pipefail
+          grep -Fq "applicationIdSuffix '.dev'" shishalove-mobile/customer/build.gradle
+          grep -Fq "versionCode 116" shishalove-mobile/customer/build.gradle
+          grep -Fq "versionName '1.1.6'" shishalove-mobile/customer/build.gradle
+          grep -Fq "applicationIdSuffix '.dev'" shishalove-mobile/merchant/build.gradle
+          grep -Fq "versionCode 117" shishalove-mobile/merchant/build.gradle
+          grep -Fq "versionName '1.1.7'" shishalove-mobile/merchant/build.gradle
+          grep -Fq 'customer_phone_fix_116.js' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
+          grep -Fq 'build=116' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
+          grep -Fq '@drawable/ic_shishalove_merchant' shishalove-mobile/merchant/src/main/AndroidManifest.xml
+          node --check shishalove-mobile/customer/src/main/assets/customer_phone_fix_116.js
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
