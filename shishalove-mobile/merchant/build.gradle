@@ -27,8 +27,8 @@ android {
         applicationId 'eu.shishalove.merchant'
         minSdk 24
         targetSdk 35
-        versionCode 122
-        versionName '1.1.20'
+        versionCode 123
+        versionName '1.1.21'
     }
 
     buildTypes {
@@ -47,7 +47,6 @@ android {
 // PERMANENT OWNER LOCK — exact approved Merchant launcher artwork shown on the
 // Samsung home screen: black background, white ShishaLove script/hookah,
 // red heart, and red MERCHANT band with white MERCHANT text.
-// Future Android builds MUST materialize only these four locked source parts.
 def materializeMerchantLauncherIcon = tasks.register('materializeMerchantLauncherIcon') {
     doLast {
         def brandingDir = rootProject.file('../shishalove-branding')
@@ -84,8 +83,20 @@ def lockMerchantRuntimeVersion = tasks.register('lockMerchantRuntimeVersion') {
         def activity = file('src/main/java/eu/shishalove/merchant/MainActivity.java')
         def source = activity.getText('UTF-8')
         ['build=116','build=118','build=119','build=120','build=129'].each { oldValue -> source = source.replace(oldValue, 'build=129') }
-        ['ShishaLoveMerchant/1.1.6','ShishaLoveMerchant/1.1.8','ShishaLoveMerchant/1.1.9','ShishaLoveMerchant/1.1.10','ShishaLoveMerchant/1.1.11','ShishaLoveMerchant/1.1.19'].each { oldValue -> source = source.replace(oldValue, 'ShishaLoveMerchant/1.1.20') }
+        ['ShishaLoveMerchant/1.1.6','ShishaLoveMerchant/1.1.8','ShishaLoveMerchant/1.1.9','ShishaLoveMerchant/1.1.10','ShishaLoveMerchant/1.1.11','ShishaLoveMerchant/1.1.19','ShishaLoveMerchant/1.1.20'].each { oldValue -> source = source.replace(oldValue, 'ShishaLoveMerchant/1.1.21') }
         activity.setText(source, 'UTF-8')
+
+        def permanentActivity = file('src/main/java/eu/shishalove/merchant/MerchantActivityV121.java')
+        def permanentSource = permanentActivity.getText('UTF-8')
+        if (!permanentSource.contains('v.setPadding(bars.left, bars.top, bars.right, 0)')) {
+            throw new GradleException('Permanent Merchant bottom-inset fix missing')
+        }
+        if (!permanentSource.contains("nav.style.setProperty('bottom',inset,'important')")) {
+            throw new GradleException('Permanent Merchant bottom navigation inset fix missing')
+        }
+        if (!permanentSource.contains("overflow-y','auto','important")) {
+            throw new GradleException('Permanent Merchant scrolling fix missing')
+        }
     }
 }
 
