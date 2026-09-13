@@ -1,0 +1,119 @@
+name: ShishaLove Bridge 1.1.14 WebView Validation
+
+on:
+  push:
+    branches:
+      - shishalove-main
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.14.py'
+      - 'shishalove-branding/customer-wordmark-exact-1.1.14.part*'
+      - '.github/workflows/shishalove-bridge-1.1.14.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-bridge:
+    name: Validate exact Customer wordmark and package 1.1.14
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build and validate 1.1.14 bridge
+        run: |
+          set -euo pipefail
+          rm -rf package dist
+          mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.14.py package/shishalove-app-bridge
+
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.14/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.14');/" "$MAIN"
+
+          php -l "$MAIN"
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+
+          python3 - "$MAIN" "$CUSTOMER" "$MERCHANT" "$CSS" <<'PY'
+          import base64, hashlib, struct, sys
+          from pathlib import Path
+          main=Path(sys.argv[1]).read_text(encoding='utf-8')
+          customer=Path(sys.argv[2]).read_text(encoding='utf-8')
+          merchant=Path(sys.argv[3]).read_text(encoding='utf-8')
+          css=Path(sys.argv[4]).read_text(encoding='utf-8')
+          parts=sorted(Path('shishalove-branding').glob('customer-wordmark-exact-1.1.14.part*'))
+          assert len(parts)==6
+          logo_b64=''.join(p.read_text().strip() for p in parts)
+          logo_raw=base64.b64decode(logo_b64)
+          assert hashlib.sha256(logo_raw).hexdigest()=='a2ef59bc4a09e339246ae2e5ef77089097eb2056d833c1a163c3a481e8a7bfb9'
+          assert logo_raw[:8]==b'\x89PNG\r\n\x1a\n'
+          assert struct.unpack('>II',logo_raw[16:24])==(480,209)
+          assert 'Version: 1.1.14' in main
+          assert "define('SLB_VERSION', '1.1.14')" in main
+          assert "BUILD='1.1.14'" in customer
+          assert ('data:image/png;base64,'+logo_b64) in customer
+          assert 'slb-drawer-owner-logo-exact' in customer
+          assert 'Shishalove-Transparent-Logo-01-min-1024x456.png' not in customer
+          assert 'ShishaLove 1.1.14 exact supplied wordmark lock' in css
+          lock=main[main.index('function slb_collection_all'):main.index('function slb_customer_bootstrap_data')]
+          preferred=lock[lock.index('$preferred = array('):lock.index(');',lock.index('$preferred = array('))]
+          for forbidden in ['KRAKEN','FRNKN STEIN','Shishalove','Wind Cover']:
+              assert forbidden not in preferred
+              assert forbidden in lock
+          for brand in ['Wookah','Alpha','Steamulation','Union','MIG','El-Badia','Moze','Meduse','Anima','Gold Miner','YKAP','Maklaud','Mexanika','DIAVLA','Karma','Darkside','Matt Pear','Shadow Hookah','KAYA','KORESS','El Bomber','OVO','Orden','Hooligan','SHI CARVER','Voodoo','Pandora','Mamay','Shisha Original','IZZY','Prisma','VZ Hookah','Nube','Mashisha','BATR','Pushka','DSH','Tempus','Retrofit','First','Octopuz']:
+              assert brand in lock
+          assert 'brandPagerMarkup' in customer and 'Next brands' in customer
+          assert 'Price: Low to High' in customer and 'Price: High to Low' in customer
+          assert "return ['purchases','DESC']" in customer
+          assert 'merchantMenu' in merchant and 'orderPanel' in merchant
+          print('ShishaLove Bridge 1.1.14 exact wordmark + carry-forward locks passed')
+          PY
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.14.txt <<'TXT'
+          ShishaLove App Bridge 1.1.14
+
+          WebView-only validation release. Do not update Android APKs until approved.
+
+          Locked corrections:
+          - Customer drawer uses the exact supplied ShishaLove wordmark artwork, including the exact script lettering
+          - no website-logo substitution, font recreation, recolouring filter or layered approximation
+          - black field, white lettering/hookah and red heart remain part of the supplied artwork itself
+          - KRAKEN, FRNKN STEIN, Shishalove and Wind Cover remain excluded from Hookah brands only
+          - all approved Hookah brands and paging remain preserved
+          - Search price sorting, purchase-ranked Recommended, Merchant menu and Merchant order details remain preserved
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.14.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.14.zip > shishalove-app-bridge-1.1.14.zip.sha256)
+
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.14
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish permanent WordPress installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.14'
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title 'ShishaLove App Bridge 1.1.14' --notes 'WebView validation: exact supplied Customer wordmark. Hookah exclusions and all prior approved behaviour preserved. No APK update yet.' --target shishalove-main
+          fi
+          gh release upload "$TAG" dist/shishalove-app-bridge-1.1.14.zip dist/shishalove-app-bridge-1.1.14.zip.sha256 --clobber
