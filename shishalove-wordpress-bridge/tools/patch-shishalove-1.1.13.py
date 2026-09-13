@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import base64
 import re
 import subprocess
 import sys
@@ -18,7 +17,6 @@ subprocess.check_call([sys.executable, str(tools / 'patch-shishalove-1.1.12.py')
 js_path = root / 'assets' / 'customer.js'
 css_path = root / 'assets' / 'bridge.css'
 php_path = root / 'shishalove-app-bridge.php'
-logo_path = root / 'assets' / 'customer-drawer-logo.png'
 
 js = js_path.read_text(encoding='utf-8')
 css = css_path.read_text(encoding='utf-8')
@@ -42,23 +40,21 @@ def sub_once(text, pattern, repl, label):
 js = replace_once(js, "var BUILD='1.1.12';", "var BUILD='1.1.13';", 'customer build key')
 
 # OWNER LOGO LOCK
-# Use the exact uploaded third-image artwork now stored as a real binary PNG in
-# the plugin source. Never fall back to the launcher icon or WordPress site icon.
-if not logo_path.exists():
-    raise SystemExit('1.1.13 patch failed: exact customer drawer logo binary is missing')
-logo_b64 = base64.b64encode(logo_path.read_bytes()).decode('ascii')
-logo_data = 'data:image/png;base64,' + logo_b64
+# Use ShishaLove's own live transparent master artwork. Two synchronized layers create
+# exactly the requested black-background treatment: full mark/text white, while the
+# heart remains the original ShishaLove red. This avoids app-icon artwork entirely.
+official_logo = 'https://shishalove.eu/wp-content/uploads/2023/08/Shishalove-Transparent-Logo-01-min-1024x456.png'
 js = sub_once(
     js,
     r"var CUSTOMER_DRAWER_LOGO='data:image/png;base64,[^']+';",
-    "var CUSTOMER_DRAWER_LOGO=" + repr(logo_data) + ";",
-    'exact owner drawer logo data'
+    "var CUSTOMER_DRAWER_LOGO=" + repr(official_logo) + ";",
+    'official customer drawer logo URL'
 )
 js = replace_once(
     js,
     '<div class="slb-drawer-logo slb-drawer-logo-final"><span class="slb-drawer-logo-crop"><img class="slb-drawer-owner-logo" src="\'+esc(CUSTOMER_DRAWER_LOGO)+\'" alt="ShishaLove"></span></div>',
-    '<div class="slb-drawer-logo slb-drawer-logo-final"><img class="slb-drawer-owner-logo" src="\'+esc(CUSTOMER_DRAWER_LOGO)+\'" alt="ShishaLove"></div>',
-    'exact owner logo markup'
+    '<div class="slb-drawer-logo slb-drawer-logo-final"><span class="slb-drawer-art"><img class="slb-drawer-logo-white" src="\'+esc(CUSTOMER_DRAWER_LOGO)+\'" alt="ShishaLove"><img class="slb-drawer-logo-red" src="\'+esc(CUSTOMER_DRAWER_LOGO)+\'" alt="" aria-hidden="true"></span></div>',
+    'exact white-red drawer logo layers'
 )
 
 # HOOKAH CATALOGUE LOCK
@@ -78,12 +74,17 @@ php = replace_once(
     'remove non-brands from retained preferred list'
 )
 
-# Exact wide logo presentation: preserve the black around the supplied artwork.
+# Exact requested drawer treatment. First copy is converted to pure white. The second
+# unfiltered copy is clipped to the heart region; its black pixels disappear against
+# the black drawer while the red heart remains red.
 css += r'''
 
 /* ShishaLove 1.1.13 exact owner drawer logo lock */
-.slb-drawer-logo-final{width:270px!important;height:118px!important;overflow:visible!important;background:#000!important;border:0!important;border-radius:0!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;padding:0!important}
-.slb-drawer-logo-final .slb-drawer-owner-logo{position:static!important;display:block!important;width:270px!important;height:auto!important;max-width:270px!important;transform:none!important;object-fit:contain!important;background:#000!important;border-radius:0!important;margin:0!important}
+.slb-drawer-logo-final{width:285px!important;height:132px!important;overflow:visible!important;background:#000!important;border:0!important;border-radius:0!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;padding:0!important}
+.slb-drawer-art{position:relative!important;display:block!important;width:285px!important;aspect-ratio:1024/456!important;overflow:visible!important;background:#000!important}
+.slb-drawer-art img{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important;display:block!important;max-width:none!important;margin:0!important;border:0!important;border-radius:0!important;background:transparent!important}
+.slb-drawer-logo-white{filter:brightness(0) invert(1)!important}
+.slb-drawer-logo-red{filter:none!important;clip-path:polygon(25% 0,61% 0,61% 60%,22% 60%)!important}
 .slb-drawer-logo-crop{display:contents!important}
 '''
 
