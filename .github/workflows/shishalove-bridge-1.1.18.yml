@@ -1,0 +1,115 @@
+name: ShishaLove Bridge 1.1.18 Merchant Editor Footer Validation
+
+on:
+  push:
+    branches:
+      - shishalove-main
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.18.py'
+      - '.github/workflows/shishalove-bridge-1.1.18.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-bridge:
+    name: Freeze Customer/Merchant logic; fix editor footer only
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build 1.1.17 baseline and 1.1.18 candidate
+        run: |
+          set -euo pipefail
+          rm -rf baseline package dist
+          mkdir -p baseline package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge baseline/shishalove-app-bridge
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.17.py baseline/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.18.py package/shishalove-app-bridge
+
+          BASE_CUSTOMER='baseline/shishalove-app-bridge/assets/customer.js'
+          BASE_MERCHANT='baseline/shishalove-app-bridge/assets/merchant.js'
+          BASE_MAIN='baseline/shishalove-app-bridge/shishalove-app-bridge.php'
+          BASE_CSS='baseline/shishalove-app-bridge/assets/bridge.css'
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          # Hard regression locks: no Customer, Merchant JS, or server behaviour changes.
+          cmp --silent "$BASE_CUSTOMER" "$CUSTOMER" || { echo 'ERROR: Customer changed'; exit 1; }
+          cmp --silent "$BASE_MERCHANT" "$MERCHANT" || { echo 'ERROR: Merchant logic changed'; exit 1; }
+          cmp --silent "$BASE_MAIN" "$MAIN" || { echo 'ERROR: Server logic changed'; exit 1; }
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.18/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.18');/" "$MAIN"
+
+          php -l "$MAIN"
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+
+          python3 - "$MAIN" "$BASE_CSS" "$CSS" <<'PY'
+          import sys
+          from pathlib import Path
+          main=Path(sys.argv[1]).read_text(encoding='utf-8')
+          base=Path(sys.argv[2]).read_text(encoding='utf-8')
+          css=Path(sys.argv[3]).read_text(encoding='utf-8')
+          assert 'Version: 1.1.18' in main
+          assert "define('SLB_VERSION', '1.1.18')" in main
+          assert css.startswith(base), '1.1.18 must only append Merchant editor CSS to 1.1.17'
+          tail=css[len(base):]
+          assert 'ShishaLove 1.1.18 Merchant product-editor action footer fix only' in tail
+          assert 'position:fixed!important' in tail
+          assert 'bottom:calc(var(--safe-bottom) + 10px)!important' in tail
+          assert 'padding-bottom:calc(96px + var(--safe-bottom))!important' in tail
+          assert '.slm-panel.open .slm-quick-scroll' in tail
+          assert 'scrollbar-width:none!important' in tail
+          assert '.slb-' not in tail, 'Customer CSS selector leaked into Merchant-only patch'
+          print('PASS: Merchant editor footer fixed; Customer and Merchant logic frozen')
+          PY
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.18.txt <<'TXT'
+          ShishaLove App Bridge 1.1.18
+
+          WEBVIEW VALIDATION ONLY. Do not update Android APKs yet.
+
+          OWNER LOCKS:
+          - Customer remains frozen at approved 1.1.14.
+          - Merchant logo/menu/navigation/orders/products/stock behaviour remains frozen from approved revisions.
+          - Only Merchant product-editor layout changes in this revision.
+          - CANCEL / UPDATE is anchored above the Android safe area at the bottom of the editor.
+          - The editor form has bottom clearance so fields/categories are never hidden under the action footer.
+          - Quick Picks remains horizontally scrollable but is constrained to the editor width with no visible overflow scrollbar.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.18.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.18.zip > shishalove-app-bridge-1.1.18.zip.sha256)
+
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.18
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish permanent WordPress installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.18'
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title 'ShishaLove App Bridge 1.1.18' --notes 'Merchant product-editor action-footer correction only. Customer and Merchant logic frozen. No Android APK update yet.' --target shishalove-main
+          fi
+          gh release upload "$TAG" dist/shishalove-app-bridge-1.1.18.zip dist/shishalove-app-bridge-1.1.18.zip.sha256 --clobber
