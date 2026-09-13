@@ -1,0 +1,115 @@
+name: ShishaLove Bridge 1.1.16 Merchant Menu Logo Size Validation
+
+on:
+  push:
+    branches:
+      - shishalove-main
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.16.py'
+      - '.github/workflows/shishalove-bridge-1.1.16.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-bridge:
+    name: Freeze Customer and Merchant behaviour; resize menu logo only
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build 1.1.15 baseline and 1.1.16 size-only candidate
+        run: |
+          set -euo pipefail
+          rm -rf baseline package dist
+          mkdir -p baseline package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge baseline/shishalove-app-bridge
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.15.py baseline/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.16.py package/shishalove-app-bridge
+
+          BASE_CUSTOMER='baseline/shishalove-app-bridge/assets/customer.js'
+          BASE_MERCHANT='baseline/shishalove-app-bridge/assets/merchant.js'
+          BASE_MAIN='baseline/shishalove-app-bridge/shishalove-app-bridge.php'
+          BASE_CSS='baseline/shishalove-app-bridge/assets/bridge.css'
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          # Hard regression locks: all implementation files except CSS must be byte-identical to 1.1.15.
+          cmp --silent "$BASE_CUSTOMER" "$CUSTOMER" || { echo 'ERROR: Customer changed'; exit 1; }
+          cmp --silent "$BASE_MERCHANT" "$MERCHANT" || { echo 'ERROR: Merchant JS/behaviour changed'; exit 1; }
+          cmp --silent "$BASE_MAIN" "$MAIN" || { echo 'ERROR: PHP/server behaviour changed'; exit 1; }
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.16/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.16');/" "$MAIN"
+
+          php -l "$MAIN"
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+
+          python3 - "$BASE_CSS" "$CSS" "$MAIN" "$CUSTOMER" "$MERCHANT" <<'PY'
+          import sys
+          from pathlib import Path
+          base_css=Path(sys.argv[1]).read_text(encoding='utf-8')
+          css=Path(sys.argv[2]).read_text(encoding='utf-8')
+          main=Path(sys.argv[3]).read_text(encoding='utf-8')
+          customer=Path(sys.argv[4]).read_text(encoding='utf-8')
+          merchant=Path(sys.argv[5]).read_text(encoding='utf-8')
+
+          assert css.startswith(base_css), '1.1.16 CSS must be additive only'
+          tail=css[len(base_css):]
+          assert 'ShishaLove 1.1.16 Merchant side-menu logo size only' in tail
+          assert '.slm-menu-logo .slm-merchant-brand-lock' in tail
+          assert 'width:142px!important' in tail
+          assert '.slm-menu-logo .slm-merchant-wordmark img' in tail
+          assert 'Version: 1.1.16' in main
+          assert "define('SLB_VERSION', '1.1.16')" in main
+          assert "BUILD='1.1.14'" in customer
+          assert 'merchantMenu' in merchant and 'orderPanel' in merchant
+          assert 'slm-merchant-brand-lock' in merchant
+          print('PASS: 1.1.16 changes only Merchant side-menu logo size; Customer and Merchant behaviour frozen')
+          PY
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.16.txt <<'TXT'
+          ShishaLove App Bridge 1.1.16
+
+          WEBVIEW VALIDATION ONLY. Do not update Android APKs until owner approval.
+
+          OWNER LOCKS:
+          - Customer remains frozen at approved 1.1.14 implementation.
+          - Merchant JS/navigation/orders/products/stock/login/header behaviour remains identical to validated 1.1.15.
+          - The only change is Merchant side-menu logo sizing: constrained to a compact 142px width so it no longer overflows/crops the drawer.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.16.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.16.zip > shishalove-app-bridge-1.1.16.zip.sha256)
+
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.16
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish permanent WordPress installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.16'
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title 'ShishaLove App Bridge 1.1.16' --notes 'Merchant WebView size-only correction. Customer and Merchant behaviour frozen. No Android APK update yet.' --target shishalove-main
+          fi
+          gh release upload "$TAG" dist/shishalove-app-bridge-1.1.16.zip dist/shishalove-app-bridge-1.1.16.zip.sha256 --clobber
