@@ -1,0 +1,138 @@
+name: ShishaLove Bridge 1.1.15 Merchant Branding Validation
+
+on:
+  push:
+    branches:
+      - shishalove-main
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.15.py'
+      - 'shishalove-branding/customer-wordmark-exact-1.1.14.part*'
+      - '.github/workflows/shishalove-bridge-1.1.15.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-bridge:
+    name: Freeze Customer 1.1.14 and validate Merchant branding
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build approved Customer baseline and Merchant candidate
+        run: |
+          set -euo pipefail
+          rm -rf baseline package dist
+          mkdir -p baseline package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge baseline/shishalove-app-bridge
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.14.py baseline/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.15.py package/shishalove-app-bridge
+
+          BASE_CUSTOMER='baseline/shishalove-app-bridge/assets/customer.js'
+          BASE_MAIN='baseline/shishalove-app-bridge/shishalove-app-bridge.php'
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          # Hard owner lock: Customer implementation must remain byte-identical to approved 1.1.14.
+          cmp --silent "$BASE_CUSTOMER" "$CUSTOMER" || { echo 'ERROR: Customer 1.1.14 changed'; exit 1; }
+
+          # Customer PHP logic must also remain identical before package version metadata is changed.
+          cmp --silent "$BASE_MAIN" "$MAIN" || { echo 'ERROR: Customer/server logic changed in Merchant-only revision'; exit 1; }
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.15/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.15');/" "$MAIN"
+
+          php -l "$MAIN"
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+
+          python3 - "$MAIN" "$CUSTOMER" "$MERCHANT" "$CSS" <<'PY'
+          import base64, hashlib, sys
+          from pathlib import Path
+
+          main=Path(sys.argv[1]).read_text(encoding='utf-8')
+          customer=Path(sys.argv[2]).read_text(encoding='utf-8')
+          merchant=Path(sys.argv[3]).read_text(encoding='utf-8')
+          css=Path(sys.argv[4]).read_text(encoding='utf-8')
+
+          parts=sorted(Path('shishalove-branding').glob('customer-wordmark-exact-1.1.14.part*'))
+          assert len(parts)==6
+          wordmark_b64=''.join(p.read_text().strip() for p in parts)
+          wordmark_raw=base64.b64decode(wordmark_b64)
+          assert hashlib.sha256(wordmark_raw).hexdigest()=='a2ef59bc4a09e339246ae2e5ef77089097eb2056d833c1a163c3a481e8a7bfb9'
+
+          # Package metadata only.
+          assert 'Version: 1.1.15' in main
+          assert "define('SLB_VERSION', '1.1.15')" in main
+
+          # Frozen Customer 1.1.14 contract remains present and unchanged.
+          assert "BUILD='1.1.14'" in customer
+          assert ('data:image/png;base64,'+wordmark_b64) in customer
+          assert 'slb-drawer-owner-logo-exact' in customer
+          assert 'brandPagerMarkup' in customer and 'Next brands' in customer
+          assert 'Price: Low to High' in customer and 'Price: High to Low' in customer
+          assert "return ['purchases','DESC']" in customer
+          lock=main[main.index('function slb_collection_all'):main.index('function slb_customer_bootstrap_data')]
+          preferred=lock[lock.index('$preferred = array('):lock.index(');',lock.index('$preferred = array('))]
+          for forbidden in ['KRAKEN','FRNKN STEIN','Shishalove','Wind Cover']:
+              assert forbidden not in preferred
+              assert forbidden in lock
+
+          # Merchant-only branding contract.
+          assert ('var MERCHANT_WORDMARK='+repr('data:image/png;base64,'+wordmark_b64)) in merchant
+          assert 'slm-merchant-brand-lock' in merchant
+          assert 'slm-merchant-wordmark' in merchant
+          assert 'slm-merchant-red-band' in merchant
+          assert '<small>Merchant</small>' not in merchant
+          assert '<div>MERCHANT BETA</div>' not in merchant
+          assert 'merchantMenu' in merchant and 'orderPanel' in merchant
+          assert 'ShishaLove 1.1.15 Merchant-only exact brand lock' in css
+          print('PASS: Customer 1.1.14 frozen; Merchant 1.1.15 branding validated')
+          PY
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.15.txt <<'TXT'
+          ShishaLove App Bridge 1.1.15
+
+          WEBVIEW VALIDATION ONLY. Do not update Android APKs until owner approval.
+
+          OWNER LOCKS:
+          - Customer is frozen at approved 1.1.14 implementation and is byte-checked against that baseline.
+          - No Customer layout, logo, Hookah catalogue, sorting, Recommended, navigation or functionality changes.
+          - Merchant header and Merchant login now use the exact approved ShishaLove script artwork rather than CFG.logo/site-icon/fallback text.
+          - Merchant branding uses a black ShishaLove wordmark field with a red MERCHANT band so it is readable in the Merchant UI.
+          - Merchant menu and native order-detail behaviour are preserved.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.15.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.15.zip > shishalove-app-bridge-1.1.15.zip.sha256)
+
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.15
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish permanent WordPress installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.15'
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title 'ShishaLove App Bridge 1.1.15' --notes 'Merchant-only WebView validation. Customer 1.1.14 is frozen and byte-checked. No Android APK update yet.' --target shishalove-main
+          fi
+          gh release upload "$TAG" dist/shishalove-app-bridge-1.1.15.zip dist/shishalove-app-bridge-1.1.15.zip.sha256 --clobber
