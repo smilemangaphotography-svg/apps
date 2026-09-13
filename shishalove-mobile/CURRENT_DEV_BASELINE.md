@@ -8,6 +8,7 @@ This branch intentionally continues the installed Android dev lineage recovered 
 - Merchant: `eu.shishalove.merchant.dev`
 - Do not replace these with release package IDs for beta/test APKs.
 - Do not remove `applicationIdSuffix '.dev'` from the debug build type.
+- Customer and Merchant beta builds must use the repository's stable ShishaLove beta signing identity so later beta APKs remain upgrade-compatible with this stabilized lineage.
 
 ## Current beta versions
 
@@ -35,4 +36,4 @@ Merchant branding is separate from Customer branding:
 
 ## Build discipline
 
-Before publishing a beta APK, CI must verify the package lineage/version markers, JavaScript syntax and Merchant icon lock. A failing guard means the beta is not publishable.
+Before publishing a beta APK, CI must verify the package lineage/version markers, stable signing configuration, JavaScript syntax and Merchant icon lock. A failing guard means the beta is not publishable.
