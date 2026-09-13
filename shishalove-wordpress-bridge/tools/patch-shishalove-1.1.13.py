@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import base64
 import re
 import subprocess
 import sys
@@ -9,7 +10,6 @@ if len(sys.argv) != 2:
 
 root = Path(sys.argv[1])
 tools = Path(__file__).resolve().parent
-repo_root = tools.parent.parent
 
 # Start from the live-tested 1.1.12 bridge, then apply only the two
 # owner-confirmed corrections from the latest web-view screenshots.
@@ -18,6 +18,7 @@ subprocess.check_call([sys.executable, str(tools / 'patch-shishalove-1.1.12.py')
 js_path = root / 'assets' / 'customer.js'
 css_path = root / 'assets' / 'bridge.css'
 php_path = root / 'shishalove-app-bridge.php'
+logo_path = root / 'assets' / 'customer-drawer-logo.png'
 
 js = js_path.read_text(encoding='utf-8')
 css = css_path.read_text(encoding='utf-8')
@@ -41,9 +42,11 @@ def sub_once(text, pattern, repl, label):
 js = replace_once(js, "var BUILD='1.1.12';", "var BUILD='1.1.13';", 'customer build key')
 
 # OWNER LOGO LOCK
-# Use the exact uploaded third-image artwork (black field + white ShishaLove + red heart),
-# stored as a repository source asset. Do not fall back to launcher artwork or site icon.
-logo_b64 = (repo_root / 'shishalove-branding' / 'customer-drawer-logo-1.1.13.b64').read_text(encoding='utf-8').strip()
+# Use the exact uploaded third-image artwork now stored as a real binary PNG in
+# the plugin source. Never fall back to the launcher icon or WordPress site icon.
+if not logo_path.exists():
+    raise SystemExit('1.1.13 patch failed: exact customer drawer logo binary is missing')
+logo_b64 = base64.b64encode(logo_path.read_bytes()).decode('ascii')
 logo_data = 'data:image/png;base64,' + logo_b64
 js = sub_once(
     js,
