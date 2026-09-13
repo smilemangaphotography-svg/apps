@@ -1,5 +1,4 @@
-name: ShishaLove Public Downloads 1.1.9
-# Rebuild stamp: 2026-09-13 — repeat canonical repository build on user request
+name: ShishaLove Public Downloads 1.1.11
 
 on:
   push:
@@ -16,7 +15,7 @@ permissions:
 
 jobs:
   publish-android:
-    name: Build and publish canonical Android installers
+    name: Build and publish canonical Android update installers
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -27,17 +26,20 @@ jobs:
           set -euo pipefail
           grep -q "applicationId 'eu.shishalove.customer'" shishalove-mobile/customer/build.gradle
           grep -q "applicationId 'eu.shishalove.merchant'" shishalove-mobile/merchant/build.gradle
-          grep -q "versionCode 119" shishalove-mobile/customer/build.gradle
-          grep -q "versionName '1.1.9'" shishalove-mobile/customer/build.gradle
-          grep -q "versionCode 119" shishalove-mobile/merchant/build.gradle
-          grep -q "versionName '1.1.9'" shishalove-mobile/merchant/build.gradle
+          grep -q "versionCode 120" shishalove-mobile/customer/build.gradle
+          grep -q "versionName '1.1.11'" shishalove-mobile/customer/build.gradle
+          grep -q "versionCode 120" shishalove-mobile/merchant/build.gradle
+          grep -q "versionName '1.1.11'" shishalove-mobile/merchant/build.gradle
           grep -q "signingConfig signingConfigs.beta" shishalove-mobile/customer/build.gradle
           grep -q "signingConfig signingConfigs.beta" shishalove-mobile/merchant/build.gradle
+          grep -q "shishalove-beta-keystore.b64" shishalove-mobile/customer/build.gradle
+          grep -q "shishalove-beta-keystore.b64" shishalove-mobile/merchant/build.gradle
           grep -q "merchant-icon.b64.part" shishalove-mobile/merchant/build.gradle
           grep -q "red MERCHANT band" shishalove-mobile/merchant/build.gradle
           grep -q 'POST_NOTIFICATIONS' shishalove-mobile/merchant/src/main/AndroidManifest.xml
           grep -q 'notifyOrder' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
           grep -q 'isCanonicalBridge' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java
+          grep -q 'Never create a replacement package' shishalove-wordpress-bridge/design-lock/SHISHALOVE_CUSTOMER_1_1_LOCK.md
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -60,7 +62,7 @@ jobs:
         working-directory: shishalove-mobile
         run: gradle :customer:assembleRelease :merchant:assembleRelease --stacktrace
 
-      - name: Verify canonical APK identities
+      - name: Verify canonical APK identities and artwork
         run: |
           set -euo pipefail
           CUSTOMER='shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk'
@@ -69,8 +71,10 @@ jobs:
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
           "$APKSIGNER" verify --print-certs "$CUSTOMER"
           "$APKSIGNER" verify --print-certs "$MERCHANT"
-          "$AAPT" dump badging "$CUSTOMER" | grep -q "package: name='eu.shishalove.customer' versionCode='119' versionName='1.1.9'"
-          "$AAPT" dump badging "$MERCHANT" | grep -q "package: name='eu.shishalove.merchant' versionCode='119' versionName='1.1.9'"
+          "$AAPT" dump badging "$CUSTOMER" | grep -q "package: name='eu.shishalove.customer' versionCode='120' versionName='1.1.11'"
+          "$AAPT" dump badging "$MERCHANT" | grep -q "package: name='eu.shishalove.merchant' versionCode='120' versionName='1.1.11'"
+          ! "$AAPT" dump badging "$CUSTOMER" | grep -q 'eu.shishalove.customer.dev'
+          ! "$AAPT" dump badging "$MERCHANT" | grep -q 'eu.shishalove.merchant.dev'
           python3 - <<'PY'
           import base64, pathlib, struct
           parts = sorted(pathlib.Path('shishalove-branding').glob('merchant-icon.b64.part*'))
@@ -86,32 +90,57 @@ jobs:
           print('Merchant locked red-band launcher verified at 512x512')
           PY
 
-      - name: Prepare public installers
+      - name: Prove normal update compatibility with 1.1.9
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/previous
+          gh release download shishalove-mobile-1.1.9 \
+            --pattern 'ShishaLove-Customer-Android-1.1.9.apk' \
+            --pattern 'ShishaLove-Merchant-Android-1.1.9.apk' \
+            --dir dist/previous
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
+          OLD_CUSTOMER="$(digest dist/previous/ShishaLove-Customer-Android-1.1.9.apk)"
+          NEW_CUSTOMER="$(digest shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk)"
+          OLD_MERCHANT="$(digest dist/previous/ShishaLove-Merchant-Android-1.1.9.apk)"
+          NEW_MERCHANT="$(digest shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk)"
+          test -n "$OLD_CUSTOMER" && test "$OLD_CUSTOMER" = "$NEW_CUSTOMER"
+          test -n "$OLD_MERCHANT" && test "$OLD_MERCHANT" = "$NEW_MERCHANT"
+          echo "Customer 1.1.9 -> 1.1.11 signing continuity verified: $NEW_CUSTOMER"
+          echo "Merchant 1.1.9 -> 1.1.11 signing continuity verified: $NEW_MERCHANT"
+
+      - name: Prepare public update installers
         run: |
           set -euo pipefail
           mkdir -p dist/public
-          cp shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk dist/public/ShishaLove-Customer-Android-1.1.9.apk
-          cp shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk dist/public/ShishaLove-Merchant-Android-1.1.9.apk
+          cp shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk dist/public/ShishaLove-Customer-Android-1.1.11.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk dist/public/ShishaLove-Merchant-Android-1.1.11.apk
           sha256sum dist/public/*.apk > dist/public/SHA256SUMS.txt
           cat > dist/public/RELEASE_NOTES.md <<'TXT'
-          # ShishaLove Mobile 1.1.9
+          # ShishaLove Mobile 1.1.11
 
-          **Customer 1.1.9**
-          - canonical `/shishalove-app/` bridge is protected inside MainActivity itself
-          - legacy website DOM scripts are never injected into the canonical customer page
-          - repeated progress-event JavaScript injection removed
-          - scrolling, age-gate duplication and slow refresh regression hardened
-          - canonical bridge keeps official WordPress logo and numeric price sorting
+          This is the canonical **in-place update line** from 1.1.9.
 
-          **Merchant 1.1.9**
-          - exact locked Merchant launcher artwork from `shishalove-branding/merchant-icon.b64.part*`: black background, white ShishaLove mark, red heart and red MERCHANT band
-          - canonical package is `eu.shishalove.merchant` (no `.dev` suffix)
-          - release APK is signed with the stable ShishaLove signing identity
-          - versionCode 119 establishes the permanent forward update line
+          **Customer 1.1.11**
+          - package remains `eu.shishalove.customer`
+          - versionCode increased from 119 to 120
+          - same permanent signing certificate as canonical 1.1.9
+          - Customer launcher artwork remains unchanged
+          - wrapper remains a thin container for the canonical `/shishalove-app/` WordPress Bridge
 
-          The Customer launcher icon is intentionally unchanged.
+          **Merchant 1.1.11**
+          - package remains `eu.shishalove.merchant`
+          - versionCode increased from 119 to 120
+          - same permanent signing certificate as canonical 1.1.9
+          - locked Merchant launcher artwork retained: black background, white ShishaLove mark, red heart, red MERCHANT band
+          - Merchant wrapper continues to load the canonical WordPress Bridge
 
-          If an old Merchant beta was installed from an earlier ephemeral/debug-signed build, Android cannot cryptographically update that old package. If Android reports a signature conflict, uninstall the old Merchant app once and install 1.1.9. From this canonical line onward, future builds retain the same package/signing identity.
+          **Update rule**
+          Android should present these APKs as **Update**, not require removing the installed canonical 1.1.9 app. Do not uninstall the existing canonical app as a normal update step. If a device does not offer an update, stop and verify which historical package/signing identity is installed rather than deleting app data.
+
+          Install/activate ShishaLove App Bridge 1.1.11 in WordPress first so the updated Customer and Merchant runtime fixes are live.
           TXT
 
       - name: Publish permanent GitHub release
@@ -119,12 +148,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG='shishalove-mobile-1.1.9'
-          TITLE='ShishaLove Mobile 1.1.9'
-          ASSETS=(dist/public/ShishaLove-Customer-Android-1.1.9.apk dist/public/ShishaLove-Merchant-Android-1.1.9.apk dist/public/SHA256SUMS.txt)
+          TAG='shishalove-mobile-1.1.11'
+          TITLE='ShishaLove Mobile 1.1.11 — In-place Update'
+          ASSETS=(dist/public/ShishaLove-Customer-Android-1.1.11.apk dist/public/ShishaLove-Merchant-Android-1.1.11.apk dist/public/SHA256SUMS.txt)
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${ASSETS[@]}" --clobber
-            gh release edit "$TAG" --title "$TITLE" --notes-file dist/public/RELEASE_NOTES.md
+            gh release edit "$TAG" --title "$TITLE" --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
           else
             gh release create "$TAG" "${ASSETS[@]}" --title "$TITLE" --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
           fi
@@ -132,4 +161,4 @@ jobs:
       - name: Confirm public asset URLs
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release view shishalove-mobile-1.1.9 --json url,assets
+        run: gh release view shishalove-mobile-1.1.11 --json url,assets
