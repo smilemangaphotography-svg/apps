@@ -1,0 +1,105 @@
+name: ShishaLove Bridge 1.1.19 Merchant Search Spacing Validation
+
+on:
+  push:
+    branches:
+      - shishalove-main
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.19.py'
+      - '.github/workflows/shishalove-bridge-1.1.19.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-bridge:
+    name: Freeze approved app; fix Merchant search spacing only
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build 1.1.18 baseline and 1.1.19 candidate
+        run: |
+          set -euo pipefail
+          rm -rf baseline package dist
+          mkdir -p baseline package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge baseline/shishalove-app-bridge
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.18.py baseline/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.19.py package/shishalove-app-bridge
+
+          BASE_CUSTOMER='baseline/shishalove-app-bridge/assets/customer.js'
+          BASE_MERCHANT='baseline/shishalove-app-bridge/assets/merchant.js'
+          BASE_MAIN='baseline/shishalove-app-bridge/shishalove-app-bridge.php'
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          # Hard lock: Customer, Merchant logic and server behaviour stay identical.
+          cmp --silent "$BASE_CUSTOMER" "$CUSTOMER" || { echo 'ERROR: Customer changed'; exit 1; }
+          cmp --silent "$BASE_MERCHANT" "$MERCHANT" || { echo 'ERROR: Merchant logic changed'; exit 1; }
+          cmp --silent "$BASE_MAIN" "$MAIN" || { echo 'ERROR: Server logic changed'; exit 1; }
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.19/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.19');/" "$MAIN"
+
+          php -l "$MAIN"
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+
+          python3 - "$MAIN" "$CSS" <<'PY'
+          import sys
+          from pathlib import Path
+          main=Path(sys.argv[1]).read_text(encoding='utf-8')
+          css=Path(sys.argv[2]).read_text(encoding='utf-8')
+          assert 'Version: 1.1.19' in main
+          assert "define('SLB_VERSION', '1.1.19')" in main
+          assert 'ShishaLove 1.1.19 Merchant Products/Stock search-row edge spacing only' in css
+          assert 'grid-template-columns:minmax(0,1fr) 108px!important' in css
+          assert '.slm-page .slm-search button' in css
+          assert 'width:100%!important' in css
+          print('PASS: Merchant search row constrained inside page padding; all other code frozen')
+          PY
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.19.txt <<'TXT'
+          ShishaLove App Bridge 1.1.19
+
+          WEBVIEW VALIDATION ONLY. Do not update Android APKs yet.
+
+          OWNER LOCKS:
+          - Customer remains frozen at the approved state.
+          - Merchant logo/menu/orders/products/editor remain frozen.
+          - Only Merchant Products/Stock search-row edge spacing is corrected.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.19.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.19.zip > shishalove-app-bridge-1.1.19.zip.sha256)
+
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.19
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish permanent WordPress installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.19'
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title 'ShishaLove App Bridge 1.1.19' --notes 'Merchant Products/Stock search spacing correction only. Customer and Merchant logic frozen. No Android APK update yet.' --target shishalove-main
+          fi
+          gh release upload "$TAG" dist/shishalove-app-bridge-1.1.19.zip dist/shishalove-app-bridge-1.1.19.zip.sha256 --clobber
