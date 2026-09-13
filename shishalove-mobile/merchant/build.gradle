@@ -27,8 +27,8 @@ android {
         applicationId 'eu.shishalove.merchant'
         minSdk 24
         targetSdk 35
-        versionCode 124
-        versionName '1.1.22'
+        versionCode 125
+        versionName '1.1.23'
     }
 
     buildTypes {
@@ -44,9 +44,10 @@ android {
     }
 }
 
-// PERMANENT OWNER LOCK — approved Merchant launcher artwork:
-// black launcher background with centered white ShishaLove/hookah, red heart,
-// and red MERCHANT band. The mipmap layer-list is the approved Android framing.
+// PERMANENT OWNER LOCK — Merchant launcher only.
+// Keep the exact approved 512x512 ShishaLove Merchant source artwork, but generate:
+// 1) a transparent, safely inset adaptive foreground for modern Android launchers, and
+// 2) a rounded transparent legacy icon so no launcher can show a sharp black square.
 def materializeMerchantLauncherIcon = tasks.register('materializeMerchantLauncherIcon') {
     doLast {
         def brandingDir = rootProject.file('../shishalove-branding')
@@ -72,9 +73,76 @@ def materializeMerchantLauncherIcon = tasks.register('materializeMerchantLaunche
             throw new GradleException("Permanent Merchant launcher source must stay 512x512, got ${width}x${height}")
         }
 
-        def output = file('src/main/res/drawable-nodpi/ic_shishalove_merchant.png')
-        output.parentFile.mkdirs()
-        output.bytes = raw
+        def sourceImage = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(raw))
+        if (sourceImage == null || sourceImage.width != 512 || sourceImage.height != 512) {
+            throw new GradleException('Unable to decode permanent Merchant launcher source')
+        }
+
+        def outputDir = file('src/main/res/drawable-nodpi')
+        outputDir.mkdirs()
+
+        // Keep an exact decoded copy for audit/verification only.
+        def sourceOutput = new File(outputDir, 'ic_shishalove_merchant.png')
+        sourceOutput.bytes = raw
+
+        // Adaptive foreground: remove the black canvas from the exact artwork and
+        // scale the visible logo into Android's safe region. The adaptive icon background
+        // stays black in mipmap-anydpi-v26, so Samsung/Pixel/etc. can apply their own mask.
+        def extracted = new java.awt.image.BufferedImage(512, 512, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        int visiblePixels = 0
+        for (int y = 0; y < 512; y++) {
+            for (int x = 0; x < 512; x++) {
+                int argb = sourceImage.getRGB(x, y)
+                int a = (argb >>> 24) & 0xff
+                int r = (argb >>> 16) & 0xff
+                int g = (argb >>> 8) & 0xff
+                int b = argb & 0xff
+                if (a == 0 || (r < 20 && g < 20 && b < 20)) {
+                    extracted.setRGB(x, y, 0x00000000)
+                } else {
+                    extracted.setRGB(x, y, argb)
+                    visiblePixels++
+                }
+            }
+        }
+        if (visiblePixels < 1000) throw new GradleException('Merchant adaptive foreground extraction failed')
+
+        def adaptive = new java.awt.image.BufferedImage(512, 512, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        def ag = adaptive.createGraphics()
+        ag.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+        ag.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY)
+        ag.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+        int adaptiveSize = 384
+        int adaptiveOffset = (512 - adaptiveSize) / 2
+        ag.drawImage(extracted, adaptiveOffset, adaptiveOffset, adaptiveSize, adaptiveSize, null)
+        ag.dispose()
+        def adaptiveOutput = new File(outputDir, 'ic_shishalove_merchant_art.png')
+        javax.imageio.ImageIO.write(adaptive, 'png', adaptiveOutput)
+
+        // Legacy/fallback icon: exact artwork on black, clipped to a real rounded-square
+        // with transparent corners. This permanently prevents the sharp-square fallback
+        // seen on the Samsung launcher while preserving the exact logo.
+        def legacy = new java.awt.image.BufferedImage(512, 512, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        def lg = legacy.createGraphics()
+        lg.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+        lg.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY)
+        lg.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+        def rounded = new java.awt.geom.RoundRectangle2D.Float(0f, 0f, 512f, 512f, 224f, 224f)
+        lg.setClip(rounded)
+        lg.setColor(java.awt.Color.BLACK)
+        lg.fillRect(0, 0, 512, 512)
+        int legacySize = 448
+        int legacyOffset = (512 - legacySize) / 2
+        lg.drawImage(sourceImage, legacyOffset, legacyOffset, legacySize, legacySize, null)
+        lg.dispose()
+        if (((legacy.getRGB(0, 0) >>> 24) & 0xff) != 0) {
+            throw new GradleException('Merchant legacy icon corner must stay transparent')
+        }
+        if (((legacy.getRGB(256, 256) >>> 24) & 0xff) == 0) {
+            throw new GradleException('Merchant legacy icon center unexpectedly transparent')
+        }
+        def legacyOutput = new File(outputDir, 'ic_shishalove_merchant_legacy.png')
+        javax.imageio.ImageIO.write(legacy, 'png', legacyOutput)
     }
 }
 
