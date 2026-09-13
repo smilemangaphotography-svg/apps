@@ -1,4 +1,4 @@
-name: ShishaLove Bridge 1.1.8 Canonical
+name: ShishaLove Bridge 1.1.9 Canonical
 
 on:
   push:
@@ -9,6 +9,8 @@ on:
       - 'shishalove-wordpress-bridge/tools/patch-customer-1.1.7-rc2.py'
       - 'shishalove-wordpress-bridge/tools/run-customer-1.1.7-rc2.py'
       - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.8.py'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.9.py'
+      - 'shishalove-wordpress-bridge/design-lock/SHISHALOVE_CUSTOMER_1_1_LOCK.md'
       - '.github/workflows/shishalove-bridge-1.1.7.yml'
   workflow_dispatch:
 
@@ -17,7 +19,7 @@ permissions:
 
 jobs:
   build-bridge:
-    name: Validate and package 1.1.8
+    name: Validate and package 1.1.9
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -35,33 +37,44 @@ jobs:
           rm -rf package dist
           mkdir -p package dist
           cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
-          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.8.py package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.9.py package/shishalove-app-bridge
 
           MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
           CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
           MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
           CSS='package/shishalove-app-bridge/assets/bridge.css'
 
-          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.8/' "$MAIN"
-          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.8');/" "$MAIN"
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.9/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.9');/" "$MAIN"
 
           php -l "$MAIN"
           node --check "$CUSTOMER"
           node --check "$MERCHANT"
 
-          grep -q "Version: 1.1.8" "$MAIN"
-          grep -q "define('SLB_VERSION', '1.1.8')" "$MAIN"
-          grep -q "BUILD='1.1.8'" "$CUSTOMER"
+          grep -q "Version: 1.1.9" "$MAIN"
+          grep -q "define('SLB_VERSION', '1.1.9')" "$MAIN"
+          grep -q "BUILD='1.1.9'" "$CUSTOMER"
+          grep -q "neutralizeLegacyWrapper" "$CUSTOMER"
+          grep -q "legacySafeLabel" "$CUSTOMER"
+          grep -q "__sl114obs" "$CUSTOMER"
+          grep -q "__sl115Obs" "$CUSTOMER"
+          grep -q "__sl115RouteCapture" "$CUSTOMER"
+          grep -q 'aria-label=\\"Navigation\\"' "$CUSTOMER"
+          ! grep -q 'aria-label=\\"Menu\\">☰' "$CUSTOMER"
           grep -q "slb-age-ok-stable" "$CUSTOMER"
+          grep -q "Age confirmation is required to enter this shop" "$CUSTOMER"
           grep -q "document.body.style.overflow=''" "$CUSTOMER"
           grep -q "Price: Low to High" "$CUSTOMER"
           grep -q "Price: High to Low" "$CUSTOMER"
           grep -q "Recommended order" "$CUSTOMER"
           grep -q "Recent Arrivals" "$CUSTOMER"
+          grep -q "numericProductPrice" "$CUSTOMER"
           grep -q "productCategoryShortcuts" "$CUSTOMER"
           grep -q "meta_type.*NUMERIC" "$MAIN"
           grep -q "price_value" "$MAIN"
-          grep -q "slb-product-detail-image" "$CSS"
+          grep -q "slb-menu-lines" "$CSS"
+          grep -q "safe-area-inset-bottom" "$CSS"
+          grep -q "#sl114-drawer" "$CSS"
           ! grep -q "Last 7 days" "$CUSTOMER"
           ! grep -q "Last 30 days" "$CUSTOMER"
           ! grep -q "Before 30 days" "$CUSTOMER"
@@ -70,35 +83,38 @@ jobs:
           grep -q "Quick Picks (Most Used)" "$MERCHANT"
           ! grep -q "Laser Engravable Products" "$MERCHANT"
 
-          cat > package/shishalove-app-bridge/INSTALL-1.1.8.txt <<'TXT'
-          ShishaLove App Bridge 1.1.8
+          cat > package/shishalove-app-bridge/INSTALL-1.1.9.txt <<'TXT'
+          ShishaLove App Bridge 1.1.9
+
+          This is the customer-runtime update. No Customer APK reinstall is required
+          for these UI/runtime corrections.
 
           In WordPress, open Plugins > Add New Plugin > Upload Plugin.
-          Select shishalove-app-bridge-1.1.8.zip without extracting it.
+          Select shishalove-app-bridge-1.1.9.zip without extracting it.
           Install, then choose Replace current with uploaded if prompted.
           Activate if needed. Keep the existing WooCommerce data.
 
-          Confirm /wp-json/shishalove/v1/status reports version 1.1.8.
-          Live Customer/Merchant and Samsung A54 testing is still required.
+          Confirm /wp-json/shishalove/v1/status reports version 1.1.9.
+          Force-close and reopen the Customer app once after installation.
 
-          Customer regression lock:
-          - bridge-native navigation only; no website-category fallback in the Android app
-          - official WordPress custom logo is authoritative
-          - stable one-time age confirmation migrated from previous builds
-          - body scrolling is explicitly restored after drawer/navigation changes
-          - cached bootstrap renders immediately without a second full-page redraw
-          - Recommended + Recent Arrivals home feed only
-          - numeric Price Low-to-High / High-to-Low sorting
-          - 1:1 product detail imagery and category shortcuts
-          - working pagination and in-stock filtering
+          1.1.9 regression lock:
+          - bridge remains the Customer UI/runtime authority
+          - old APK phone-polish observers/drawers/age overlays are neutralized
+          - category taps remain bridge-native and cannot be hijacked to website category pages
+          - Wookah/category Low→High and High→Low use numeric WooCommerce price sorting
+          - Recommended/Home price sorting is defensively ordered on the visible page
+          - one persistent bridge age gate only
+          - official WordPress custom logo remains authoritative
+          - drawer has Android/iOS bottom safe-area padding
+          - customer body scrolling is restored after drawer/navigation changes
+          - versioned caches are invalidated for this runtime
 
-          Merchant behavior remains WooCommerce-authoritative.
+          Merchant launcher icon is an Android package resource and cannot be changed
+          by a WordPress Bridge update. Customer runtime/UI changes belong here.
           TXT
 
-          # WordPress only descends into the plugin folder when it is the sole
-          # top-level entry. A sibling INSTALL file makes plugin detection fail.
-          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.8.zip shishalove-app-bridge)
-          python3 - dist/shishalove-app-bridge-1.1.8.zip <<'PY'
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.9.zip shishalove-app-bridge)
+          python3 - dist/shishalove-app-bridge-1.1.9.zip <<'PY'
           import re
           import sys
           import zipfile
@@ -112,20 +128,24 @@ jobs:
               assert all(not path.is_absolute() and '..' not in path.parts for path in paths)
               assert {path.parts[0] for path in paths} == {'shishalove-app-bridge'}, 'ZIP must contain exactly one plugin folder'
               main = archive.read('shishalove-app-bridge/shishalove-app-bridge.php').decode('utf-8')
+              customer = archive.read('shishalove-app-bridge/assets/customer.js').decode('utf-8')
               assert re.search(r'^\s*\* Plugin Name: ShishaLove App Bridge\s*$', main, re.M)
-              assert re.search(r'^\s*\* Version: 1\.1\.8\s*$', main, re.M)
-              assert "define('SLB_VERSION', '1.1.8');" in main
+              assert re.search(r'^\s*\* Version: 1\.1\.9\s*$', main, re.M)
+              assert "define('SLB_VERSION', '1.1.9');" in main
+              assert "BUILD='1.1.9'" in customer
+              assert 'neutralizeLegacyWrapper' in customer
+              assert 'legacySafeLabel' in customer
               for asset in ('bridge.css', 'customer.js', 'merchant.js'):
                   assert archive.read('shishalove-app-bridge/assets/' + asset), 'Empty runtime asset'
-          print('WordPress plugin ZIP structure and version verified')
+          print('WordPress plugin ZIP structure, runtime guard and version verified')
           PY
-          (cd dist && sha256sum shishalove-app-bridge-1.1.8.zip > SHA256SUMS.txt)
-          cp dist/SHA256SUMS.txt dist/shishalove-app-bridge-1.1.8.zip.sha256
+          (cd dist && sha256sum shishalove-app-bridge-1.1.9.zip > SHA256SUMS.txt)
+          cp dist/SHA256SUMS.txt dist/shishalove-app-bridge-1.1.9.zip.sha256
 
       - name: Upload bridge artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shishalove-app-bridge-1.1.8
+          name: shishalove-app-bridge-1.1.9
           path: dist/
           if-no-files-found: error
           retention-days: 30
@@ -135,7 +155,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release upload shishalove-mobile-1.1.8-beta \
-            dist/shishalove-app-bridge-1.1.8.zip \
-            dist/shishalove-app-bridge-1.1.8.zip.sha256 \
+          if ! gh release view shishalove-bridge-1.1.9 >/dev/null 2>&1; then
+            gh release create shishalove-bridge-1.1.9 --title 'ShishaLove App Bridge 1.1.9' --notes 'Bridge-owned Customer runtime compatibility and regression fixes.'
+          fi
+          gh release upload shishalove-bridge-1.1.9 \
+            dist/shishalove-app-bridge-1.1.9.zip \
+            dist/shishalove-app-bridge-1.1.9.zip.sha256 \
             --clobber
