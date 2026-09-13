@@ -27,8 +27,8 @@ android {
         applicationId 'eu.shishalove.merchant'
         minSdk 24
         targetSdk 35
-        versionCode 120
-        versionName '1.1.11'
+        versionCode 121
+        versionName '1.1.19'
     }
 
     buildTypes {
@@ -39,27 +39,18 @@ android {
         }
         release {
             minifyEnabled false
-            // Canonical Merchant installer. Keep the exact production package name
-            // and one stable signing identity so future APKs update in place.
             signingConfig signingConfigs.beta
         }
     }
 }
 
-// Owner-approved Merchant artwork is stored in the canonical branding bundle as
-// split base64 text: black background, white ShishaLove mark, red heart and red MERCHANT band.
-// Do not use the old 192px merchant_launcher_approved.b64 file: its PNG image stream
-// is corrupt and AAPT/ImageIO cannot decode it reliably.
-// The Customer launcher artwork is separate and must never be touched here.
 def materializeMerchantLauncherIcon = tasks.register('materializeMerchantLauncherIcon') {
     doLast {
         def brandingDir = rootProject.file('../shishalove-branding')
         def parts = fileTree(brandingDir) {
             include 'merchant-icon.b64.part*'
         }.files.sort { a, b -> a.name <=> b.name }
-        if (parts.isEmpty()) {
-            throw new GradleException('Missing locked ShishaLove Merchant launcher artwork')
-        }
+        if (parts.isEmpty()) throw new GradleException('Missing locked ShishaLove Merchant launcher artwork')
         def encoded = parts.collect { it.getText('UTF-8').trim() }.join('')
         def output = file('src/main/res/drawable-nodpi/ic_shishalove_merchant.png')
         output.parentFile.mkdirs()
@@ -67,13 +58,12 @@ def materializeMerchantLauncherIcon = tasks.register('materializeMerchantLaunche
     }
 }
 
-// Keep wrapper metadata in sync with the canonical installable build.
 def lockMerchantRuntimeVersion = tasks.register('lockMerchantRuntimeVersion') {
     doLast {
         def activity = file('src/main/java/eu/shishalove/merchant/MainActivity.java')
         def source = activity.getText('UTF-8')
-        ['build=116','build=118','build=119'].each { oldValue -> source = source.replace(oldValue, 'build=120') }
-        ['ShishaLoveMerchant/1.1.6','ShishaLoveMerchant/1.1.8','ShishaLoveMerchant/1.1.9','ShishaLoveMerchant/1.1.10'].each { oldValue -> source = source.replace(oldValue, 'ShishaLoveMerchant/1.1.11') }
+        ['build=116','build=118','build=119','build=120'].each { oldValue -> source = source.replace(oldValue, 'build=129') }
+        ['ShishaLoveMerchant/1.1.6','ShishaLoveMerchant/1.1.8','ShishaLoveMerchant/1.1.9','ShishaLoveMerchant/1.1.10','ShishaLoveMerchant/1.1.11'].each { oldValue -> source = source.replace(oldValue, 'ShishaLoveMerchant/1.1.19') }
         activity.setText(source, 'UTF-8')
     }
 }
