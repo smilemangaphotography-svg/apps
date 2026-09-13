@@ -34,6 +34,8 @@ Home contains:
 4. Product sorting for the feed: Recommended order / Newest / Price Low→High / Price High→Low / A–Z.
 5. Working product grid, Add to Cart and pagination when more results exist.
 
+Recommended is ranked from real WooCommerce purchase volume (`total_sales`) rather than an arbitrary menu order.
+
 Removed from Home and forbidden unless the owner explicitly asks to restore them:
 - old Shop by Category block,
 - Last 7 days,
@@ -47,12 +49,26 @@ Catalogue discovery belongs in the hamburger drawer and category screens.
 - Hamburger catalogue hierarchy: Hookah, Bowls, Hoses, Accessories, Charcoal, Flavors, Merchandise.
 - Parent category screens may show their live WooCommerce subcategories/brands.
 - **See all means all available live child brands/subcategories**, not an arbitrary short subset.
+- The Hookah brand list is **additive**. Future releases may append newly discovered live brands but must never remove previously visible valid brands just because the WooCommerce taxonomy nests them at a different depth.
+- The previously visible Hookah brand set is specifically protected: **Wookah, Alpha, Steamulation, Union, MIG, El-Badia, Moze, Anima, Gold Miner, YKAP, Mexanika, DIAVLA**, plus DSH and any other live descendants.
+- Hookah discovery must inspect **all descendants at any taxonomy depth**, not only direct children. A direct-child-only query that collapses the page to DSH is a release-blocking regression.
+- When the brand set exceeds one screen, use working **Previous brands / Next brands** pagination without discarding categories.
 - Category product lists are bridge-native, not website pages.
 - Customer lists display in-stock products only.
 - Sort options must actually change data order: Newest / Price Low→High / Price High→Low / A–Z.
 - Price sorting is numeric WooCommerce `_price` ordering, not text ordering. The canonical bridge endpoint is authoritative; do not fall back to a legacy website/WooCommerce dropdown for app sorting.
-- Previous / Next pagination must work whenever more than one page exists.
+- Previous / Next product pagination must work whenever more than one page exists.
 - Refreshing a category keeps/restores the category route instead of returning to Home.
+
+## Locked Customer drawer branding
+
+The black Customer drawer branding approved during the September 13 live validation is locked:
+- white ShishaLove artwork/text,
+- red heart preserved,
+- no forced all-white filter,
+- no replacement by a random website/media logo.
+
+Do not change this accepted drawer treatment in later updates unless the owner explicitly requests a branding change.
 
 ## Locked product detail
 
@@ -86,19 +102,35 @@ Category shortcuts must be tappable and return to bridge-native category pages.
 ## Search / Favorites / Cart / Account
 
 - Search accepts product name, SKU and category; results remain in the app shell.
+- Search must provide functional Newest / Price Low→High / Price High→Low / A–Z sorting.
 - Favorites persist locally.
 - Add to Cart must work from Home, categories, search, favorites and product details.
 - Cart state persists through the WooCommerce session and checkout securely hands off to WooCommerce.
 - Account entry points must preserve the app shell wherever an app-native equivalent exists; never replace the entire customer experience with an unrelated desktop website view.
 
-## Android canonical installer lock
+## Merchant runtime / navigation lock — September 13 owner approval
+
+- The currently approved Merchant header/logo treatment from the validated web view is locked and must not be restyled by unrelated updates.
+- The top-left three-line Merchant hamburger is a real functional control, not decoration. It must open a Merchant navigation drawer and close reliably.
+- Merchant bottom navigation remains Dashboard / Orders / Products / Stock / More.
+- Tapping a Merchant order card must open a **Merchant-native order detail screen inside the app shell**. It must not unexpectedly dump the user into the raw WordPress admin UI.
+- The Merchant-native order detail screen is modeled on the WooCommerce order screen used as the owner reference and must expose at minimum: order number, creation date, status, linked customer/account name where available, payment method, Billing details, Shipping details, billing email/phone, order line items, subtotal/shipping/total, and customer note when present.
+- Order status may be changed from the Merchant-native order detail screen using WooCommerce-valid statuses and the canonical Merchant REST bridge.
+- Android Back / the detail back control returns to Orders without losing the Merchant shell.
+
+## Android canonical installer / in-place update lock
+
+This requirement is permanent and release-blocking:
 
 - Customer canonical package: `eu.shishalove.customer`.
 - Merchant canonical package: `eu.shishalove.merchant`.
+- **Never create a replacement package as a workaround. Never require uninstall/reinstall for a normal future release.**
 - Public/canonical installers are **release APKs**, never `.dev` debug-package APKs presented as final installers.
-- Both canonical release APKs use the stable ShishaLove signing identity. Never return to ephemeral GitHub/Android debug signing.
-- VersionCode must monotonically increase for every canonical installer so Android can update it normally.
-- CI must verify the final APK package name, versionCode/versionName and signature before publishing.
+- Both canonical release APKs use the **same permanent ShishaLove signing identity** across releases. Never return to an ephemeral GitHub/Android debug signing key and never rotate the signing identity casually.
+- Every canonical release must increase `versionCode` monotonically. The next locked update after installed 1.1.9 uses `versionCode 120`.
+- Android must recognize the next release as an **Update** over the installed canonical app, preserving app data/session wherever Android permits it.
+- CI must verify package name, versionCode/versionName and signing certificate before publishing.
+- If CI cannot prove update compatibility, the release is not complete and must not be presented to the owner as installable.
 
 ## Merchant boundary / icon lock
 
@@ -115,19 +147,26 @@ The canonical source is `shishalove-branding/merchant-icon.b64.part*`. It must d
 
 ## Regression gate
 
-A customer build is not complete until all of the following are true on Samsung A54-class portrait Android:
+A release is not complete until all of the following are true on Samsung A54-class portrait Android:
 - Home scroll works.
-- Drawer opens/closes without leaving body scroll locked.
+- Customer drawer opens/closes without leaving body scroll locked.
 - Age confirmation does not reappear after accepted refresh/relaunch.
-- Header shows the official ShishaLove website logo.
+- Customer header shows the official ShishaLove website logo.
+- Customer black drawer preserves the approved white ShishaLove + red-heart branding.
+- Hookah shows the protected previous brand set and all other live nested descendants; it must never collapse to DSH only.
+- Brand Previous / Next controls work whenever brand pages exceed one page.
 - Wookah/Hookah and other category taps remain inside bridge-native category UI.
-- Low→High visibly starts with lower-priced products than High→Low for the same category.
+- Customer Search Low→High visibly starts with lower-priced products than High→Low for the same query.
+- Recommended uses WooCommerce purchase counts.
 - Product images are 1:1 contain.
 - Add to Cart works.
-- Next page works when available.
+- Product Next page works when available.
 - Refresh keeps the current bridge route.
-- Canonical customer APK reports package `eu.shishalove.customer` and not `.dev`.
+- Merchant top-left hamburger opens/closes a working navigation drawer.
+- Tapping an order opens Merchant-native General / Billing / Shipping / items / totals detail data and does not replace the app with WordPress admin.
+- Canonical Customer APK reports package `eu.shishalove.customer` and not `.dev`.
 - Canonical Merchant APK reports package `eu.shishalove.merchant` and not `.dev`.
+- Both next APKs report a versionCode greater than the installed canonical build and use the same permanent signing certificate.
 - Merchant launcher displays the locked red `MERCHANT` band artwork; Customer launcher remains unchanged.
 
 Future work must preserve this file unless the owner explicitly approves a design/behavior change.
