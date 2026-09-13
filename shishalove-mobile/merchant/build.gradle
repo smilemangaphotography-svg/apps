@@ -27,8 +27,8 @@ android {
         applicationId 'eu.shishalove.merchant'
         minSdk 24
         targetSdk 35
-        versionCode 119
-        versionName '1.1.9'
+        versionCode 120
+        versionName '1.1.11'
     }
 
     buildTypes {
@@ -72,10 +72,8 @@ def lockMerchantRuntimeVersion = tasks.register('lockMerchantRuntimeVersion') {
     doLast {
         def activity = file('src/main/java/eu/shishalove/merchant/MainActivity.java')
         def source = activity.getText('UTF-8')
-        source = source.replace('build=116', 'build=119')
-        source = source.replace('build=118', 'build=119')
-        source = source.replace('ShishaLoveMerchant/1.1.6', 'ShishaLoveMerchant/1.1.9')
-        source = source.replace('ShishaLoveMerchant/1.1.8', 'ShishaLoveMerchant/1.1.9')
+        ['build=116','build=118','build=119'].each { oldValue -> source = source.replace(oldValue, 'build=120') }
+        ['ShishaLoveMerchant/1.1.6','ShishaLoveMerchant/1.1.8','ShishaLoveMerchant/1.1.9','ShishaLoveMerchant/1.1.10'].each { oldValue -> source = source.replace(oldValue, 'ShishaLoveMerchant/1.1.11') }
         activity.setText(source, 'UTF-8')
     }
 }
