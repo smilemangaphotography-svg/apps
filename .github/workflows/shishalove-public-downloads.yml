@@ -24,6 +24,8 @@ jobs:
       - name: Validate locked mobile versions
         run: |
           set -euo pipefail
+          grep -q "applicationId 'eu.shishalove.customer'" shishalove-mobile/customer/build.gradle
+          grep -q "applicationId 'eu.shishalove.merchant'" shishalove-mobile/merchant/build.gradle
           grep -q "versionCode 119" shishalove-mobile/customer/build.gradle
           grep -q "versionName '1.1.9'" shishalove-mobile/customer/build.gradle
           grep -q "versionCode 119" shishalove-mobile/merchant/build.gradle
