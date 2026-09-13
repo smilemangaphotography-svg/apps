@@ -15,9 +15,10 @@ import android.webkit.WebView;
  * Keeps the approved WordPress Bridge UI/business logic intact while fixing
  * Android-only viewport behavior:
  *  - status-bar safe area is applied at the top only
- *  - the WebView is allowed to extend to the navigation-bar edge
- *  - the web bottom navigation is lifted by the real Android bottom inset
- *  - vertical touch scrolling is explicitly kept enabled
+ *  - the WebView extends through the navigation-bar area
+ *  - the Merchant bottom navigation itself owns the Android bottom inset
+ *  - content gets enough bottom clearance to scroll fully above the nav
+ *  - vertical touch scrolling stays explicitly enabled
  */
 public class MerchantActivityV121 extends MainActivity {
     private WebView merchantWebView;
@@ -27,6 +28,10 @@ public class MerchantActivityV121 extends MainActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            getWindow().setNavigationBarContrastEnforced(false);
+            getWindow().setNavigationBarColor(Color.WHITE);
+        }
         installPermanentViewportFix();
     }
 
@@ -53,10 +58,10 @@ public class MerchantActivityV121 extends MainActivity {
                 merchantWebView.setNestedScrollingEnabled(true);
             }
             merchantWebView.setOnTouchListener((v, event) -> {
-                View parent = (View) v.getParent();
-                if (parent != null && (event.getActionMasked() == MotionEvent.ACTION_DOWN
-                        || event.getActionMasked() == MotionEvent.ACTION_MOVE)) {
-                    parent.getParent().requestDisallowInterceptTouchEvent(true);
+                if ((event.getActionMasked() == MotionEvent.ACTION_DOWN
+                        || event.getActionMasked() == MotionEvent.ACTION_MOVE)
+                        && v.getParent() != null) {
+                    v.getParent().requestDisallowInterceptTouchEvent(true);
                 }
                 return false;
             });
@@ -68,8 +73,9 @@ public class MerchantActivityV121 extends MainActivity {
                 float density = getResources().getDisplayMetrics().density;
                 bottomInsetCssPx = Math.max(0, Math.round(bars.bottom / Math.max(1f, density)));
 
-                // TOP safe area only. Do not pad the whole WebView at the bottom;
-                // that was the source of the large white strip under Merchant nav.
+                // Keep only the top safe area at native level. The WebView must reach
+                // the bottom edge; the fixed Merchant nav will paint through the
+                // system-navigation area itself so no order text or blank gap shows.
                 v.setPadding(bars.left, bars.top, bars.right, 0);
                 v.setBackgroundColor(Color.WHITE);
                 scheduleWebFixes();
@@ -96,10 +102,11 @@ public class MerchantActivityV121 extends MainActivity {
 
     private void scheduleWebFixes() {
         if (merchantWebView == null) return;
-        merchantWebView.postDelayed(this::applyWebFix, 120);
-        merchantWebView.postDelayed(this::applyWebFix, 500);
-        merchantWebView.postDelayed(this::applyWebFix, 1200);
-        merchantWebView.postDelayed(this::applyWebFix, 2500);
+        merchantWebView.postDelayed(this::applyWebFix, 80);
+        merchantWebView.postDelayed(this::applyWebFix, 300);
+        merchantWebView.postDelayed(this::applyWebFix, 800);
+        merchantWebView.postDelayed(this::applyWebFix, 1600);
+        merchantWebView.postDelayed(this::applyWebFix, 3000);
     }
 
     private void applyWebFix() {
@@ -108,12 +115,12 @@ public class MerchantActivityV121 extends MainActivity {
         String js = "(function(){"
                 + "var inset='" + inset + "px';"
                 + "var d=document.documentElement,b=document.body;"
-                + "if(d){d.style.setProperty('height','auto','important');d.style.setProperty('min-height','100%','important');d.style.setProperty('overflow-y','auto','important');d.style.setProperty('overflow-x','hidden','important');d.style.setProperty('touch-action','pan-y','important');}"
+                + "if(d){d.style.setProperty('--safe-bottom',inset,'important');d.style.setProperty('height','auto','important');d.style.setProperty('min-height','100%','important');d.style.setProperty('overflow-y','auto','important');d.style.setProperty('overflow-x','hidden','important');d.style.setProperty('touch-action','pan-y','important');}"
                 + "if(b){b.style.setProperty('height','auto','important');b.style.setProperty('min-height','100%','important');b.style.setProperty('overflow-y','auto','important');b.style.setProperty('overflow-x','hidden','important');b.style.setProperty('touch-action','pan-y','important');b.style.setProperty('-webkit-overflow-scrolling','touch','important');}"
                 + "var app=document.querySelector('.slm-app');if(app){app.style.setProperty('height','auto','important');app.style.setProperty('min-height','100dvh','important');app.style.setProperty('overflow','visible','important');app.style.setProperty('padding-bottom','calc(72px + '+inset+')','important');}"
-                + "document.querySelectorAll('.slm-page').forEach(function(p){p.style.setProperty('height','auto','important');p.style.setProperty('max-height','none','important');p.style.setProperty('overflow','visible','important');p.style.setProperty('touch-action','pan-y','important');p.style.setProperty('padding-bottom','calc(28px + '+inset+')','important');});"
-                + "var nav=document.querySelector('.slm-bottom');if(nav){nav.style.setProperty('bottom',inset,'important');nav.style.setProperty('height','72px','important');nav.style.setProperty('padding-bottom','0','important');}"
-                + "if(!window.__slmPermanentScrollGuard){window.__slmPermanentScrollGuard=new MutationObserver(function(){var de=document.documentElement,bo=document.body;if(de){de.style.setProperty('overflow-y','auto','important');de.style.setProperty('height','auto','important');}if(bo){bo.style.setProperty('overflow-y','auto','important');bo.style.setProperty('height','auto','important');}});window.__slmPermanentScrollGuard.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class']});}"
+                + "document.querySelectorAll('.slm-page').forEach(function(p){p.style.setProperty('height','auto','important');p.style.setProperty('max-height','none','important');p.style.setProperty('overflow','visible','important');p.style.setProperty('touch-action','pan-y','important');p.style.setProperty('padding-bottom','calc(118px + '+inset+')','important');});"
+                + "var nav=document.querySelector('.slm-bottom');if(nav){nav.style.setProperty('bottom','0','important');nav.style.setProperty('height','calc(72px + '+inset+')','important');nav.style.setProperty('padding-bottom',inset,'important');nav.style.setProperty('box-sizing','border-box','important');nav.style.setProperty('background','#fff','important');nav.style.setProperty('z-index','9999','important');}"
+                + "if(!window.__slmPermanentScrollGuard){window.__slmPermanentScrollGuard=new MutationObserver(function(){var de=document.documentElement,bo=document.body;if(de){de.style.setProperty('overflow-y','auto','important');de.style.setProperty('height','auto','important');}if(bo){bo.style.setProperty('overflow-y','auto','important');bo.style.setProperty('height','auto','important');}var n=document.querySelector('.slm-bottom');if(n){n.style.setProperty('bottom','0','important');n.style.setProperty('height','calc(72px + '+inset+')','important');n.style.setProperty('padding-bottom',inset,'important');n.style.setProperty('background','#fff','important');}});window.__slmPermanentScrollGuard.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['style','class']});}"
                 + "})();";
         merchantWebView.evaluateJavascript(js, null);
     }
