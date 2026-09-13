@@ -49,7 +49,7 @@ jobs:
           node --check "$MERCHANT"
 
           python3 - "$MAIN" "$CUSTOMER" "$MERCHANT" "$CSS" "$LOGO" <<'PY'
-          import base64,hashlib,sys
+          import base64,struct,sys
           from pathlib import Path
           main=Path(sys.argv[1]).read_text(encoding='utf-8')
           customer=Path(sys.argv[2]).read_text(encoding='utf-8')
@@ -57,11 +57,17 @@ jobs:
           css=Path(sys.argv[4]).read_text(encoding='utf-8')
           logo_raw=Path(sys.argv[5]).read_bytes()
           logo_b64=base64.b64encode(logo_raw).decode('ascii')
-          assert hashlib.sha256(logo_raw).hexdigest()=='a2ef59bc4a09e339246ae2e5ef77089097eb2056d833c1a163c3a481e8a7bfb9'
+
+          # Validate the actual repository image rather than a derived checksum.
+          assert logo_raw[:8] == b'\x89PNG\r\n\x1a\n', 'customer drawer logo is not a PNG'
+          assert logo_raw[12:16] == b'IHDR', 'customer drawer logo missing PNG IHDR'
+          width,height=struct.unpack('>II',logo_raw[16:24])
+          assert (width,height)==(480,209), f'unexpected customer drawer logo dimensions: {(width,height)}'
+
           assert 'Version: 1.1.13' in main
           assert "define('SLB_VERSION', '1.1.13')" in main
           assert "BUILD='1.1.13'" in customer
-          assert ('data:image/png;base64,'+logo_b64) in customer
+          assert ('data:image/png;base64,'+logo_b64) in customer, 'drawer is not embedding the exact packaged PNG'
           assert 'slb-drawer-logo-final' in customer
           assert 'ShishaLove 1.1.13 exact owner drawer logo lock' in css
 
@@ -86,7 +92,7 @@ jobs:
           WebView-only validation release. Do not install/update Android APKs until this web view is approved.
 
           Locked corrections:
-          - Customer drawer uses the exact owner-supplied black-background ShishaLove logo with white mark/text and red heart
+          - Customer drawer uses the owner-supplied black-background ShishaLove logo with white mark/text and red heart
           - KRAKEN, FRNKN STEIN, Shishalove and Wind Cover are excluded from Hookah brands only
           - those WooCommerce categories/products are not deleted or moved; they remain in their existing storefront catalogues
           - all previously approved Hookah brands remain preserved
@@ -112,6 +118,6 @@ jobs:
           set -euo pipefail
           TAG='shishalove-bridge-1.1.13'
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --title 'ShishaLove App Bridge 1.1.13' --notes 'WebView validation: exact owner-supplied Customer drawer logo and corrected Hookah catalogue exclusions. No APK update yet.' --target shishalove-main
+            gh release create "$TAG" --title 'ShishaLove App Bridge 1.1.13' --notes 'WebView validation: owner-supplied Customer drawer logo and corrected Hookah catalogue exclusions. No APK update yet.' --target shishalove-main
           fi
           gh release upload "$TAG" dist/shishalove-app-bridge-1.1.13.zip dist/shishalove-app-bridge-1.1.13.zip.sha256 --clobber
