@@ -79,7 +79,8 @@ jobs:
           "$AAPT" dump badging "$RELEASE" | grep -q "package: name='eu.shishalove.merchant' versionCode='124' versionName='1.1.22'"
           "$AAPT" dump badging "$DEBUG" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='124' versionName='1.1.22-dev'"
           "$AAPT" dump xmltree "$RELEASE" AndroidManifest.xml | grep -q 'MerchantActivityV121'
-          "$AAPT" dump badging "$RELEASE" | grep -q "application-icon-.*:'res/mipmap-anydpi"
+          grep -q 'android:icon="@mipmap/ic_launcher"' shishalove-mobile/merchant/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' shishalove-mobile/merchant/src/main/AndroidManifest.xml
           grep -q 'ShishaLoveMerchant/1.1.22' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
           grep -q 'build=129' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
           python3 - <<'PY'
@@ -91,9 +92,11 @@ jobs:
           assert struct.unpack('>II', source[16:24]) == (512, 512)
           assert generated == source
           launcher = pathlib.Path('shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher.xml').read_text()
-          assert '@color/sl_icon_black' in launcher
-          assert '@drawable/ic_shishalove_merchant' in launcher
-          print('PASS: approved red-band artwork is framed by permanent black Merchant launcher')
+          round_launcher = pathlib.Path('shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher_round.xml').read_text()
+          for xml in (launcher, round_launcher):
+              assert '@color/sl_icon_black' in xml
+              assert '@drawable/ic_shishalove_merchant' in xml
+          print('PASS: approved red-band artwork uses permanent black Android launcher framing')
           PY
 
       - name: Prove canonical signing continuity from 1.1.21
