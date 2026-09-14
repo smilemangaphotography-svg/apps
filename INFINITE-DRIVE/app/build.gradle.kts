@@ -2,6 +2,15 @@ plugins {
     id("com.android.application")
 }
 
+val releaseStorePath = System.getenv("IDRIVE_KEYSTORE_PATH")
+val releaseStorePassword = System.getenv("IDRIVE_STORE_PASSWORD")
+val releaseKeyAlias = System.getenv("IDRIVE_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("IDRIVE_KEY_PASSWORD")
+val hasReleaseSigning = !releaseStorePath.isNullOrBlank() &&
+    !releaseStorePassword.isNullOrBlank() &&
+    !releaseKeyAlias.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank()
+
 android {
     namespace = "eu.infinitedrive.app"
     compileSdk = 36
@@ -14,6 +23,21 @@ android {
         versionName = "1.0.1"
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("infiniteDriveRelease") {
+                storeFile = file(releaseStorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -22,6 +46,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("infiniteDriveRelease")
+            }
         }
     }
 
