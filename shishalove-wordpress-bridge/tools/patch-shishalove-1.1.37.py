@@ -26,18 +26,16 @@ t=once(t,"slbfix','1.1.36'","slbfix','1.1.37'",'merchant bust')
 t=once(t,'Bridge 1.1.36','Bridge 1.1.37','merchant label')
 
 # Instant refresh: always paint cached rows first, even when Refresh requested.
-t=once(t,
-"if(cached&&!force){state.productsByView[name]=cached;if(state.view===name)render();}",
-"if(cached){state.productsByView[name]=cached;if(state.view===name)render();}",
-'merchant product stale-while-revalidate')
+product_cache_old="if(cached&&!force){state.productsByView[name]=cached;if(state.view===name)render();}"
+product_cache_new="if(cached){state.productsByView[name]=cached;if(state.view===name)render();}"
+count=t.count(product_cache_old)
+if count!=2:
+    raise SystemExit(f'merchant product/search stale-while-revalidate: expected 2 anchors, found {count}')
+t=t.replace(product_cache_old,product_cache_new,2)
 t=once(t,
 "if(cached&&!force){state.orders=cached;if(state.view==='orders')render();}",
 "if(cached){state.orders=cached;if(state.view==='orders')render();}",
 'merchant orders stale-while-revalidate')
-t=once(t,
-"if(cached&&!force){state.productsByView[name]=cached;if(state.view===name)render();}",
-"if(cached){state.productsByView[name]=cached;if(state.view===name)render();}",
-'merchant exact-search stale-while-revalidate')
 p.write_text(t,encoding='utf-8')
 
 p=root/'assets/bridge.css'; css=p.read_text(encoding='utf-8')
