@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - infinite-drive-build
+      - infinite-drive-device-fix
       - infinite-drive-main
     paths:
       - 'INFINITE-DRIVE/**'
