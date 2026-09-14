@@ -1,0 +1,190 @@
+name: ShishaLove Runtime 1.1.34 Permanent Fixes
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - '.github/workflows/shishalove-runtime-1.1.34.yml'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.34.py'
+      - 'shishalove-mobile/tools/patch-runtime-1.1.34.py'
+      - 'shishalove-mobile/tools/patch-runtime-1.1.34-final.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build Bridge 1.1.34 and apply Android runtime patch
+        run: |
+          set -euo pipefail
+          rm -rf package dist
+          mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.34.py package/shishalove-app-bridge
+          python3 shishalove-mobile/tools/patch-runtime-1.1.34-final.py
+
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.34/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.34');/" "$MAIN"
+
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+          php -l "$MAIN"
+
+          grep -Fq "var BUILD='1.1.34'" "$CUSTOMER"
+          grep -Fq "CFG.version='1.1.34'" "$CUSTOMER"
+          grep -Fq "CFG.version='1.1.34'" "$MERCHANT"
+          grep -Fq 'Bridge 1.1.34' "$MERCHANT"
+          grep -Fq 'html.slb-android-app body.slb-customer .slb-toolbar select' "$CSS"
+          grep -Fq 'font-size:14px!important;' "$CSS"
+
+          # Customer native viewport root cause is fixed at Android level.
+          test -f shishalove-mobile/customer/src/main/java/eu/shishalove/customer/CustomerActivityV134.java
+          grep -Fq 'android:name=".CustomerActivityV134"' shishalove-mobile/customer/src/main/AndroidManifest.xml
+          grep -Fq 'v.setPadding(bars.left, bars.top, bars.right, 0);' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/CustomerActivityV134.java
+          grep -Fq "--safe-bottom',inset,'important'" shishalove-mobile/customer/src/main/java/eu/shishalove/customer/CustomerActivityV134.java
+          grep -Fq 'versionCode 134' shishalove-mobile/customer/build.gradle
+          grep -Fq "versionName '1.1.34'" shishalove-mobile/customer/build.gradle
+
+          # Merchant canonical Bridge no longer gets legacy polish on progress.
+          MM='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+          MP='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java'
+          grep -Fq 'CANONICAL_BRIDGE_PATH = "/shishalove-merchant"' "$MM"
+          grep -Fq '!isCanonicalBridge(url)' "$MM"
+          ! grep -Fq 'if (newProgress >= 5) applyRuntimeJs' "$MM"
+          grep -Fq 'slm-native-viewport-style' "$MP"
+          ! grep -Fq '__slmPermanentScrollGuard' "$MP"
+          grep -Fq 'versionCode 134' shishalove-mobile/merchant/build.gradle
+          grep -Fq "versionName '1.1.34'" shishalove-mobile/merchant/build.gradle
+
+          # Regression locks from the approved Bridge remain present.
+          grep -Fq 'TRASH PRODUCT' "$MERCHANT"
+          grep -Fq 'slm-manage-stock' "$MERCHANT"
+          grep -Fq 'pagerMarkup(data)' "$MERCHANT"
+          grep -Fq 'watermark_failed' "$MAIN"
+          grep -Fq 'slb-heart' "$CSS"
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.34.txt <<'TXT'
+          ShishaLove 1.1.34 — PERMANENT RUNTIME FIX
+
+          This update fixes root causes that Bridge-only CSS could not correct.
+
+          Bridge change:
+          - Android Customer "Recommended order" selector displays its full text.
+
+          Android Customer change:
+          - Exactly one status-bar safe area.
+          - WebView extends to the bottom edge.
+          - Customer bottom navigation owns the Android navigation inset, removing the large white reopen gap.
+
+          Android Merchant change:
+          - Canonical Bridge no longer receives the legacy phone-polish payload.
+          - No repeated script injection during WebView loading progress.
+          - Heavy document-wide MutationObserver removed from the native viewport correction.
+          - Existing order notifications, scrolling and safe bottom navigation are preserved.
+
+          No Customer/Merchant business logic, products, stock, orders, editor, watermark, Media Library, launcher artwork or approved branding is changed.
+          TXT
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build Customer and Merchant canonical + legacy-beta APKs
+        working-directory: shishalove-mobile
+        run: gradle :customer:assembleRelease :customer:assembleDebug :merchant:assembleRelease :merchant:assembleDebug --stacktrace
+
+      - name: Verify packages, versions and signing continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          CR='shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk'
+          CD='shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk'
+          MR='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          MD='shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk'
+
+          "$AAPT" dump badging "$CR" | grep -q "package: name='eu.shishalove.customer' versionCode='134' versionName='1.1.34'"
+          "$AAPT" dump badging "$CD" | grep -q "package: name='eu.shishalove.customer.dev' versionCode='134' versionName='1.1.34-dev'"
+          "$AAPT" dump badging "$MR" | grep -q "package: name='eu.shishalove.merchant' versionCode='134' versionName='1.1.34'"
+          "$AAPT" dump badging "$MD" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='134' versionName='1.1.34-dev'"
+
+          mkdir -p dist/previous
+          gh release download shishalove-customer-1.1.22 --pattern 'ShishaLove-Customer-Android-1.1.22.apk' --dir dist/previous
+          gh release download shishalove-customer-1.1.22 --pattern 'ShishaLove-Customer-Android-1.1.22-LEGACY-BETA.apk' --dir dist/previous
+          gh release download shishalove-merchant-1.1.26 --pattern 'ShishaLove-Merchant-Android-1.1.26.apk' --dir dist/previous
+          gh release download shishalove-merchant-1.1.26 --pattern 'ShishaLove-Merchant-Android-1.1.26-LEGACY-BETA.apk' --dir dist/previous
+
+          digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
+          test "$(digest dist/previous/ShishaLove-Customer-Android-1.1.22.apk)" = "$(digest "$CR")"
+          test "$(digest dist/previous/ShishaLove-Customer-Android-1.1.22-LEGACY-BETA.apk)" = "$(digest "$CD")"
+          test "$(digest dist/previous/ShishaLove-Merchant-Android-1.1.26.apk)" = "$(digest "$MR")"
+          test "$(digest dist/previous/ShishaLove-Merchant-Android-1.1.26-LEGACY-BETA.apk)" = "$(digest "$MD")"
+
+      - name: Package final update
+        run: |
+          set -euo pipefail
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.34.zip shishalove-app-bridge)
+          cp shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk dist/ShishaLove-Customer-Android-1.1.34.apk
+          cp shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk dist/ShishaLove-Customer-Android-1.1.34-LEGACY-BETA.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk dist/ShishaLove-Merchant-Android-1.1.34.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/ShishaLove-Merchant-Android-1.1.34-LEGACY-BETA.apk
+          sha256sum dist/shishalove-app-bridge-1.1.34.zip dist/*.apk > dist/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-runtime-1.1.34
+          path: |
+            dist/shishalove-app-bridge-1.1.34.zip
+            dist/ShishaLove-Customer-Android-1.1.34.apk
+            dist/ShishaLove-Customer-Android-1.1.34-LEGACY-BETA.apk
+            dist/ShishaLove-Merchant-Android-1.1.34.apk
+            dist/ShishaLove-Merchant-Android-1.1.34-LEGACY-BETA.apk
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Publish ShishaLove Runtime 1.1.34
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-runtime-1.1.34'
+          NOTES='Permanent root-cause update: Customer Android viewport/reopen safe areas, Merchant Android reload-speed regression, and full Customer Recommended-order selector text. Existing approved business/UI behavior remains locked.'
+          ASSETS=(dist/shishalove-app-bridge-1.1.34.zip dist/ShishaLove-Customer-Android-1.1.34.apk dist/ShishaLove-Customer-Android-1.1.34-LEGACY-BETA.apk dist/ShishaLove-Merchant-Android-1.1.34.apk dist/ShishaLove-Merchant-Android-1.1.34-LEGACY-BETA.apk dist/SHA256SUMS.txt)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+            gh release edit "$TAG" --title 'ShishaLove Runtime 1.1.34 — Permanent Fix' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" "${ASSETS[@]}" --title 'ShishaLove Runtime 1.1.34 — Permanent Fix' --notes "$NOTES" --target shishalove-main
+          fi
