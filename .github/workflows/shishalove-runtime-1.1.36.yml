@@ -61,7 +61,7 @@ jobs:
           # Installed Merchant: Android owns BOTH system insets once.
           MERCHANT_ACTIVITY='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java'
           grep -Fq 'v.setPadding(bars.left, bars.top, bars.right, bars.bottom);' "$MERCHANT_ACTIVITY"
-          grep -Fq "--safe-bottom','0px','important'" "$MERCHANT_ACTIVITY"
+          grep -Fq -- "--safe-bottom','0px','important'" "$MERCHANT_ACTIVITY"
           grep -Fq 'slm-native-layout-136' "$MERCHANT_ACTIVITY"
           ! grep -Fq '__slmPermanentScrollGuard' "$MERCHANT_ACTIVITY"
 
