@@ -6,7 +6,10 @@ on:
       - shishalove-main
     paths:
       - '.github/workflows/shishalove-customer-launcher.yml'
-      - 'shishalove-branding/customer-launcher-source.png'
+      - 'shishalove-branding/customer-icon.b64.part00'
+      - 'shishalove-branding/customer-icon.b64.part01'
+      - 'shishalove-branding/customer-icon.b64.part02'
+      - 'shishalove-branding/customer-icon.b64.part03'
       - 'shishalove-mobile/customer/build.gradle'
       - 'shishalove-mobile/customer/src/main/res/drawable/ic_shishalove_customer_foreground.xml'
       - 'shishalove-mobile/customer/src/main/res/mipmap-anydpi/ic_launcher.xml'
@@ -29,11 +32,18 @@ jobs:
       - name: Validate exact Customer launcher source and launcher-only lock
         run: |
           set -euo pipefail
-          echo '74d5803c3da43f55fb5c3947b37d15b868eee2c5f6a014a83d5a7b774f780f50  shishalove-branding/customer-launcher-source.png' | sha256sum -c -
+          cat \
+            shishalove-branding/customer-icon.b64.part00 \
+            shishalove-branding/customer-icon.b64.part01 \
+            shishalove-branding/customer-icon.b64.part02 \
+            shishalove-branding/customer-icon.b64.part03 \
+            | tr -d '[:space:]' | base64 -d > /tmp/customer-launcher-source.png
+          echo '74d5803c3da43f55fb5c3947b37d15b868eee2c5f6a014a83d5a7b774f780f50  /tmp/customer-launcher-source.png' | sha256sum -c -
           grep -q "applicationId 'eu.shishalove.customer'" shishalove-mobile/customer/build.gradle
           grep -q "versionCode 123" shishalove-mobile/customer/build.gradle
           grep -q "versionName '1.1.21'" shishalove-mobile/customer/build.gradle
           grep -q "digest != '74d5803c3da43f55fb5c3947b37d15b868eee2c5f6a014a83d5a7b774f780f50'" shishalove-mobile/customer/build.gradle
+          grep -q 'customer-icon.b64.part%02d' shishalove-mobile/customer/build.gradle
           grep -q 'r < 70 && g < 70 && b < 70' shishalove-mobile/customer/build.gradle
           grep -q 'targetW = 408' shishalove-mobile/customer/build.gradle
           grep -q 'redPixels < 500' shishalove-mobile/customer/build.gradle
@@ -49,7 +59,7 @@ jobs:
           BASE='b7fbe0b86426f82a275cf0cee574a8149e8f87f0'
           changed="$(git diff --name-only "$BASE" HEAD | sort)"
           printf '%s\n' "$changed"
-          allowed='^.github/workflows/shishalove-customer-launcher.yml$|^shishalove-branding/customer-launcher-source.png$|^shishalove-mobile/customer/build.gradle$|^shishalove-mobile/customer/src/main/res/drawable/ic_shishalove_customer_foreground.xml$|^shishalove-mobile/customer/src/main/res/mipmap-anydpi/ic_launcher.xml$|^shishalove-mobile/customer/src/main/res/mipmap-anydpi/ic_launcher_round.xml$'
+          allowed='^.github/workflows/shishalove-customer-launcher.yml$|^shishalove-branding/customer-icon.b64.part0[0-3]$|^shishalove-mobile/customer/build.gradle$|^shishalove-mobile/customer/src/main/res/drawable/ic_shishalove_customer_foreground.xml$|^shishalove-mobile/customer/src/main/res/mipmap-anydpi/ic_launcher.xml$|^shishalove-mobile/customer/src/main/res/mipmap-anydpi/ic_launcher_round.xml$'
           forbidden="$(printf '%s\n' "$changed" | grep -Ev "$allowed" || true)"
           test -z "$forbidden"
           git diff --exit-code shishalove-merchant-1.1.26 -- shishalove-mobile/merchant shishalove-branding/merchant-icon.b64.part00 shishalove-branding/merchant-icon.b64.part01 shishalove-branding/merchant-icon.b64.part02 shishalove-branding/merchant-icon.b64.part03

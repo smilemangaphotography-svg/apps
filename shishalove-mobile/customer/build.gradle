@@ -46,14 +46,19 @@ android {
 
 // PERMANENT CUSTOMER LAUNCHER LOCK
 // Android/Samsung owns the final launcher mask. The exact user-approved Customer
-// artwork is extracted from the locked 512x512 source, its dark canvas/outline is
-// removed, and only the white ShishaLove + red heart artwork is fitted into the
+// artwork is reconstructed from four locked source parts, its dark canvas/outline
+// is removed, and only the white ShishaLove + red heart artwork is fitted into the
 // same protected adaptive safe area used by the approved Merchant launcher.
 def materializeCustomerLauncherIcon = tasks.register('materializeCustomerLauncherIcon') {
     doLast {
-        def sourceFile = rootProject.file('../shishalove-branding/customer-launcher-source.png')
-        if (!sourceFile.exists()) throw new GradleException('Missing locked ShishaLove customer launcher source')
-        byte[] raw = sourceFile.bytes
+        def iconParts = (0..3).collect { idx ->
+            rootProject.file(String.format('../shishalove-branding/customer-icon.b64.part%02d', idx))
+        }
+        iconParts.each { part ->
+            if (!part.exists()) throw new GradleException("Missing locked ShishaLove customer icon source: ${part.name}")
+        }
+        def encoded = iconParts.collect { it.getText('UTF-8').replaceAll('\\s', '') }.join('')
+        byte[] raw = java.util.Base64.decoder.decode(encoded)
         def digest = java.security.MessageDigest.getInstance('SHA-256').digest(raw).encodeHex().toString()
         if (digest != '74d5803c3da43f55fb5c3947b37d15b868eee2c5f6a014a83d5a7b774f780f50') {
             throw new GradleException('Customer launcher source changed')
@@ -81,7 +86,7 @@ def materializeCustomerLauncherIcon = tasks.register('materializeCustomerLaunche
                 int r = (argb >>> 16) & 0xff
                 int g = (argb >>> 8) & 0xff
                 int b = argb & 0xff
-                // Remove the black canvas and the faint baked rounded-square outline.
+                // Remove the black canvas and faint baked rounded-square outline.
                 boolean darkBackground = a == 0 || (r < 70 && g < 70 && b < 70)
                 if (darkBackground) {
                     extracted.setRGB(x, y, 0x00000000)
@@ -103,9 +108,6 @@ def materializeCustomerLauncherIcon = tasks.register('materializeCustomerLaunche
 
         int sourceW = maxX - minX + 1
         int sourceH = maxY - minY + 1
-
-        // Same visual-width lock as the approved Merchant launcher. Cropping the empty
-        // canvas first makes the ShishaLove script materially larger without distorting it.
         int targetW = 408
         int targetH = Math.round(targetW * (sourceH / (float) sourceW))
         int maxTargetH = 350
@@ -156,11 +158,6 @@ def lockCanonicalCustomerRuntime = tasks.register('lockCanonicalCustomerRuntime'
         def source = activity.getText('UTF-8')
         ['build=115','build=118','build=119','build=120','build=129'].each { oldValue -> source = source.replace(oldValue, 'build=129') }
         ['ShishaLoveCustomer/1.1.5','ShishaLoveCustomer/1.1.8','ShishaLoveCustomer/1.1.9','ShishaLoveCustomer/1.1.10','ShishaLoveCustomer/1.1.11','ShishaLoveCustomer/1.1.19'].each { oldValue -> source = source.replace(oldValue, 'ShishaLoveCustomer/1.1.20') }
-
-        // Samsung/Android 15+ wrapper-only safe-area correction.
-        // Keep the approved Bridge 1.1.19 WebView untouched. Add a small top breathing
-        // margin so the ShishaLove header/logo sits safely below the status area, while
-        // reducing the oversized bottom system inset that created the large empty band.
         source = source.replace(
                 'v.setPadding(bars.left, bars.top, bars.right, bars.bottom);',
                 'v.setPadding(bars.left, bars.top + dp(6), bars.right, Math.max(dp(10), bars.bottom - dp(28)));'
