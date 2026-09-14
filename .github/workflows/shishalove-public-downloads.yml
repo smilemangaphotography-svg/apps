@@ -1,4 +1,4 @@
-name: ShishaLove Merchant 1.1.26 Adaptive Safe Area Fix
+name: ShishaLove Merchant 1.1.26 Exact Launcher Source Fix
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/shishalove-public-downloads.yml'
       - 'shishalove-mobile/merchant/**'
+      - 'shishalove-branding/merchant-icon.b64.part*'
   workflow_dispatch:
 
 permissions:
@@ -14,7 +15,7 @@ permissions:
 
 jobs:
   publish-merchant:
-    name: Build and verify Merchant 1.1.26 launcher-only update
+    name: Build and verify Merchant 1.1.26 exact launcher update
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -22,7 +23,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate launcher-only source locks
+      - name: Validate exact launcher source and launcher-only locks
         run: |
           set -euo pipefail
           grep -q "applicationId 'eu.shishalove.merchant'" shishalove-mobile/merchant/build.gradle
@@ -38,12 +39,20 @@ jobs:
           grep -q '@drawable/ic_shishalove_merchant_foreground' shishalove-mobile/merchant/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           grep -q 'android:width="108dp"' shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher.xml
           grep -q 'android:width="108dp"' shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher_round.xml
+          python3 - <<'PY'
+          import base64, hashlib, pathlib, struct
+          parts = [pathlib.Path(f'shishalove-branding/merchant-icon.b64.part{i:02d}') for i in range(4)]
+          raw = base64.b64decode(''.join(p.read_text().strip() for p in parts))
+          assert hashlib.sha256(raw).hexdigest() == 'f054a1b0c64d1784561737c78854b97ea960c6f0490e0fb0e29257c379b3a378'
+          assert raw[:8] == b'\x89PNG\r\n\x1a\n'
+          assert struct.unpack('>II', raw[16:24]) == (512, 512)
+          print('PASS: exact red-band Merchant launcher source locked')
+          PY
           grep -q 'v.setPadding(bars.left, bars.top, bars.right, 0)' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java
           grep -q "overflow-y','auto','important" shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java
           git diff --exit-code shishalove-merchant-1.1.25 -- shishalove-mobile/customer
           git diff --exit-code shishalove-merchant-1.1.25 -- shishalove-app-bridge
           changed="$(git diff --name-only shishalove-merchant-1.1.25 -- shishalove-mobile/merchant | sort)"
-          printf '%s\n' "$changed"
           forbidden="$(printf '%s\n' "$changed" | grep -Ev '^(shishalove-mobile/merchant/build.gradle|shishalove-mobile/merchant/src/main/res/drawable/ic_shishalove_merchant_foreground.xml|shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher.xml|shishalove-mobile/merchant/src/main/res/mipmap-anydpi/ic_launcher_round.xml)$' || true)"
           test -z "$forbidden"
 
@@ -114,15 +123,14 @@ jobs:
           cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/public/ShishaLove-Merchant-Android-1.1.26-LEGACY-BETA.apk
           sha256sum dist/public/*.apk > dist/public/SHA256SUMS.txt
           cat > dist/public/RELEASE_NOTES.md <<'TXT'
-          # ShishaLove Merchant 1.1.26 — Adaptive Safe Area Launcher Fix
+          # ShishaLove Merchant 1.1.26 — Exact Red-Band Launcher Source
 
           Merchant launcher-only update. Customer app, Merchant UI/WebView, Bridge and business logic are unchanged.
 
-          - Keeps Android/Samsung responsible for the final rounded launcher mask.
-          - Extracts the complete ShishaLove + red MERCHANT artwork from the locked source.
-          - Crops only empty black canvas, then recomposes the complete artwork into a protected adaptive safe area.
-          - The red MERCHANT band is explicitly validated before build and kept away from launcher clipping zones.
-          - Removes the previous 96/112dp double-scaling approach.
+          - Replaces the old repository Merchant launcher source with the exact supplied ShishaLove + red MERCHANT artwork.
+          - Locks that source by SHA-256 so future builds cannot silently restore the old artwork.
+          - Crops only empty black canvas and fits the complete logo inside Android's adaptive safe area.
+          - Samsung/Android continues to own the final rounded-square launcher mask.
           - No white frame or baked rounded-square image is used.
           - Package IDs, signing identities and WebView build 129 are unchanged.
           TXT
@@ -136,9 +144,9 @@ jobs:
           ASSETS=(dist/public/ShishaLove-Merchant-Android-1.1.26.apk dist/public/ShishaLove-Merchant-Android-1.1.26-LEGACY-BETA.apk dist/public/SHA256SUMS.txt)
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${ASSETS[@]}" --clobber
-            gh release edit "$TAG" --title 'ShishaLove Merchant 1.1.26 — Adaptive Safe Area Launcher Fix' --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
+            gh release edit "$TAG" --title 'ShishaLove Merchant 1.1.26 — Exact Red-Band Launcher Source' --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
           else
-            gh release create "$TAG" "${ASSETS[@]}" --title 'ShishaLove Merchant 1.1.26 — Adaptive Safe Area Launcher Fix' --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
+            gh release create "$TAG" "${ASSETS[@]}" --title 'ShishaLove Merchant 1.1.26 — Exact Red-Band Launcher Source' --notes-file dist/public/RELEASE_NOTES.md --target shishalove-main
           fi
 
       - name: Confirm public assets
