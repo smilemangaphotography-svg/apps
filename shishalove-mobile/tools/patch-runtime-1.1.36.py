@@ -90,8 +90,8 @@ text = replace_once(text, 'versionCode 135', 'versionCode 136', 'merchant versio
 text = replace_once(text, "versionName '1.1.35'", "versionName '1.1.36'", 'merchant versionName')
 text = text.replace('ShishaLoveMerchant/1.1.35', 'ShishaLoveMerchant/1.1.36')
 old_guard = '''        if (!permanentSource.contains('v.setPadding(bars.left, bars.top, bars.right, 0)')) throw new GradleException('Permanent Merchant inset fix missing')
-        if (!permanentSource.contains("nav.style.setProperty('bottom','0','important')")) throw new GradleException('Permanent Merchant bottom navigation lock missing')
-        if (!permanentSource.contains("nav.style.setProperty('padding-bottom',inset,'important')")) throw new GradleException('Permanent Merchant navigation safe-area padding missing')
+        if (!permanentSource.contains("slm-native-viewport-style")) throw new GradleException('Permanent Merchant bottom navigation stylesheet missing')
+        if (!permanentSource.contains("--safe-bottom',inset,'important'")) throw new GradleException('Permanent Merchant navigation safe-area padding missing')
         if (!permanentSource.contains("overflow-y','auto','important")) throw new GradleException('Permanent Merchant scrolling fix missing')'''
 new_guard = '''        if (!permanentSource.contains('v.setPadding(bars.left, bars.top, bars.right, bars.bottom)')) throw new GradleException('Permanent Merchant native inset ownership missing')
         if (!permanentSource.contains("--safe-bottom','0px','important'")) throw new GradleException('Permanent Merchant web inset reset missing')
