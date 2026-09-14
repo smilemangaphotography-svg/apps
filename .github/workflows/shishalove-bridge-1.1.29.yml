@@ -1,0 +1,105 @@
+name: ShishaLove Bridge 1.1.29 Final Product Editor + Media Fix
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.29.py'
+      - '.github/workflows/shishalove-bridge-1.1.29.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build and verify Bridge 1.1.29
+        run: |
+          set -euo pipefail
+          rm -rf package dist
+          mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.29.py package/shishalove-app-bridge
+
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.29/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.29');/" "$MAIN"
+
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+          php -l "$MAIN"
+
+          grep -Fq "CFG.version='1.1.29'" "$CUSTOMER"
+          grep -Fq "CFG.version='1.1.29'" "$MERCHANT"
+          grep -Fq "slbfix','1.1.29'" "$CUSTOMER"
+          grep -Fq "slbfix','1.1.29'" "$MERCHANT"
+          grep -Fq 'Bridge 1.1.29' "$MERCHANT"
+          grep -Fq 'class="slm-library-preview"' "$MERCHANT"
+          grep -Fq 'Product brands' "$MERCHANT"
+          grep -Fq 'Catalog visibility' "$MERCHANT"
+          grep -Fq 'Points Earned' "$MERCHANT"
+          grep -Fq 'Age Gate' "$MERCHANT"
+          grep -Fq 'Product Options' "$MERCHANT"
+          grep -Fq 'YouTube Video' "$MERCHANT"
+          grep -Fq 'ensure_artwork:true' "$MERCHANT"
+          grep -Fq "'brands' => slb_merchant_brands()" "$MAIN"
+          grep -Fq 'function slb_product_brand_taxonomy' "$MAIN"
+          grep -Fq 'function slb_ensure_product_artwork' "$MAIN"
+          grep -Fq "set_catalog_visibility" "$MAIN"
+          grep -Fq "set_tax_status" "$MAIN"
+          grep -Fq "wp_set_object_terms($saved_id,$tags,'product_tag',false)" "$MAIN"
+          grep -Fq 'slm-library-preview' "$CSS"
+          grep -Fq 'grid-auto-rows:max-content' "$CSS"
+          grep -Fq 'max-width:calc(100% - 20px)' "$CSS"
+          grep -Fq 'slm-advanced-card' "$CSS"
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.29.txt <<'TXT'
+          ShishaLove App Bridge 1.1.29 — FINAL PRODUCT EDITOR + MEDIA FIX
+
+          Update the existing WordPress Bridge only. No Android APK reinstall required.
+
+          FIXED / ADDED ONLY:
+          - WordPress Media Library cards use the direct full source image in a true square card; no collapsed/overlapping thumbnail wrapper.
+          - Customer product grid uses natural centered containment so the complete original product artwork is visible inside each card.
+          - Merchant Create/Edit Product adds practical WordPress/WooCommerce product fields: Publish status, visibility, catalog visibility, pricing, tax, Points Earned, Maximum Discount, manage stock, quantity, brands, tags, Age Gate, Product Options and full description.
+          - Existing Categories, image/gallery, phone upload, WordPress Media Library and permanent delete remain available.
+          - Non-600x600 featured artwork chosen for a product is normalized through the existing 600x600 ShishaLove artwork pipeline; already-prepared 600x600 artwork is preserved to avoid double watermarking.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.29.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.29.zip > shishalove-app-bridge-1.1.29.zip.sha256)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.29
+          path: dist/
+          if-no-files-found: error
+
+      - name: Publish Bridge 1.1.29
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.29'
+          NOTES='Final scoped update: full WordPress Media Library previews, complete contained Customer product imagery, expanded Merchant Add/Edit Product controls matching the useful WordPress/WooCommerce fields, and safe ShishaLove artwork normalization for newly selected non-600x600 featured images.'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/shishalove-app-bridge-1.1.29.zip dist/shishalove-app-bridge-1.1.29.zip.sha256 --clobber
+            gh release edit "$TAG" --title 'ShishaLove App Bridge 1.1.29 — Final Product Editor + Media Fix' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" dist/shishalove-app-bridge-1.1.29.zip dist/shishalove-app-bridge-1.1.29.zip.sha256 --title 'ShishaLove App Bridge 1.1.29 — Final Product Editor + Media Fix' --notes "$NOTES" --target shishalove-main
+          fi
+          gh release view "$TAG" --json url,assets
