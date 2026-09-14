@@ -27,8 +27,8 @@ android {
         applicationId 'eu.shishalove.customer'
         minSdk 24
         targetSdk 35
-        versionCode 123
-        versionName '1.1.21'
+        versionCode 124
+        versionName '1.1.22'
     }
 
     buildTypes {
@@ -47,8 +47,8 @@ android {
 // PERMANENT CUSTOMER LAUNCHER LOCK
 // Android/Samsung owns the final launcher mask. The exact user-approved Customer
 // artwork is reconstructed from four locked source parts, its dark canvas/outline
-// is removed, and only the white ShishaLove + red heart artwork is fitted into the
-// same protected adaptive safe area used by the approved Merchant launcher.
+// is removed, and only the white ShishaLove + red heart artwork is fitted into a
+// protected adaptive safe area so no part of the logo touches the launcher frame.
 def materializeCustomerLauncherIcon = tasks.register('materializeCustomerLauncherIcon') {
     doLast {
         def iconParts = (0..3).collect { idx ->
@@ -108,9 +108,11 @@ def materializeCustomerLauncherIcon = tasks.register('materializeCustomerLaunche
 
         int sourceW = maxX - minX + 1
         int sourceH = maxY - minY + 1
-        int targetW = 408
+        // Final Samsung-safe fit: 368px visible width leaves 72px horizontal
+        // breathing room on the 512px adaptive canvas before Android applies its mask.
+        int targetW = 368
         int targetH = Math.round(targetW * (sourceH / (float) sourceW))
-        int maxTargetH = 350
+        int maxTargetH = 320
         if (targetH > maxTargetH) {
             targetH = maxTargetH
             targetW = Math.round(targetH * (sourceW / (float) sourceH))
@@ -129,7 +131,7 @@ def materializeCustomerLauncherIcon = tasks.register('materializeCustomerLaunche
             null)
         g2.dispose()
 
-        if (offsetX < 48 || offsetY < 64 || (w - (offsetX + targetW)) < 48 || (h - (offsetY + targetH)) < 64) {
+        if (offsetX < 64 || offsetY < 80 || (w - (offsetX + targetW)) < 64 || (h - (offsetY + targetH)) < 80) {
             throw new GradleException('Customer launcher safe-area geometry violated')
         }
 
@@ -161,6 +163,12 @@ def lockCanonicalCustomerRuntime = tasks.register('lockCanonicalCustomerRuntime'
         source = source.replace(
                 'v.setPadding(bars.left, bars.top, bars.right, bars.bottom);',
                 'v.setPadding(bars.left, bars.top + dp(6), bars.right, Math.max(dp(10), bars.bottom - dp(28)));'
+        )
+        // Splash must use the processed transparent adaptive artwork, never the raw
+        // 512x512 source that contains the faint baked rounded-square border.
+        source = source.replace(
+                'logo.setImageResource(eu.shishalove.customer.R.drawable.ic_shishalove_customer);',
+                'logo.setImageResource(eu.shishalove.customer.R.drawable.ic_shishalove_customer_art);'
         )
         activity.setText(source, 'UTF-8')
     }
