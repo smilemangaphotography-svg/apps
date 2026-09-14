@@ -6,7 +6,6 @@ on:
       - infinite-drive-build
       - infinite-drive-device-fix
       - infinite-drive-signing-setup
-      - infinite-drive-1.0.2-source-fix
       - infinite-drive-main
     paths:
       - 'INFINITE-DRIVE/**'
@@ -26,13 +25,6 @@ jobs:
       - name: Apply source chooser fix
         working-directory: INFINITE-DRIVE
         run: python scripts/patch_source_chooser.py
-
-      - name: Upload patched source snapshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: infinite-drive-source-snapshot
-          path: INFINITE-DRIVE/app/src/main/java/eu/infinitedrive/app/MainActivity.kt
-          if-no-files-found: error
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
