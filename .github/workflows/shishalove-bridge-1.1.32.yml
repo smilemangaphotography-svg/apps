@@ -1,0 +1,118 @@
+name: ShishaLove Bridge 1.1.32 Stock + Orders + Black Nav
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.32.py'
+      - '.github/workflows/shishalove-bridge-1.1.32.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build and verify Bridge 1.1.32
+        run: |
+          set -euo pipefail
+          rm -rf package dist
+          mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.32.py package/shishalove-app-bridge
+
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.32/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.32');/" "$MAIN"
+
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+          php -l "$MAIN"
+
+          grep -Fq "var BUILD='1.1.32'" "$CUSTOMER"
+          grep -Fq "CFG.version='1.1.32'" "$CUSTOMER"
+          grep -Fq "CFG.version='1.1.32'" "$MERCHANT"
+          grep -Fq "slbfix','1.1.32'" "$CUSTOMER"
+          grep -Fq "slbfix','1.1.32'" "$MERCHANT"
+          grep -Fq 'Bridge 1.1.32' "$MERCHANT"
+
+          # Customer nav labels: rendered inline black plus CSS lock.
+          grep -Fq 'style="color:#000!important;-webkit-text-fill-color:#000!important;opacity:1!important"' "$CUSTOMER"
+          grep -Fq 'body.slb-customer .slb-bottom button .slb-bottom-label' "$CSS"
+
+          # Merchant stock management and quantity.
+          grep -Fq 'Stock management' "$MERCHANT"
+          grep -Fq 'Track stock quantity for this product' "$MERCHANT"
+          grep -Fq 'id="slm-manage-stock"' "$MERCHANT"
+          grep -Fq 'id="slm-stock-qty"' "$MERCHANT"
+          grep -Fq 'manage_stock:manage' "$MERCHANT"
+          grep -Fq "array_key_exists('manage_stock', \$body)" "$MAIN"
+          grep -Fq "array_key_exists('stock_quantity', \$body)" "$MAIN"
+
+          # Orders: uniform badges and real WooCommerce page navigation.
+          grep -Fq "pagerMarkup(data)+'</main>'" "$MERCHANT"
+          grep -Fq "if(state.view==='orders')" "$MERCHANT"
+          grep -Fq 'width:118px!important' "$CSS"
+          grep -Fq "'pages' => (int) \$result->max_num_pages" "$MAIN"
+
+          # Preserve previous approved features.
+          grep -Fq "var DATA_CACHE='stable-v1'" "$CUSTOMER"
+          grep -Fq "var DATA_CACHE='stable-v1'" "$MERCHANT"
+          grep -Fq 'TRASH PRODUCT' "$MERCHANT"
+          grep -Fq 'function slb_trash_product' "$MAIN"
+          grep -Fq 'watermark_failed' "$MAIN"
+          grep -Fq 'Product brands' "$MERCHANT"
+          ! grep -Fq 'Points Earned' "$MERCHANT"
+          ! grep -Fq 'Age Gate' "$MERCHANT"
+          ! grep -Fq 'Product Options' "$MERCHANT"
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.32.txt <<'TXT'
+          ShishaLove App Bridge 1.1.32 — STOCK + ORDERS + BLACK NAV
+
+          Update the existing WordPress Bridge only. No APK reinstall required.
+
+          CHANGED ONLY:
+          - Customer Home / Search / Favorites / Account text is forced to true black in the rendered markup. Icon active-state colors remain unchanged.
+          - Merchant Edit/New Product adds Stock management with “Track stock quantity for this product” and a stock quantity field.
+          - Merchant order status badges use one consistent pill width and height.
+          - Merchant Orders now shows Previous / Page X of Y / Next when WooCommerce has more than one page.
+          - Bridge 1.1.31 reload caching, favorite-heart fix, Trash, watermark, editor and all unrelated behavior remain unchanged.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.32.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.32.zip > shishalove-app-bridge-1.1.32.zip.sha256)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.32
+          path: dist/
+          if-no-files-found: error
+
+      - name: Publish Bridge 1.1.32
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.32'
+          NOTES='Scoped update only: true-black Customer bottom labels, Merchant stock management/quantity, uniform order-status pills, and Previous/Next WooCommerce order pagination. All Bridge 1.1.31 behavior remains locked.'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/shishalove-app-bridge-1.1.32.zip dist/shishalove-app-bridge-1.1.32.zip.sha256 --clobber
+            gh release edit "$TAG" --title 'ShishaLove App Bridge 1.1.32 — Stock + Orders + Black Nav' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" dist/shishalove-app-bridge-1.1.32.zip dist/shishalove-app-bridge-1.1.32.zip.sha256 --title 'ShishaLove App Bridge 1.1.32 — Stock + Orders + Black Nav' --notes "$NOTES" --target shishalove-main
+          fi
+          gh release view "$TAG" --json url,assets
