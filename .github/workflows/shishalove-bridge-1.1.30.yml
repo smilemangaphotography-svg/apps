@@ -1,0 +1,104 @@
+name: ShishaLove Bridge 1.1.30 Trash + Watermark + Editor Cleanup
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.30.py'
+      - '.github/workflows/shishalove-bridge-1.1.30.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build and verify Bridge 1.1.30
+        run: |
+          set -euo pipefail
+          rm -rf package dist
+          mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.30.py package/shishalove-app-bridge
+
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.30/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.30');/" "$MAIN"
+
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+          php -l "$MAIN"
+
+          grep -Fq "CFG.version='1.1.30'" "$CUSTOMER"
+          grep -Fq "CFG.version='1.1.30'" "$MERCHANT"
+          grep -Fq "slbfix','1.1.30'" "$CUSTOMER"
+          grep -Fq "slbfix','1.1.30'" "$MERCHANT"
+          grep -Fq 'Bridge 1.1.30' "$MERCHANT"
+          grep -Fq 'TRASH PRODUCT' "$MERCHANT"
+          grep -Fq 'data-act="trash-product"' "$MERCHANT"
+          grep -Fq 'function trashProduct()' "$MERCHANT"
+          grep -Fq 'Product brands' "$MERCHANT"
+          grep -Fq 'Catalog visibility' "$MERCHANT"
+          ! grep -Fq 'Points Earned' "$MERCHANT"
+          ! grep -Fq 'Maximum Discount' "$MERCHANT"
+          ! grep -Fq 'Age Gate' "$MERCHANT"
+          ! grep -Fq 'Product Options' "$MERCHANT"
+          ! grep -Fq 'YouTube Video' "$MERCHANT"
+          ! grep -Fq 'Product tags' "$MERCHANT"
+          grep -Fq 'function slb_trash_product' "$MAIN"
+          grep -Fq "'methods' => 'DELETE'" "$MAIN"
+          grep -Fq 'watermark_failed' "$MAIN"
+          grep -Fq 'right edge matches website product artwork' "$MAIN"
+          grep -Fq 'bottom edge matches website product artwork' "$MAIN"
+          grep -Fq 'slm-trash-product' "$CSS"
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.30.txt <<'TXT'
+          ShishaLove App Bridge 1.1.30 — TRASH + WATERMARK + EDITOR CLEANUP
+
+          Update the existing WordPress Bridge only. No Android APK reinstall required.
+
+          CHANGED ONLY:
+          - Merchant Edit Product adds TRASH PRODUCT. It moves the product to normal WordPress Trash and remains restorable.
+          - Phone product-image uploads must successfully become 600x600 with one permanent ShishaLove watermark baked into the website-locked bottom-right position; an unwatermarked upload is rejected instead of being reported as successful.
+          - The 1.1.29 editor cleanup keeps the core product controls plus the useful Publish / Product Brands block from the third reference.
+          - Removed the extra Tax/Points/Maximum Discount and Age Gate/Product Options/Tags groups from the fourth and fifth references.
+          - Customer, Orders, Stock, Media Library, navigation and all other approved behavior remain unchanged.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.30.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.30.zip > shishalove-app-bridge-1.1.30.zip.sha256)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.30
+          path: dist/
+          if-no-files-found: error
+
+      - name: Publish Bridge 1.1.30
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.30'
+          NOTES='Scoped final cleanup: reversible Merchant product Trash, guaranteed permanent 600x600 bottom-right ShishaLove watermark on new phone uploads, and removal of the extra 1.1.29 editor groups from reference layouts 4 and 5 while retaining the useful Publish/Product Brands controls.'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/shishalove-app-bridge-1.1.30.zip dist/shishalove-app-bridge-1.1.30.zip.sha256 --clobber
+            gh release edit "$TAG" --title 'ShishaLove App Bridge 1.1.30 — Trash + Watermark + Editor Cleanup' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" dist/shishalove-app-bridge-1.1.30.zip dist/shishalove-app-bridge-1.1.30.zip.sha256 --title 'ShishaLove App Bridge 1.1.30 — Trash + Watermark + Editor Cleanup' --notes "$NOTES" --target shishalove-main
+          fi
+          gh release view "$TAG" --json url,assets
