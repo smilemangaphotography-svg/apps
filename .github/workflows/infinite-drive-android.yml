@@ -5,6 +5,7 @@ on:
     branches:
       - infinite-drive-build
       - infinite-drive-device-fix
+      - infinite-drive-signing-setup
       - infinite-drive-main
     paths:
       - 'INFINITE-DRIVE/**'
@@ -38,9 +39,25 @@ jobs:
         working-directory: INFINITE-DRIVE
         run: gradle :app:lintDebug
 
+      - name: Export apksig tooling
+        shell: bash
+        run: |
+          mkdir -p signing-tools
+          APK_SIG_JAR="$(find "$HOME/.gradle/caches" -type f -name 'apksig-*.jar' | sort | tail -n 1)"
+          test -n "$APK_SIG_JAR"
+          cp "$APK_SIG_JAR" signing-tools/apksig.jar
+          echo "Exported $APK_SIG_JAR"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: infinite-drive-debug-apk
           path: INFINITE-DRIVE/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload signing tooling
+        uses: actions/upload-artifact@v4
+        with:
+          name: infinite-drive-signing-tools
+          path: signing-tools/apksig.jar
           if-no-files-found: error
