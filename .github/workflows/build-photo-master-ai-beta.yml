@@ -30,24 +30,26 @@ jobs:
           test -s PHOTO-MASTER-AI/app/src/main/assets/beta012.css
           test -s PHOTO-MASTER-AI/app/src/main/assets/beta013.js
           test -s PHOTO-MASTER-AI/app/src/main/assets/beta013.css
+          test -s PHOTO-MASTER-AI/app/src/main/assets/beta014.js
+          test -s PHOTO-MASTER-AI/app/src/main/assets/beta014.css
           grep -q "ChatGPT Shortcut Editor" PHOTO-MASTER-AI/app/src/main/assets/index.html
           grep -q "E-Commerce" PHOTO-MASTER-AI/app/src/main/assets/index.html
           grep -q "Instagram 9:16" PHOTO-MASTER-AI/app/src/main/assets/index.html
           grep -q "Reference Match" PHOTO-MASTER-AI/app/src/main/assets/index.html
-          grep -q "History" PHOTO-MASTER-AI/app/src/main/assets/beta011.js
           grep -q "ratio-story" PHOTO-MASTER-AI/app/src/main/assets/beta012.css
-          grep -q "applyCategoryFrame" PHOTO-MASTER-AI/app/src/main/assets/beta012.js
-          grep -q "Beta Test Engine" PHOTO-MASTER-AI/app/src/main/assets/beta013.js
-          grep -q "Zero-Cost Test Mode" PHOTO-MASTER-AI/app/src/main/assets/beta013.js
-          grep -q "Local Demo Processor" PHOTO-MASTER-AI/app/src/main/assets/beta013.js
-          grep -q "demoSendAi" PHOTO-MASTER-AI/app/src/main/assets/beta013.js
-          grep -q "makeDemoResult" PHOTO-MASTER-AI/app/src/main/assets/beta013.js
-          grep -q "findWebView" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/BetaActivity.java
-          grep -q "beta013.css" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/BetaActivity.java
-          grep -q "beta013.js" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/BetaActivity.java
+          grep -q "Zero-Cost Test Mode" PHOTO-MASTER-AI/app/src/main/assets/beta014.js
+          grep -q "How would you like to proceed" PHOTO-MASTER-AI/app/src/main/assets/beta014.js
+          grep -q "removeBackgroundLocal" PHOTO-MASTER-AI/app/src/main/assets/beta014.js
+          grep -q "Save PNG" PHOTO-MASTER-AI/app/src/main/assets/beta014.js
+          grep -q "Save JPG" PHOTO-MASTER-AI/app/src/main/assets/beta014.js
+          grep -q "AI Edit" PHOTO-MASTER-AI/app/src/main/assets/beta014.js
+          grep -q "Advanced Edit" PHOTO-MASTER-AI/app/src/main/assets/beta014.js
+          grep -q "beta014.css" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/BetaActivity.java
+          grep -q "beta014.js" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/BetaActivity.java
           node --check PHOTO-MASTER-AI/app/src/main/assets/beta011.js
           node --check PHOTO-MASTER-AI/app/src/main/assets/beta012.js
           node --check PHOTO-MASTER-AI/app/src/main/assets/beta013.js
+          node --check PHOTO-MASTER-AI/app/src/main/assets/beta014.js
           python3 - <<'PY'
           from pathlib import Path
           import re
@@ -55,13 +57,15 @@ jobs:
           scripts=re.findall(r'<script>([\s\S]*?)</script>',html)
           assert scripts, 'No inline JS found'
           Path('/tmp/pmai-app.js').write_text('\n'.join(scripts))
-          js=Path('PHOTO-MASTER-AI/app/src/main/assets/beta013.js').read_text()
+          js=Path('PHOTO-MASTER-AI/app/src/main/assets/beta014.js').read_text()
           assert "window.requireAi=function(){return true}" in js
-          assert "window.sendAi=demoSendAi" in js
-          assert "OpenAI API Key" not in js
-          assert "Save API Key" not in js
+          assert "window.sendAi=beta014SendAi" in js
+          assert "removeBackgroundLocal" in js
+          assert "saveCurrentFormat('png')" in js
+          assert "saveCurrentFormat('jpg')" in js
           gradle=Path('PHOTO-MASTER-AI/app/build.gradle').read_text()
-          assert "versionName '0.13.1-beta'" in gradle
+          assert "versionName '0.14.0-beta'" in gradle
+          assert "versionCode 7" in gradle
           assert "def endpoint = project.findProperty('PHOTO_MASTER_AI_ENDPOINT') ?: ''" in gradle
           PY
           node --check /tmp/pmai-app.js
@@ -91,7 +95,7 @@ jobs:
         run: |
           gradle --no-daemon -p PHOTO-MASTER-AI :app:assembleDebug
 
-      - name: Verify package, version and packaged demo engine
+      - name: Verify package, version and packaged Edit Studio
         shell: bash
         run: |
           APK="PHOTO-MASTER-AI/app/build/outputs/apk/debug/app-debug.apk"
@@ -99,25 +103,26 @@ jobs:
           AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging "$APK" | tee badging.txt
           grep -q "package: name='com.ilia.photomasterai'" badging.txt
-          grep -q "versionName='0.13.1-beta'" badging.txt
+          grep -q "versionName='0.14.0-beta'" badging.txt
           unzip -l "$APK" | tee apk-files.txt
           grep -q "assets/index.html" apk-files.txt
           grep -q "assets/beta011.js" apk-files.txt
           grep -q "assets/beta012.js" apk-files.txt
           grep -q "assets/beta013.js" apk-files.txt
-          grep -q "assets/beta013.css" apk-files.txt
+          grep -q "assets/beta014.js" apk-files.txt
+          grep -q "assets/beta014.css" apk-files.txt
 
       - name: Collect artifact
         shell: bash
         run: |
           mkdir -p beta-artifact
-          cp PHOTO-MASTER-AI/app/build/outputs/apk/debug/app-debug.apk beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.13.1-ZERO-COST.apk
-          sha256sum beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.13.1-ZERO-COST.apk > beta-artifact/SHA256SUMS.txt
+          cp PHOTO-MASTER-AI/app/build/outputs/apk/debug/app-debug.apk beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.14.0-ZERO-COST.apk
+          sha256sum beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.14.0-ZERO-COST.apk > beta-artifact/SHA256SUMS.txt
 
       - name: Upload beta APK
         uses: actions/upload-artifact@v4
         with:
-          name: CHATGPT-SHORTCUT-EDITOR-BETA-0.13.1-ZERO-COST-A54
+          name: CHATGPT-SHORTCUT-EDITOR-BETA-0.14.0-PHOTOROOM-EDIT-STUDIO-A54
           path: beta-artifact/*
           if-no-files-found: error
           retention-days: 30
