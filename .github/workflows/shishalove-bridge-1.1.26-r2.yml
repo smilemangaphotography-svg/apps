@@ -1,0 +1,108 @@
+name: ShishaLove Bridge 1.1.26 Hardened Rebuild
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.26-r2.py'
+      - '.github/workflows/shishalove-bridge-1.1.26-r2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build and verify hardened 1.1.26
+        run: |
+          set -euo pipefail
+          rm -rf baseline package dist
+          mkdir -p baseline package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge baseline/shishalove-app-bridge
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.25.py baseline/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.26-r2.py package/shishalove-app-bridge
+
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          diff -qr baseline/shishalove-app-bridge package/shishalove-app-bridge | sort > /tmp/diff.txt || true
+          cat /tmp/diff.txt
+          test "$(wc -l < /tmp/diff.txt)" -eq 3
+          grep -Fq 'assets/customer.js' /tmp/diff.txt
+          grep -Fq 'assets/merchant.js' /tmp/diff.txt
+          grep -Fq 'assets/bridge.css' /tmp/diff.txt
+          cmp --silent baseline/shishalove-app-bridge/shishalove-app-bridge.php "$MAIN"
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.26/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.26');/" "$MAIN"
+
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+          php -l "$MAIN"
+
+          grep -Fq 'class="slb-bottom-label"' "$CUSTOMER"
+          grep -Fq 'slb-product-placeholder' "$CUSTOMER"
+          grep -Fq 'id="slm-main-image-input" type="file"' "$MERCHANT"
+          grep -Fq 'id="slm-gallery-input" type="file"' "$MERCHANT"
+          grep -Fq 'function uploadMerchantMedia(file)' "$MERCHANT"
+          grep -Fq 'function merchantMediaLibraryBody()' "$MERCHANT"
+          grep -Fq 'DELETE PERMANENTLY' "$MERCHANT"
+          grep -Fq "loadMediaManager(false)" "$MERCHANT"
+          grep -Fq "state.view==='media-library'" "$MERCHANT"
+          grep -Fq 'function slb_list_merchant_media' "$MAIN"
+          grep -Fq 'function slb_delete_merchant_media' "$MAIN"
+          grep -Fq 'wp_delete_attachment($id, true)' "$MAIN"
+          grep -Fq 'function slb_upload_merchant_media' "$MAIN"
+          grep -Fq 'ShishaLove 1.1.26 — final scoped product-edge + media access corrections' "$CSS"
+          grep -Fq 'grid-template-columns:repeat(2,minmax(0,1fr))!important' "$CSS"
+          grep -Fq 'aspect-ratio:1/1!important' "$CSS"
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.26.txt <<'TXT'
+          ShishaLove App Bridge 1.1.26 — FINAL SCOPED FIX
+
+          Update the existing WordPress Bridge only.
+
+          FIXED ONLY:
+          - Customer readable bottom navigation labels.
+          - Customer real product imagery kept inside card edges with stronger safe inset; WooCommerce placeholder/Hose Gasket remains exempt.
+          - Merchant ADD IMAGE / ADD PHOTOS from phone restored beside WordPress Media Library.
+          - WordPress Media Library shows clear 1:1 square cards.
+          - More now contains a standalone Media Library manager with search, pagination and permanent-delete confirmation.
+          - Existing WooCommerce featured image/gallery save behavior remains intact.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.26.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.26.zip > shishalove-app-bridge-1.1.26.zip.sha256)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.26
+          path: dist/
+          if-no-files-found: error
+
+      - name: Publish Bridge 1.1.26
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.26'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/shishalove-app-bridge-1.1.26.zip dist/shishalove-app-bridge-1.1.26.zip.sha256 --clobber
+            gh release edit "$TAG" --title 'ShishaLove App Bridge 1.1.26 — Final Media + Product Edge Fix' --notes 'Phone upload restored alongside WordPress Media Library; clear 1:1 previews; standalone More > Media Library manager with permanent deletion; Customer product-edge and nav-label corrections. All unrelated behavior locked.' --target shishalove-main
+          else
+            gh release create "$TAG" dist/shishalove-app-bridge-1.1.26.zip dist/shishalove-app-bridge-1.1.26.zip.sha256 --title 'ShishaLove App Bridge 1.1.26 — Final Media + Product Edge Fix' --notes 'Phone upload restored alongside WordPress Media Library; clear 1:1 previews; standalone More > Media Library manager with permanent deletion; Customer product-edge and nav-label corrections. All unrelated behavior locked.' --target shishalove-main
+          fi
+          gh release view "$TAG" --json url,assets
