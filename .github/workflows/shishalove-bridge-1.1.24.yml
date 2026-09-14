@@ -1,0 +1,141 @@
+name: ShishaLove Bridge 1.1.24 Final Scoped Fixes
+
+on:
+  push:
+    branches:
+      - shishalove-main
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.24.py'
+      - '.github/workflows/shishalove-bridge-1.1.24.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-bridge:
+    name: Verify only approved loading, refresh and product-media fixes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build locked 1.1.23 baseline and 1.1.24 candidate
+        run: |
+          set -euo pipefail
+          rm -rf baseline package dist
+          mkdir -p baseline package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge baseline/shishalove-app-bridge
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.23.py baseline/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.24.py package/shishalove-app-bridge
+
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          # Hard scope gate: compared with approved 1.1.23, only these four Bridge
+          # files may differ. No other UI/assets/templates can move.
+          diff -qr baseline/shishalove-app-bridge package/shishalove-app-bridge | sort > /tmp/bridge-diff.txt || true
+          cat /tmp/bridge-diff.txt
+          test "$(wc -l < /tmp/bridge-diff.txt)" -eq 4
+          grep -Fq 'assets/bridge.css' /tmp/bridge-diff.txt
+          grep -Fq 'assets/customer.js' /tmp/bridge-diff.txt
+          grep -Fq 'assets/merchant.js' /tmp/bridge-diff.txt
+          grep -Fq 'shishalove-app-bridge.php' /tmp/bridge-diff.txt
+
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+          php -l "$MAIN"
+
+          python3 - "$CUSTOMER" "$MERCHANT" "$MAIN" "$CSS" <<'PY'
+          import sys
+          from pathlib import Path
+          customer=Path(sys.argv[1]).read_text(encoding='utf-8')
+          merchant=Path(sys.argv[2]).read_text(encoding='utf-8')
+          main=Path(sys.argv[3]).read_text(encoding='utf-8')
+          css=Path(sys.argv[4]).read_text(encoding='utf-8')
+
+          # Customer: false first-load empty state is impossible; one request starts on tap.
+          assert "loading=!cached" in customer
+          assert "Loading products…" in customer
+          assert "categoryRequestShared(cat,key)" in customer
+          assert "if(!cacheGet(key,10*60*1000))categoryRequestShared(cat,key);" in customer
+          assert "No in-stock products found." in customer  # retained for genuine empty responses only
+
+          # Merchant: refresh is stale-while-revalidate, never clears visible rows first.
+          refresh="function refresh(){if(state.view==='products')loadProducts(false,true);else if(state.view==='stock')loadProducts(true,true);else if(state.view==='orders')loadOrders(true);else bootstrap(true);}"
+          assert refresh in merchant
+          assert "function editorMedia(p)" in merchant
+          assert "slm-main-image-input" in merchant
+          assert "slm-gallery-input" in merchant
+          assert "merchant/media" in merchant
+          assert "image_id:Number(state.editor.image_id)||0" in merchant
+          assert "gallery_ids:Array.isArray(state.editor.gallery_ids)" in merchant
+
+          # WooCommerce remains source of truth for actual attachment IDs.
+          assert "'image_id' => (int) $image_id" in main
+          assert "'gallery_ids' =>" in main
+          assert "function slb_upload_merchant_media" in main
+          assert "'/merchant/media'" in main
+          assert "$product->set_image_id" in main
+          assert "$product->set_gallery_image_ids" in main
+          assert 'ShishaLove 1.1.24 Merchant product-media restoration only' in css
+          print('PASS: exact final scope verified')
+          PY
+
+          # Package as the next Bridge release; source patch chain remains canonical.
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.24/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.24');/" "$MAIN"
+          php -l "$MAIN"
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.24.txt <<'TXT'
+          ShishaLove App Bridge 1.1.24 — FINAL SCOPED FIX
+
+          UPDATE THE EXISTING WORDPRESS BRIDGE ONLY. DO NOT REINSTALL ANDROID APPS FOR THESE BRIDGE CHANGES.
+
+          FIXED — AND ONLY THESE ITEMS:
+          1. Customer: first brand/category open no longer flashes 0 products / No in-stock products while the first request is loading. The request begins on the tap and the real empty message is shown only after a real empty response.
+          2. Merchant: Refresh keeps the current data visible while fresh WooCommerce data loads, removing the blank/reload lag.
+          3. Merchant Edit/Create Product: main product image and gallery are restored, use the Android image picker, upload to the WordPress Media Library, and save real WooCommerce attachment IDs.
+
+          LOCKED / UNCHANGED:
+          Navigation, sorting, recommendations, Orders, Stock rules, category structure, approved branding, Merchant header/footer, Customer layout, and all unrelated behavior.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.24.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.24.zip > shishalove-app-bridge-1.1.24.zip.sha256)
+
+      - name: Upload bridge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.24
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish Bridge 1.1.24
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.24'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/shishalove-app-bridge-1.1.24.zip dist/shishalove-app-bridge-1.1.24.zip.sha256 --clobber
+            gh release edit "$TAG" --title 'ShishaLove App Bridge 1.1.24 — Final Scoped Fixes' --notes 'Only Customer first-category loading, Merchant refresh responsiveness, and Merchant product image/gallery editing are changed. All other approved behavior remains locked.' --target shishalove-main
+          else
+            gh release create "$TAG" dist/shishalove-app-bridge-1.1.24.zip dist/shishalove-app-bridge-1.1.24.zip.sha256 --title 'ShishaLove App Bridge 1.1.24 — Final Scoped Fixes' --notes 'Only Customer first-category loading, Merchant refresh responsiveness, and Merchant product image/gallery editing are changed. All other approved behavior remains locked.' --target shishalove-main
+          fi
+
+      - name: Confirm release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release view shishalove-bridge-1.1.24 --json url,assets
