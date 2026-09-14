@@ -1,0 +1,177 @@
+name: ShishaLove Runtime 1.1.36 Permanent Safe Areas
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - '.github/workflows/shishalove-runtime-1.1.36.yml'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.36.py'
+      - 'shishalove-mobile/tools/patch-runtime-1.1.36.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build Bridge 1.1.36 and runtime patches
+        run: |
+          set -euo pipefail
+          rm -rf package dist
+          mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.36.py package/shishalove-app-bridge
+          python3 shishalove-mobile/tools/patch-runtime-1.1.36.py
+
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.36/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.36');/" "$MAIN"
+
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+          php -l "$MAIN"
+
+          grep -Fq "var BUILD='1.1.36'" "$CUSTOMER"
+          grep -Fq "CFG.version='1.1.36'" "$CUSTOMER"
+          grep -Fq "CFG.version='1.1.36'" "$MERCHANT"
+          grep -Fq 'Bridge 1.1.36' "$MERCHANT"
+
+          # Browser/PWA Merchant: content and nav occupy separate rows.
+          grep -Fq 'body.slb-merchant .slm-app' "$CSS"
+          grep -Fq 'display:flex!important' "$CSS"
+          grep -Fq 'overflow-y:auto!important' "$CSS"
+          grep -Fq 'position:relative!important' "$CSS"
+          grep -Fq 'flex:0 0 calc(76px + var(--safe-bottom))' "$CSS"
+
+          # Installed Merchant: Android owns BOTH system insets once.
+          MERCHANT_ACTIVITY='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java'
+          grep -Fq 'v.setPadding(bars.left, bars.top, bars.right, bars.bottom);' "$MERCHANT_ACTIVITY"
+          grep -Fq "--safe-bottom','0px','important'" "$MERCHANT_ACTIVITY"
+          grep -Fq 'slm-native-layout-136' "$MERCHANT_ACTIVITY"
+          ! grep -Fq '__slmPermanentScrollGuard' "$MERCHANT_ACTIVITY"
+
+          # Customer safe-area runtime remains unchanged and proven.
+          grep -Fq 'v.setPadding(bars.left, bars.top, bars.right, 0);' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/CustomerActivityV134.java
+
+          # Approved functionality remains locked.
+          grep -Fq 'TRASH PRODUCT' "$MERCHANT"
+          grep -Fq 'slm-manage-stock' "$MERCHANT"
+          grep -Fq 'pagerMarkup(data)' "$MERCHANT"
+          grep -Fq 'window.slbRepairProductImage' "$CUSTOMER"
+          grep -Fq 'watermark_failed' "$MAIN"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build both update identities
+        working-directory: shishalove-mobile
+        run: gradle :customer:assembleRelease :customer:assembleDebug :merchant:assembleRelease :merchant:assembleDebug --stacktrace
+
+      - name: Prove in-place update compatibility
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          CR='shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk'
+          CD='shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk'
+          MR='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          MD='shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk'
+
+          "$AAPT" dump badging "$CR" | grep -q "package: name='eu.shishalove.customer' versionCode='136' versionName='1.1.36'"
+          "$AAPT" dump badging "$CD" | grep -q "package: name='eu.shishalove.customer.dev' versionCode='136' versionName='1.1.36-dev'"
+          "$AAPT" dump badging "$MR" | grep -q "package: name='eu.shishalove.merchant' versionCode='136' versionName='1.1.36'"
+          "$AAPT" dump badging "$MD" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='136' versionName='1.1.36-dev'"
+
+          mkdir -p dist/previous
+          gh release download shishalove-runtime-1.1.35 --pattern 'ShishaLove-Customer-Android-1.1.35.apk' --dir dist/previous
+          gh release download shishalove-runtime-1.1.35 --pattern 'ShishaLove-Customer-Android-1.1.35-LEGACY-BETA.apk' --dir dist/previous
+          gh release download shishalove-runtime-1.1.35 --pattern 'ShishaLove-Merchant-Android-1.1.35.apk' --dir dist/previous
+          gh release download shishalove-runtime-1.1.35 --pattern 'ShishaLove-Merchant-Android-1.1.35-LEGACY-BETA.apk' --dir dist/previous
+
+          digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
+          test "$(digest dist/previous/ShishaLove-Customer-Android-1.1.35.apk)" = "$(digest "$CR")"
+          test "$(digest dist/previous/ShishaLove-Customer-Android-1.1.35-LEGACY-BETA.apk)" = "$(digest "$CD")"
+          test "$(digest dist/previous/ShishaLove-Merchant-Android-1.1.35.apk)" = "$(digest "$MR")"
+          test "$(digest dist/previous/ShishaLove-Merchant-Android-1.1.35-LEGACY-BETA.apk)" = "$(digest "$MD")"
+
+      - name: Package release
+        run: |
+          set -euo pipefail
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.36.zip shishalove-app-bridge)
+
+          # The user's long-running installed line is the legacy/debug package.
+          # These CURRENT-PHONE assets therefore update in place instead of
+          # creating a second app. Canonical/store assets remain separate.
+          cp shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk dist/ShishaLove-Customer-1.1.36-CURRENT-PHONE-UPDATE.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/ShishaLove-Merchant-1.1.36-CURRENT-PHONE-UPDATE.apk
+          cp shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk dist/ShishaLove-Customer-1.1.36-STORE-LINE.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk dist/ShishaLove-Merchant-1.1.36-STORE-LINE.apk
+
+          cat > dist/UPDATE-IDENTITY.txt <<'TXT'
+          ShishaLove 1.1.36 package identity lock
+
+          CURRENT PHONE UPDATE line (existing beta/dev installs):
+          Customer: eu.shishalove.customer.dev
+          Merchant: eu.shishalove.merchant.dev
+
+          Store/canonical line (future clean installs / store releases):
+          Customer: eu.shishalove.customer
+          Merchant: eu.shishalove.merchant
+
+          Android cannot convert one package identity into the other in place.
+          The CURRENT-PHONE files preserve the existing package and certificate,
+          so Android should offer UPDATE and keep app data. Never uninstall to
+          change identity unless intentionally migrating to the store line.
+          TXT
+
+          sha256sum dist/shishalove-app-bridge-1.1.36.zip dist/*.apk > dist/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-runtime-1.1.36
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-runtime-1.1.36'
+          NOTES='Permanent safe-area release: Merchant browser/app nav occupies its own viewport row; Android owns system insets exactly once; CURRENT-PHONE APKs preserve the existing dev package/signing identities for true in-place updates.'
+          ASSETS=(dist/shishalove-app-bridge-1.1.36.zip dist/ShishaLove-Customer-1.1.36-CURRENT-PHONE-UPDATE.apk dist/ShishaLove-Merchant-1.1.36-CURRENT-PHONE-UPDATE.apk dist/ShishaLove-Customer-1.1.36-STORE-LINE.apk dist/ShishaLove-Merchant-1.1.36-STORE-LINE.apk dist/UPDATE-IDENTITY.txt dist/SHA256SUMS.txt)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+            gh release edit "$TAG" --title 'ShishaLove Runtime 1.1.36 — Permanent Safe Areas' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" "${ASSETS[@]}" --title 'ShishaLove Runtime 1.1.36 — Permanent Safe Areas' --notes "$NOTES" --target shishalove-main
+          fi
