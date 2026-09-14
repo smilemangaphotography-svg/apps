@@ -23,7 +23,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Upload source snapshot
+      - name: Apply source chooser fix
+        working-directory: INFINITE-DRIVE
+        run: python scripts/patch_source_chooser.py
+
+      - name: Upload patched source snapshot
         uses: actions/upload-artifact@v4
         with:
           name: infinite-drive-source-snapshot
