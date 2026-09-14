@@ -27,8 +27,8 @@ android {
         applicationId 'eu.shishalove.merchant'
         minSdk 24
         targetSdk 35
-        versionCode 127
-        versionName '1.1.25'
+        versionCode 128
+        versionName '1.1.26'
     }
 
     buildTypes {
@@ -44,8 +44,10 @@ android {
     }
 }
 
-// Merchant launcher only: Android owns the final launcher mask/shape.
-// No rounded square, white frame or corner treatment is baked into the icon.
+// PERMANENT MERCHANT LAUNCHER LOCK
+// Android/Samsung owns the final mask. The exact Merchant artwork is extracted from
+// the locked 512x512 branding source, cropped to its visible pixels, then fitted
+// inside the adaptive safe area so the red MERCHANT band can never be clipped.
 def materializeMerchantLauncherIcon = tasks.register('materializeMerchantLauncherIcon') {
     doLast {
         def brandingDir = rootProject.file('../shishalove-branding')
@@ -55,68 +57,81 @@ def materializeMerchantLauncherIcon = tasks.register('materializeMerchantLaunche
         def encoded = expectedNames.collect { new File(brandingDir, it).getText('UTF-8').trim() }.join('')
         byte[] raw = java.util.Base64.decoder.decode(encoded)
         def sourceImage = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(raw))
-        if (sourceImage == null || sourceImage.width != 512 || sourceImage.height != 512) throw new GradleException('Merchant launcher source must be 512x512 PNG')
+        if (sourceImage == null || sourceImage.width != 512 || sourceImage.height != 512) {
+            throw new GradleException('Merchant launcher source must be 512x512 PNG')
+        }
 
         def outputDir = file('src/main/res/drawable-nodpi')
         outputDir.mkdirs()
         new File(outputDir, 'ic_shishalove_merchant.png').bytes = raw
 
         int w = 512, h = 512
-        boolean[] outside = new boolean[w * h]
-        def queue = new java.util.ArrayDeque<Integer>()
-        def isOuterBackground = { int argb ->
-            int a = (argb >>> 24) & 0xff
-            int r = (argb >>> 16) & 0xff
-            int g = (argb >>> 8) & 0xff
-            int b = argb & 0xff
-            int max = Math.max(r, Math.max(g, b))
-            int min = Math.min(r, Math.min(g, b))
-            a == 0 || (min > 150 && (max - min) < 50)
-        }
-        def enqueue = { int x, int y ->
-            int idx = y * w + x
-            if (!outside[idx] && isOuterBackground(sourceImage.getRGB(x, y))) {
-                outside[idx] = true
-                queue.add(idx)
-            }
-        }
-        for (int x = 0; x < w; x++) { enqueue(x, 0); enqueue(x, h - 1) }
-        for (int y = 0; y < h; y++) { enqueue(0, y); enqueue(w - 1, y) }
-        int[] dx = [1, -1, 0, 0]
-        int[] dy = [0, 0, 1, -1]
-        while (!queue.isEmpty()) {
-            int idx = queue.removeFirst()
-            int x = idx % w
-            int y = (int)(idx / w)
-            for (int k = 0; k < 4; k++) {
-                int nx = x + dx[k], ny = y + dy[k]
-                if (nx >= 0 && nx < w && ny >= 0 && ny < h) enqueue(nx, ny)
-            }
-        }
-
-        def art = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        def extracted = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        int minX = w, minY = h, maxX = -1, maxY = -1
         int visiblePixels = 0
+        int redPixels = 0
+
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
-                int idx = y * w + x
                 int argb = sourceImage.getRGB(x, y)
                 int a = (argb >>> 24) & 0xff
                 int r = (argb >>> 16) & 0xff
                 int g = (argb >>> 8) & 0xff
                 int b = argb & 0xff
-                if (outside[idx] || a == 0 || (r < 28 && g < 28 && b < 28)) {
-                    art.setRGB(x, y, 0x00000000)
+                boolean blackBackground = a == 0 || (r < 28 && g < 28 && b < 28)
+                if (blackBackground) {
+                    extracted.setRGB(x, y, 0x00000000)
                 } else {
-                    art.setRGB(x, y, argb)
+                    extracted.setRGB(x, y, argb)
                     visiblePixels++
+                    minX = Math.min(minX, x)
+                    minY = Math.min(minY, y)
+                    maxX = Math.max(maxX, x)
+                    maxY = Math.max(maxY, y)
+                    if (r > 120 && r > g * 1.35 && r > b * 1.35) redPixels++
                 }
             }
         }
-        if (visiblePixels < 1000) throw new GradleException('Merchant launcher foreground extraction failed')
-        [[0,0],[511,0],[0,511],[511,511]].each { p ->
-            if (((art.getRGB(p[0], p[1]) >>> 24) & 0xff) != 0) throw new GradleException('Merchant launcher corners must be transparent')
+
+        if (visiblePixels < 1000 || redPixels < 500 || maxX <= minX || maxY <= minY) {
+            throw new GradleException('Merchant launcher artwork extraction failed or red MERCHANT band is missing')
         }
-        javax.imageio.ImageIO.write(art, 'png', new File(outputDir, 'ic_shishalove_merchant_art.png'))
+
+        int sourceW = maxX - minX + 1
+        int sourceH = maxY - minY + 1
+
+        // 408px on a 512px adaptive canvas = ~80% visual width.
+        // This is deliberately smaller than the full foreground layer: Android launchers
+        // apply additional masking/zoom, and previous 96/112dp wrapper scaling clipped
+        // the MERCHANT band. The complete logo now stays inside the adaptive safe area.
+        int targetW = 408
+        int targetH = Math.round(targetW * (sourceH / (float) sourceW))
+        int maxTargetH = 350
+        if (targetH > maxTargetH) {
+            targetH = maxTargetH
+            targetW = Math.round(targetH * (sourceW / (float) sourceH))
+        }
+        int offsetX = (w - targetW) / 2
+        int offsetY = (h - targetH) / 2
+
+        def safeArt = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+        def g2 = safeArt.createGraphics()
+        g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+        g2.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING, java.awt.RenderingHints.VALUE_RENDER_QUALITY)
+        g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON)
+        g2.drawImage(extracted,
+            offsetX, offsetY, offsetX + targetW, offsetY + targetH,
+            minX, minY, maxX + 1, maxY + 1,
+            null)
+        g2.dispose()
+
+        // Permanent geometry guard: visible artwork must retain at least 48px of left/right
+        // canvas space and 64px of top/bottom space before Android applies its own mask.
+        if (offsetX < 48 || offsetY < 64 || (w - (offsetX + targetW)) < 48 || (h - (offsetY + targetH)) < 64) {
+            throw new GradleException('Merchant launcher safe-area geometry violated')
+        }
+
+        javax.imageio.ImageIO.write(safeArt, 'png', new File(outputDir, 'ic_shishalove_merchant_art.png'))
         def obsolete = new File(outputDir, 'ic_shishalove_merchant_legacy.png')
         if (obsolete.exists()) obsolete.delete()
     }
