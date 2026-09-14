@@ -15,7 +15,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    env:
+      HAS_RELEASE_SIGNING: ${{ secrets.IDRIVE_KEYSTORE_B64 != '' && secrets.IDRIVE_STORE_PASSWORD != '' && secrets.IDRIVE_KEY_ALIAS != '' && secrets.IDRIVE_KEY_PASSWORD != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,29 +37,56 @@ jobs:
         working-directory: INFINITE-DRIVE
         run: gradle :app:assembleDebug --stacktrace
 
+      - name: Build release code path
+        working-directory: INFINITE-DRIVE
+        run: gradle :app:assembleRelease --stacktrace
+
       - name: Run lint
         working-directory: INFINITE-DRIVE
         run: gradle :app:lintDebug
 
-      - name: Export apksig tooling
+      - name: Prepare permanent release keystore
+        if: env.HAS_RELEASE_SIGNING == 'true'
+        shell: bash
+        env:
+          IDRIVE_KEYSTORE_B64: ${{ secrets.IDRIVE_KEYSTORE_B64 }}
+        run: |
+          echo "$IDRIVE_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/infinite-drive-release.jks"
+          chmod 600 "$RUNNER_TEMP/infinite-drive-release.jks"
+
+      - name: Build permanently signed release APK
+        if: env.HAS_RELEASE_SIGNING == 'true'
+        working-directory: INFINITE-DRIVE
+        env:
+          IDRIVE_KEYSTORE_PATH: ${{ runner.temp }}/infinite-drive-release.jks
+          IDRIVE_STORE_PASSWORD: ${{ secrets.IDRIVE_STORE_PASSWORD }}
+          IDRIVE_KEY_ALIAS: ${{ secrets.IDRIVE_KEY_ALIAS }}
+          IDRIVE_KEY_PASSWORD: ${{ secrets.IDRIVE_KEY_PASSWORD }}
+        run: gradle :app:assembleRelease --stacktrace --rerun-tasks
+
+      - name: Verify permanent signer
+        if: env.HAS_RELEASE_SIGNING == 'true'
         shell: bash
         run: |
-          mkdir -p signing-tools
-          APK_SIG_JAR="$(find "$HOME/.gradle/caches" -type f -name 'apksig-*.jar' | sort | tail -n 1)"
-          test -n "$APK_SIG_JAR"
-          cp "$APK_SIG_JAR" signing-tools/apksig.jar
-          echo "Exported $APK_SIG_JAR"
+          APK="INFINITE-DRIVE/app/build/outputs/apk/release/app-release.apk"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee signer-report.txt
+          ACTUAL="$(awk -F': ' '/certificate SHA-256 digest/ {print tolower($2); exit}' signer-report.txt | tr -d ':')"
+          EXPECTED="d317bbe5e7e9779bc89c2dd587fbd0d017dfaeedbbc28f9b130380ec77274750"
+          test "$ACTUAL" = "$EXPECTED"
 
-      - name: Upload APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: infinite-drive-debug-apk
           path: INFINITE-DRIVE/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Upload signing tooling
+      - name: Upload permanently signed release APK
+        if: env.HAS_RELEASE_SIGNING == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: infinite-drive-signing-tools
-          path: signing-tools/apksig.jar
+          name: infinite-drive-release-apk
+          path: INFINITE-DRIVE/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
