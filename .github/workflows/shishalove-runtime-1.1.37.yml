@@ -1,0 +1,155 @@
+name: ShishaLove Runtime 1.1.37 Canonical Updates
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - '.github/workflows/shishalove-runtime-1.1.37.yml'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.37.py'
+      - 'shishalove-mobile/tools/patch-runtime-1.1.37.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build and validate Bridge/runtime patches
+        run: |
+          set -euo pipefail
+          rm -rf package dist && mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.37.py package/shishalove-app-bridge
+          python3 shishalove-mobile/tools/patch-runtime-1.1.37.py
+
+          C='package/shishalove-app-bridge/assets/customer.js'
+          M='package/shishalove-app-bridge/assets/merchant.js'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.37/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.37');/" "$MAIN"
+          node --check "$C"
+          node --check "$M"
+          php -l "$MAIN"
+
+          grep -Fq "var BUILD='1.1.37'" "$C"
+          grep -Fq "CFG.version='1.1.37'" "$M"
+          grep -Fq 'Bridge 1.1.37' "$M"
+          grep -Fq 'grid-template-columns:minmax(0,1fr) 205px' "$CSS"
+          grep -Fq 'position:fixed!important' "$CSS"
+          grep -Fq 'flex:0 0 82px!important' "$CSS"
+
+          # Refresh must paint cache immediately even when force-refreshing.
+          test "$(grep -o "if(cached){state.productsByView\[name\]=cached" "$M" | wc -l)" -ge 2
+          grep -Fq "if(cached){state.orders=cached" "$M"
+
+          # Both installed Android apps own the system bottom inset natively.
+          grep -Fq 'v.setPadding(bars.left, bars.top, bars.right, bars.bottom);' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/CustomerActivityV134.java
+          grep -Fq 'v.setPadding(bars.left, bars.top, bars.right, bars.bottom);' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java
+          grep -Fq "bottomInsetCssPx = 0;" shishalove-mobile/customer/src/main/java/eu/shishalove/customer/CustomerActivityV134.java
+
+          # Regression locks.
+          grep -Fq 'TRASH PRODUCT' "$M"
+          grep -Fq 'slm-manage-stock' "$M"
+          grep -Fq 'pagerMarkup(data)' "$M"
+          grep -Fq 'window.slbRepairProductImage' "$C"
+          grep -Fq 'watermark_failed' "$MAIN"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build canonical and legacy update APKs
+        working-directory: shishalove-mobile
+        run: gradle :customer:assembleRelease :customer:assembleDebug :merchant:assembleRelease :merchant:assembleDebug --stacktrace
+
+      - name: Prove CURRENT PHONE canonical in-place update compatibility
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          CR='shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk'
+          CD='shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk'
+          MR='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          MD='shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk'
+
+          "$AAPT" dump badging "$CR" | grep -q "package: name='eu.shishalove.customer' versionCode='137' versionName='1.1.37'"
+          "$AAPT" dump badging "$MR" | grep -q "package: name='eu.shishalove.merchant' versionCode='137' versionName='1.1.37'"
+          "$AAPT" dump badging "$CD" | grep -q "package: name='eu.shishalove.customer.dev' versionCode='137' versionName='1.1.37-dev'"
+          "$AAPT" dump badging "$MD" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='137' versionName='1.1.37-dev'"
+
+          mkdir -p dist/previous
+          gh release download shishalove-runtime-1.1.35 --pattern 'ShishaLove-Customer-Android-1.1.35.apk' --dir dist/previous
+          gh release download shishalove-runtime-1.1.35 --pattern 'ShishaLove-Merchant-Android-1.1.35.apk' --dir dist/previous
+          digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
+          test "$(digest dist/previous/ShishaLove-Customer-Android-1.1.35.apk)" = "$(digest "$CR")"
+          test "$(digest dist/previous/ShishaLove-Merchant-Android-1.1.35.apk)" = "$(digest "$MR")"
+
+      - name: Package release
+        run: |
+          set -euo pipefail
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.37.zip shishalove-app-bridge)
+          # IMPORTANT: screenshots prove the installed 1.1.35 apps are on the canonical line.
+          cp shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk dist/ShishaLove-Customer-1.1.37-CURRENT-PHONE-UPDATE.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk dist/ShishaLove-Merchant-1.1.37-CURRENT-PHONE-UPDATE.apk
+          cp shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk dist/ShishaLove-Customer-1.1.37-LEGACY-DEV-ONLY.apk
+          cp shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk dist/ShishaLove-Merchant-1.1.37-LEGACY-DEV-ONLY.apk
+          cat > dist/UPDATE-IDENTITY.txt <<'TXT'
+          ShishaLove 1.1.37 update identity lock
+
+          CURRENT PHONE UPDATE (canonical installed 1.1.35 line):
+          Customer: eu.shishalove.customer
+          Merchant: eu.shishalove.merchant
+          These files are signed with the same certificates as the canonical 1.1.35 APKs and use versionCode 137.
+
+          Legacy DEV files are retained only for old .dev installations. They are NOT the current-phone files.
+          Future releases must keep the canonical package IDs and signing certificates so Android offers Update, never a second install.
+          TXT
+          sha256sum dist/shishalove-app-bridge-1.1.37.zip dist/*.apk > dist/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-runtime-1.1.37
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-runtime-1.1.37'
+          NOTES='Canonical in-place update release: Customer and Merchant system-safe bottom navigation, Merchant strict browser viewport, instant stale-while-revalidate Merchant refresh, and full Recommended-order selector. CURRENT-PHONE assets are canonical eu.shishalove.customer / eu.shishalove.merchant updates.'
+          ASSETS=(dist/shishalove-app-bridge-1.1.37.zip dist/ShishaLove-Customer-1.1.37-CURRENT-PHONE-UPDATE.apk dist/ShishaLove-Merchant-1.1.37-CURRENT-PHONE-UPDATE.apk dist/ShishaLove-Customer-1.1.37-LEGACY-DEV-ONLY.apk dist/ShishaLove-Merchant-1.1.37-LEGACY-DEV-ONLY.apk dist/UPDATE-IDENTITY.txt dist/SHA256SUMS.txt)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+            gh release edit "$TAG" --title 'ShishaLove Runtime 1.1.37 — Canonical Update + Safe Viewports' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" "${ASSETS[@]}" --title 'ShishaLove Runtime 1.1.37 — Canonical Update + Safe Viewports' --notes "$NOTES" --target shishalove-main
+          fi
