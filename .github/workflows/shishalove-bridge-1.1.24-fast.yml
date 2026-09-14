@@ -1,0 +1,76 @@
+name: ShishaLove Bridge 1.1.24 Final Fast Build
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.24-fast.py'
+      - '.github/workflows/shishalove-bridge-1.1.24-fast.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+      - name: Build and validate exact final scope
+        run: |
+          set -euo pipefail
+          rm -rf package dist
+          mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.24-fast.py package/shishalove-app-bridge
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.24/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.24');/" "$MAIN"
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+          php -l "$MAIN"
+          grep -Fq "return storeApi({category:cat.id" "$CUSTOMER"
+          grep -Fq "Loading products…" "$CUSTOMER"
+          grep -Fq "function slb_product_list_payload" "$MAIN"
+          grep -Fq "slb_product_list_payload(\$p, \$merchant)" "$MAIN"
+          grep -Fq "function editorMedia(p)" "$MERCHANT"
+          grep -Fq "merchant/media" "$MERCHANT"
+          grep -Fq "function slb_upload_merchant_media" "$MAIN"
+          grep -Fq "\$product->set_image_id" "$MAIN"
+          grep -Fq "\$product->set_gallery_image_ids" "$MAIN"
+          grep -Fq "function refresh(){if(state.view==='products')loadProducts(false,true)" "$MERCHANT"
+          cat > package/shishalove-app-bridge/INSTALL-1.1.24.txt <<'TXT'
+          ShishaLove App Bridge 1.1.24 — FINAL
+          Update the existing WordPress Bridge only.
+
+          Fixed only:
+          - Customer first brand open: fast Store API first, no false empty-product screen while loading.
+          - Customer/Merchant product list endpoint: lightweight rows for faster reload.
+          - Merchant Refresh: current data stays visible while fresh data arrives.
+          - Merchant Edit/Create Product: featured image + gallery picker/upload restored and saved to WooCommerce.
+
+          All other approved UI/navigation/orders/stock/sorting/recommendation/branding behavior is unchanged.
+          TXT
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.24.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.24.zip > shishalove-app-bridge-1.1.24.zip.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.24-final
+          path: dist/
+      - name: Replace public 1.1.24 assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.24'
+          gh release upload "$TAG" dist/shishalove-app-bridge-1.1.24.zip dist/shishalove-app-bridge-1.1.24.zip.sha256 --clobber
+          gh release edit "$TAG" --title 'ShishaLove App Bridge 1.1.24 — Final Scoped Fixes' --notes 'Final build: only Customer first-brand loading, lightweight list reload performance, Merchant non-destructive refresh, and Merchant product image/gallery editing are changed. Everything else remains locked.' --target shishalove-main
+          gh release view "$TAG" --json url,assets
