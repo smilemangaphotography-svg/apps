@@ -58,7 +58,7 @@ jobs:
           test -f shishalove-mobile/customer/src/main/java/eu/shishalove/customer/CustomerActivityV134.java
           grep -Fq 'android:name=".CustomerActivityV134"' shishalove-mobile/customer/src/main/AndroidManifest.xml
           grep -Fq 'v.setPadding(bars.left, bars.top, bars.right, 0);' shishalove-mobile/customer/src/main/java/eu/shishalove/customer/CustomerActivityV134.java
-          grep -Fq "--safe-bottom',inset,'important'" shishalove-mobile/customer/src/main/java/eu/shishalove/customer/CustomerActivityV134.java
+          grep -Fq -- "--safe-bottom',inset,'important'" shishalove-mobile/customer/src/main/java/eu/shishalove/customer/CustomerActivityV134.java
           grep -Fq 'versionCode 134' shishalove-mobile/customer/build.gradle
           grep -Fq "versionName '1.1.34'" shishalove-mobile/customer/build.gradle
 
