@@ -38,9 +38,11 @@ jobs:
           grep -q "ratio-story" PHOTO-MASTER-AI/app/src/main/assets/beta012.css
           grep -q "applyCategoryFrame" PHOTO-MASTER-AI/app/src/main/assets/beta012.js
           grep -q "Beta Test Engine" PHOTO-MASTER-AI/app/src/main/assets/beta013.js
-          grep -q "Zero-cost functional testing" PHOTO-MASTER-AI/app/src/main/assets/beta013.js
+          grep -q "Zero-Cost Test Mode" PHOTO-MASTER-AI/app/src/main/assets/beta013.js
+          grep -q "Local Demo Processor" PHOTO-MASTER-AI/app/src/main/assets/beta013.js
           grep -q "demoSendAi" PHOTO-MASTER-AI/app/src/main/assets/beta013.js
           grep -q "makeDemoResult" PHOTO-MASTER-AI/app/src/main/assets/beta013.js
+          grep -q "findWebView" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/BetaActivity.java
           grep -q "beta013.css" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/BetaActivity.java
           grep -q "beta013.js" PHOTO-MASTER-AI/app/src/main/java/com/ilia/photomasterai/BetaActivity.java
           node --check PHOTO-MASTER-AI/app/src/main/assets/beta011.js
@@ -56,8 +58,10 @@ jobs:
           js=Path('PHOTO-MASTER-AI/app/src/main/assets/beta013.js').read_text()
           assert "window.requireAi=function(){return true}" in js
           assert "window.sendAi=demoSendAi" in js
+          assert "OpenAI API Key" not in js
+          assert "Save API Key" not in js
           gradle=Path('PHOTO-MASTER-AI/app/build.gradle').read_text()
-          assert "versionName '0.13.0-beta'" in gradle
+          assert "versionName '0.13.1-beta'" in gradle
           assert "def endpoint = project.findProperty('PHOTO_MASTER_AI_ENDPOINT') ?: ''" in gradle
           PY
           node --check /tmp/pmai-app.js
@@ -95,7 +99,7 @@ jobs:
           AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging "$APK" | tee badging.txt
           grep -q "package: name='com.ilia.photomasterai'" badging.txt
-          grep -q "versionName='0.13.0-beta'" badging.txt
+          grep -q "versionName='0.13.1-beta'" badging.txt
           unzip -l "$APK" | tee apk-files.txt
           grep -q "assets/index.html" apk-files.txt
           grep -q "assets/beta011.js" apk-files.txt
@@ -107,13 +111,13 @@ jobs:
         shell: bash
         run: |
           mkdir -p beta-artifact
-          cp PHOTO-MASTER-AI/app/build/outputs/apk/debug/app-debug.apk beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.13.0-ZERO-COST.apk
-          sha256sum beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.13.0-ZERO-COST.apk > beta-artifact/SHA256SUMS.txt
+          cp PHOTO-MASTER-AI/app/build/outputs/apk/debug/app-debug.apk beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.13.1-ZERO-COST.apk
+          sha256sum beta-artifact/CHATGPT-SHORTCUT-EDITOR-BETA-0.13.1-ZERO-COST.apk > beta-artifact/SHA256SUMS.txt
 
       - name: Upload beta APK
         uses: actions/upload-artifact@v4
         with:
-          name: CHATGPT-SHORTCUT-EDITOR-BETA-0.13.0-ZERO-COST-A54
+          name: CHATGPT-SHORTCUT-EDITOR-BETA-0.13.1-ZERO-COST-A54
           path: beta-artifact/*
           if-no-files-found: error
           retention-days: 30
