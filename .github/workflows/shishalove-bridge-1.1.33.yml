@@ -1,0 +1,100 @@
+name: ShishaLove Bridge 1.1.33 Final Bottom Nav Parity
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.33.py'
+      - '.github/workflows/shishalove-bridge-1.1.33.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build and verify Bridge 1.1.33
+        run: |
+          set -euo pipefail
+          rm -rf package dist
+          mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.33.py package/shishalove-app-bridge
+
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.33/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.33');/" "$MAIN"
+
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+          php -l "$MAIN"
+
+          grep -Fq "var BUILD='1.1.33'" "$CUSTOMER"
+          grep -Fq "CFG.version='1.1.33'" "$CUSTOMER"
+          grep -Fq "CFG.version='1.1.33'" "$MERCHANT"
+          grep -Fq "slbfix','1.1.33'" "$CUSTOMER"
+          grep -Fq "slbfix','1.1.33'" "$MERCHANT"
+          grep -Fq 'Bridge 1.1.33' "$MERCHANT"
+
+          # Final scope lock — bottom navigation only.
+          grep -Fq 'html.slb-android-app body.slb-customer .slb-bottom button .slb-bottom-label' "$CSS"
+          grep -Fq 'color:#000!important;' "$CSS"
+          grep -Fq 'html:not(.slb-android-app) body.slb-merchant .slm-bottom{' "$CSS"
+          grep -Fq 'height:76px!important;' "$CSS"
+          grep -Fq 'font-size:13px!important;' "$CSS"
+
+          # Preserve all 1.1.32 functionality unchanged.
+          grep -Fq 'TRASH PRODUCT' "$MERCHANT"
+          grep -Fq 'slm-manage-stock' "$MERCHANT"
+          grep -Fq 'pagerMarkup(data)' "$MERCHANT"
+          grep -Fq 'slm-order .slm-badge' "$CSS"
+          grep -Fq 'watermark_failed' "$MAIN"
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.33.txt <<'TXT'
+          ShishaLove App Bridge 1.1.33 — FINAL BOTTOM NAV PARITY
+
+          Update the existing WordPress Bridge only. No APK reinstall required.
+
+          CHANGED ONLY:
+          - Android Customer bottom labels now match the browser/WebView reference: solid black, bold Home / Search / Favorites / Account labels; active icon remains red.
+          - Merchant browser/iPhone WebView bottom navigation now matches the installed Android Merchant bar proportions/typography.
+          - Installed Android Merchant bottom navigation is intentionally left untouched.
+          - All Bridge 1.1.32 products, orders, stock, editor, watermark, media library, pagination, caching and other approved behavior remain unchanged.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.33.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.33.zip > shishalove-app-bridge-1.1.33.zip.sha256)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.33
+          path: dist/
+          if-no-files-found: error
+
+      - name: Publish Bridge 1.1.33
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.33'
+          NOTES='Final scoped update only: Customer Android bottom labels match browser/WebView; Merchant browser/iPhone WebView bottom nav matches installed Android Merchant. No other UI or functionality changed.'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/shishalove-app-bridge-1.1.33.zip dist/shishalove-app-bridge-1.1.33.zip.sha256 --clobber
+            gh release edit "$TAG" --title 'ShishaLove App Bridge 1.1.33 — Final Bottom Nav Parity' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" dist/shishalove-app-bridge-1.1.33.zip dist/shishalove-app-bridge-1.1.33.zip.sha256 --title 'ShishaLove App Bridge 1.1.33 — Final Bottom Nav Parity' --notes "$NOTES" --target shishalove-main
+          fi
