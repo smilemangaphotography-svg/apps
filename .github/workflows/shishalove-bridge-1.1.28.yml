@@ -1,0 +1,100 @@
+name: ShishaLove Bridge 1.1.28 Image Fit + Editor Fix
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.28.py'
+      - '.github/workflows/shishalove-bridge-1.1.28.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build and verify Bridge 1.1.28
+        run: |
+          set -euo pipefail
+          rm -rf package dist
+          mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.28.py package/shishalove-app-bridge
+
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.28/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.28');/" "$MAIN"
+
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+          php -l "$MAIN"
+
+          grep -Fq "var BUILD='1.1.28'" "$CUSTOMER"
+          grep -Fq "CFG.version='1.1.28'" "$CUSTOMER"
+          grep -Fq "CFG.version='1.1.28'" "$MERCHANT"
+          grep -Fq "slbfix','1.1.28'" "$CUSTOMER"
+          grep -Fq "slbfix','1.1.28'" "$MERCHANT"
+          grep -Fq 'Bridge 1.1.28' "$MERCHANT"
+          grep -Fq 'slm-main-media-actions' "$MERCHANT"
+          grep -Fq 'slm-gallery-media-actions' "$MERCHANT"
+          grep -Fq "var src=m.source_url||m.thumb_url||''" "$MERCHANT"
+          grep -Fq 'DELETE PERMANENTLY' "$MERCHANT"
+          grep -Fq 'ShishaLove 1.1.28 — exact remaining live-screen fixes only' "$CSS"
+          grep -Fq 'transform:scale(.90)!important' "$CSS"
+          grep -Fq 'body.slb-merchant .slm-panel-head button' "$CSS"
+          grep -Fq 'position:static!important' "$CSS"
+          grep -Fq 'aspect-ratio:1/1!important' "$CSS"
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.28.txt <<'TXT'
+          ShishaLove App Bridge 1.1.28
+
+          Update the existing WordPress Bridge only. No APK reinstall required.
+
+          FIXED ONLY:
+          - Merchant Edit/New Product back arrow and X are strong and clearly visible.
+          - CHANGE/ADD IMAGE and MEDIA LIBRARY are two separate equal buttons.
+          - ADD PHOTOS and MEDIA LIBRARY are two separate gallery buttons.
+          - CANCEL/CREATE/UPDATE no longer overlays product image/gallery controls.
+          - WordPress Media Library tiles show the complete image in a true square card.
+          - Permanent delete is below each Media Library image, never on top of it.
+          - Customer product cards show complete artwork with extra safe breathing room; no side cropping.
+          - Existing upload watermark, media library, dashboard, refresh, navigation and business logic remain unchanged.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.28.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.28.zip > shishalove-app-bridge-1.1.28.zip.sha256)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.28
+          path: dist/
+          if-no-files-found: error
+
+      - name: Publish Bridge 1.1.28
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.28'
+          NOTES='Scoped live-screen update only: visible Merchant editor back/X, separated image and Media Library controls, non-overlapping editor actions, true full-square WordPress Media Library previews with delete below, and complete contained Customer product artwork.'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/shishalove-app-bridge-1.1.28.zip dist/shishalove-app-bridge-1.1.28.zip.sha256 --clobber
+            gh release edit "$TAG" --title 'ShishaLove App Bridge 1.1.28 — Image Fit + Editor Fix' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" dist/shishalove-app-bridge-1.1.28.zip dist/shishalove-app-bridge-1.1.28.zip.sha256 --title 'ShishaLove App Bridge 1.1.28 — Image Fit + Editor Fix' --notes "$NOTES" --target shishalove-main
+          fi
+          gh release view "$TAG" --json url,assets
