@@ -3,37 +3,67 @@
   window.__beta013Applied=true;
   const $id=id=>document.getElementById(id);
 
-  const account=$id('account');
-  if(account){
-    account.innerHTML=`
-      <div class="topbar"><button class="icon-btn" onclick="appBack()">‹</button><div class="title">Engine Mode</div><span></span></div>
-      <div class="cloud-card demo-card">
-        <div class="cloud-orb">✦</div>
-        <h3>Beta Test Engine</h3>
-        <div class="status cloud-status"><span class="dot on"></span><span>Demo Mode Active</span></div>
-        <div class="mini cloud-copy">Zero-cost functional testing. No API key, cloud backend or paid AI generation is used in this build.</div>
-      </div>
-      <div class="form-card"><h3>What this tests</h3><div class="mini">Category ratios, photo import, Fit/Contain, processing flow, Before/After, Regenerate, Refine, Save, History, Favorites, Custom Masters, Reference Match and navigation are fully testable. Real AI edit quality is intentionally disabled until the app workflow is approved.</div></div>`;
-  }
-
-  const settings=$id('settings');
-  if(settings){
-    const rows=[...settings.querySelectorAll('.settings-row')];
-    const first=rows[0];
-    if(first){
-      const icon=first.querySelector('.sicon'); if(icon)icon.textContent='✦';
-      const b=first.querySelector('b'); if(b)b.textContent='Engine Mode · Demo';
-      first.onclick=()=>showScreen('account');
+  function ensureScreen(id){
+    let el=$id(id);
+    if(!el){
+      el=document.createElement('section');
+      el.id=id;
+      el.className='screen';
+      const app=document.querySelector('.app');
+      const toast=$id('toast');
+      if(app) app.insertBefore(el,toast||null);
     }
-    const lock=settings.querySelector('.mockup-lock');
-    if(lock)lock.textContent='✓ Zero-cost functional test · Beta 0.13';
+    return el;
   }
 
-  const about=$id('about');
-  if(about){
-    const card=about.querySelector('.form-card');
-    if(card)card.innerHTML='<h3>ChatGPT Shortcut Editor</h3><div class="mini">Functional Beta 0.13.0<br>Zero-Cost Functional Test Mode.<br><br>This build uses a local Demo Test Engine so the complete app workflow can be validated without API charges. PhotoRoom-style ratio-aware flow from Beta 0.12 is preserved.</div>';
-  }
+  // Beta 0.13 is intentionally self-contained so it works even if an older
+  // settings layout is present in index.html. No API-key UI is exposed.
+  const settings=ensureScreen('settings');
+  settings.innerHTML=`
+    <div class="topbar"><button class="icon-btn" onclick="appBack()">‹</button><div class="title">Settings</div><span></span></div>
+    <div class="demo-banner"><span class="demo-dot"></span><div><b>Zero-Cost Test Mode</b><small>Local Demo Engine · no API charges</small></div></div>
+    <div class="settings-list">
+      <button class="settings-row" onclick="showScreen('account')"><span class="sicon">✦</span><b>Engine Mode · Demo</b><span class="chev">›</span></button>
+      <button class="settings-row" onclick="showScreen('custom')"><span class="sicon">▣</span><b>Master Commands</b><span class="chev">›</span></button>
+      <button class="settings-row" onclick="showSavedPresets()"><span class="sicon">◇</span><b>Saved Presets</b><span class="chev">›</span></button>
+      <button class="settings-row" onclick="showScreen('history')"><span class="sicon">◷</span><b>History</b><span class="chev">›</span></button>
+      <button class="settings-row" onclick="showScreen('favorites')"><span class="sicon">♡</span><b>Favorites</b><span class="chev">›</span></button>
+      <button class="settings-row" onclick="showScreen('preferences')"><span class="sicon">⚙</span><b>App Preferences</b><span class="chev">›</span></button>
+      <button class="settings-row" onclick="showScreen('help')"><span class="sicon">?</span><b>Help & Support</b><span class="chev">›</span></button>
+      <button class="settings-row" onclick="showScreen('about')"><span class="sicon">ⓘ</span><b>About</b><span class="chev">›</span></button>
+    </div>
+    <div class="mockup-lock">✓ Zero-cost functional test · Beta 0.13.1</div>`;
+
+  const account=ensureScreen('account');
+  account.innerHTML=`
+    <div class="topbar"><button class="icon-btn" onclick="appBack()">‹</button><div class="title">Engine Mode</div><span></span></div>
+    <div class="cloud-card demo-card">
+      <div class="cloud-orb">✦</div>
+      <h3>Beta Test Engine</h3>
+      <div class="status cloud-status"><span class="dot on"></span><span>Demo Mode Active</span></div>
+      <div class="mini cloud-copy">Zero-cost functional testing. No API key, cloud backend, subscription handoff or paid AI generation is used in this build.</div>
+    </div>
+    <div class="form-card"><h3>What this tests</h3><div class="mini">Category ratios, photo import, Fit/Contain, processing flow, Before/After, Regenerate, Refine, Save, History, Favorites, Custom Masters, Reference Match and navigation are testable. Real AI edit quality is intentionally disabled until the workflow is approved.</div></div>`;
+
+  const preferences=ensureScreen('preferences');
+  preferences.innerHTML=`
+    <div class="topbar"><button class="icon-btn" onclick="appBack()">‹</button><div class="title">App Preferences</div><span></span></div>
+    <div class="form-card"><h3>Test Engine</h3>
+      <div class="status"><span class="dot on"></span><span>Local Demo Processor</span></div>
+      <div class="mini" style="margin-top:10px">This beta performs local, non-destructive test transformations only. It is designed to verify the app workflow before paid AI is connected.</div>
+      <div class="field"><label>Preview quality</label><select id="qualitySelect" onchange="savePrefs()"><option value="medium">Medium</option><option value="high">High</option><option value="xhigh">Extra High</option></select></div>
+    </div>`;
+
+  const help=ensureScreen('help');
+  help.innerHTML=`
+    <div class="topbar"><button class="icon-btn" onclick="appBack()">‹</button><div class="title">Help & Support</div><span></span></div>
+    <div class="form-card"><h3>Zero-Cost Beta</h3><div class="mini">No API setup is required. Choose a category, add a photo and the local Demo Test Engine will create a test result so you can validate the complete workflow.</div></div>
+    <div class="form-card"><h3>Workflow</h3><div class="mini">Choose category → Add Photo → Demo processing → Before/After → Regenerate or Refine → Save.</div></div>`;
+
+  const about=ensureScreen('about');
+  about.innerHTML=`
+    <div class="topbar"><button class="icon-btn" onclick="appBack()">‹</button><div class="title">About</div><span></span></div>
+    <div class="form-card"><h3>ChatGPT Shortcut Editor</h3><div class="mini">Functional Beta 0.13.1<br>Zero-Cost Functional Test Mode.<br><br>This build uses a local Demo Test Engine. The PhotoRoom-style ratio-aware flow is preserved and no paid AI connection is required.</div></div>`;
 
   const processingTitle=document.querySelector('.processing-title');
   if(processingTitle)processingTitle.textContent='Beta Test Engine is preparing your result…';
@@ -46,8 +76,8 @@
     if(ratio==='9:16')return [1080,1920];
     if(ratio==='4:5')return [1200,1500];
     if(ratio==='16:9')return [1600,900];
-    const max=1600,s=Math.min(1,max/Math.max(im.naturalWidth||im.width,im.naturalHeight||im.height));
-    return [Math.max(1,Math.round((im.naturalWidth||im.width)*s)),Math.max(1,Math.round((im.naturalHeight||im.height)*s))];
+    const iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height,max=1600,s=Math.min(1,max/Math.max(iw,ih));
+    return [Math.max(1,Math.round(iw*s)),Math.max(1,Math.round(ih*s))];
   }
   function drawCover(ctx,im,w,h){
     const iw=im.naturalWidth||im.width,ih=im.naturalHeight||im.height,s=Math.max(w/iw,h/ih),dw=iw*s,dh=ih*s;
@@ -71,7 +101,7 @@
   }
   async function makeDemoResult(req){
     const im=await loadImage(req.source_image);
-    const settings=req.settings||{},ratio=settings.ratio||'Original',mode=settings.mode||'auto';
+    const cfg=req.settings||{},ratio=cfg.ratio||'Original',mode=cfg.mode||'auto';
     const [w,h]=outputSize(im,ratio),c=document.createElement('canvas');c.width=w;c.height=h;
     const ctx=c.getContext('2d',{alpha:false});
     const fixed=['1:1','9:16','4:5','16:9'].includes(ratio);
@@ -93,26 +123,26 @@
   }
   function demoSendAi(req){
     return new Promise((resolve,reject)=>{
-      const delay=1100+Math.floor(Math.random()*450);
+      const delay=1050+Math.floor(Math.random()*500);
       setTimeout(()=>{makeDemoResult(req).then(img=>resolve({images:[img],demo:true})).catch(reject)},delay);
     });
   }
 
+  // Force zero-cost local processing regardless of legacy connection helpers.
   window.requireAi=function(){return true};
   try{requireAi=window.requireAi}catch(e){}
   window.sendAi=demoSendAi;
   try{sendAi=demoSendAi}catch(e){}
-
   window.refreshCloudStatus=function(showToast){if(showToast)toast('Demo Mode is active. No API or cloud connection is needed.')};
 
   const baseShow=window.showScreen;
   window.showScreen=function(id,push=true){
     baseShow(id,push);
     if(id==='settings'){
-      const lock=document.querySelector('#settings .mockup-lock');
-      if(lock)lock.textContent='✓ Zero-cost functional test · Beta 0.13';
+      const q=$id('qualitySelect');if(q)q.value=localStorage.getItem('pmai_quality')||'high';
     }
   };
+  try{showScreen=window.showScreen}catch(e){}
 
   const resultTop=document.querySelector('#result .topbar .title');
   if(resultTop&&!document.querySelector('#result .demo-engine-badge')){
