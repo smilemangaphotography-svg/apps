@@ -2,9 +2,9 @@ package com.ilia.photomasterai;
 
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.FrameLayout;
 
 import org.json.JSONObject;
 
@@ -18,30 +18,44 @@ public class BetaActivity extends MainActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        FrameLayout content = findViewById(android.R.id.content);
-        if (content != null && content.getChildCount() > 0 && content.getChildAt(0) instanceof WebView) {
-            patchedWebView = (WebView) content.getChildAt(0);
-            patchedWebView.setOverScrollMode(View.OVER_SCROLL_NEVER);
-            patchedWebView.setOnApplyWindowInsetsListener((v, insets) -> {
-                int bottom = insets.getSystemWindowInsetBottom();
-                v.setPadding(0, 0, 0, Math.max(0, bottom));
-                return insets;
-            });
-            patchedWebView.requestApplyInsets();
-            patchedWebView.setWebViewClient(new WebViewClient() {
-                @Override
-                public void onPageFinished(WebView view, String url) {
-                    super.onPageFinished(view, url);
-                    injectAsset("beta011.css", true);
-                    injectAsset("beta011.js", false);
-                    injectAsset("beta012.css", true);
-                    injectAsset("beta012.js", false);
-                    injectAsset("beta013.css", true);
-                    injectAsset("beta013.js", false);
-                }
-            });
-            patchedWebView.reload();
+
+        View root = findViewById(android.R.id.content);
+        patchedWebView = findWebView(root);
+        if (patchedWebView == null) return;
+
+        patchedWebView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        patchedWebView.setOnApplyWindowInsetsListener((v, insets) -> {
+            int bottom = insets.getSystemWindowInsetBottom();
+            v.setPadding(0, 0, 0, Math.max(0, bottom));
+            return insets;
+        });
+        patchedWebView.requestApplyInsets();
+        patchedWebView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                injectAsset("beta011.css", true);
+                injectAsset("beta011.js", false);
+                injectAsset("beta012.css", true);
+                injectAsset("beta012.js", false);
+                injectAsset("beta013.css", true);
+                injectAsset("beta013.js", false);
+            }
+        });
+        patchedWebView.reload();
+    }
+
+    private WebView findWebView(View view) {
+        if (view == null) return null;
+        if (view instanceof WebView) return (WebView) view;
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                WebView found = findWebView(group.getChildAt(i));
+                if (found != null) return found;
+            }
         }
+        return null;
     }
 
     private String readAsset(String name) throws Exception {
