@@ -1,0 +1,138 @@
+name: ShishaLove Bridge 1.1.25 Scoped Customer + Media Library Fix
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.25.py'
+      - '.github/workflows/shishalove-bridge-1.1.25.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build locked 1.1.24 baseline and 1.1.25 candidate
+        run: |
+          set -euo pipefail
+          rm -rf baseline package dist
+          mkdir -p baseline package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge baseline/shishalove-app-bridge
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.24-fast.py baseline/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.25.py package/shishalove-app-bridge
+
+          CUSTOMER='package/shishalove-app-bridge/assets/customer.js'
+          MERCHANT='package/shishalove-app-bridge/assets/merchant.js'
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          # Scope gate: only CSS, Merchant JS and Bridge PHP may change from 1.1.24.
+          # Customer logic/data flow stays frozen; image fit/nav readability are CSS only.
+          diff -qr baseline/shishalove-app-bridge package/shishalove-app-bridge | sort > /tmp/diff.txt || true
+          cat /tmp/diff.txt
+          test "$(wc -l < /tmp/diff.txt)" -eq 3
+          grep -Fq 'assets/bridge.css' /tmp/diff.txt
+          grep -Fq 'assets/merchant.js' /tmp/diff.txt
+          grep -Fq 'shishalove-app-bridge.php' /tmp/diff.txt
+          cmp --silent baseline/shishalove-app-bridge/assets/customer.js "$CUSTOMER"
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.25/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.25');/" "$MAIN"
+
+          node --check "$CUSTOMER"
+          node --check "$MERCHANT"
+          php -l "$MAIN"
+
+          python3 - "$MERCHANT" "$MAIN" "$CSS" <<'PY'
+          import sys
+          from pathlib import Path
+          merchant=Path(sys.argv[1]).read_text(encoding='utf-8')
+          main=Path(sys.argv[2]).read_text(encoding='utf-8')
+          css=Path(sys.argv[3]).read_text(encoding='utf-8')
+
+          # Customer exact locks.
+          assert 'Customer nav readability + safe full-product image fit ONLY' in css
+          assert '-webkit-text-fill-color:currentColor!important' in css
+          assert 'object-fit:scale-down!important' in css
+          assert 'img[src*="placeholder"]' in css
+          assert 'padding-bottom:calc(104px + var(--safe-bottom))!important' in css
+
+          # Merchant must use WordPress Media Library UI, not the old device file picker.
+          assert 'WordPress Media Library' in merchant
+          assert 'data-media-open="main"' in merchant
+          assert 'data-media-open="gallery"' in merchant
+          assert "api('merchant/media?page='" in merchant
+          assert "api('merchant/media/'+id,{method:'DELETE'})" in merchant
+          assert 'ADD SELECTED TO GALLERY' in merchant
+          assert 'data-gallery-remove' in merchant
+          assert 'type="file"' not in merchant
+          assert 'slm-main-image-input' not in merchant
+          assert 'slm-gallery-input' not in merchant
+
+          # WordPress attachment library remains source of truth.
+          assert 'function slb_list_merchant_media' in main
+          assert 'function slb_delete_merchant_media' in main
+          assert "'/merchant/media/(?P<id>\\d+)'" in main
+          assert "'methods' => 'DELETE'" in main
+          assert 'wp_delete_attachment($id, true)' in main
+          assert 'wp_get_attachment_metadata($id)' in main
+
+          # Existing 1.1.24 image/gallery save support must remain.
+          assert "$product->set_image_id" in main
+          assert "$product->set_gallery_image_ids" in main
+          print('PASS: Bridge 1.1.25 exact scope verified')
+          PY
+
+          cat > package/shishalove-app-bridge/INSTALL-1.1.25.txt <<'TXT'
+          ShishaLove App Bridge 1.1.25 — SCOPED CUSTOMER + MEDIA LIBRARY FIX
+
+          Update the existing WordPress Bridge only.
+
+          FIXED — ONLY THESE ITEMS:
+          - Customer bottom navigation labels are fully readable again.
+          - Customer real product images use safe scale-down/contain geometry so complete product artwork and existing baked ShishaLove marks stay inside the 1:1 card. WooCommerce placeholder/Hose Gasket behavior is explicitly excluded.
+          - Customer product content receives safe clearance above the fixed bottom navigation.
+          - Merchant Edit/Create Product now uses the WordPress Media Library instead of the phone/device Add Image/Add Photos picker.
+          - Merchant featured image can be chosen/removed from the product.
+          - Merchant product gallery supports multi-select from WordPress Media Library and remove-from-product-gallery.
+          - Merchant Media Library items can be permanently deleted only after an explicit confirmation.
+          - Media Library previews are 1:1 and show source dimensions; exact existing ShishaLove-watermarked assets are preserved rather than adding a second watermark.
+
+          LOCKED / UNCHANGED:
+          Customer data loading, sorting, recommendations, categories, Hose Gasket source image, Merchant Orders, Stock logic, navigation structure, approved headers/branding, Android APKs and signing.
+          TXT
+
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.25.zip shishalove-app-bridge)
+          (cd dist && sha256sum shishalove-app-bridge-1.1.25.zip > shishalove-app-bridge-1.1.25.zip.sha256)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-app-bridge-1.1.25
+          path: dist/
+          if-no-files-found: error
+
+      - name: Publish Bridge 1.1.25
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-bridge-1.1.25'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/shishalove-app-bridge-1.1.25.zip dist/shishalove-app-bridge-1.1.25.zip.sha256 --clobber
+            gh release edit "$TAG" --title 'ShishaLove App Bridge 1.1.25 — Customer Image Fit + WordPress Media Library' --notes 'Scoped release: Customer nav/image-fit corrections and Merchant WordPress Media Library selection/removal/deletion only. All other approved behavior remains locked.' --target shishalove-main
+          else
+            gh release create "$TAG" dist/shishalove-app-bridge-1.1.25.zip dist/shishalove-app-bridge-1.1.25.zip.sha256 --title 'ShishaLove App Bridge 1.1.25 — Customer Image Fit + WordPress Media Library' --notes 'Scoped release: Customer nav/image-fit corrections and Merchant WordPress Media Library selection/removal/deletion only. All other approved behavior remains locked.' --target shishalove-main
+          fi
+          gh release view "$TAG" --json url,assets
