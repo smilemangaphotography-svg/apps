@@ -38,7 +38,7 @@ jobs:
           grep -Fq 'int safeBottom = Math.max(0, systemBottom) + dp(10);' "$A"
           grep -Fq 'v.setPadding(bars.left, bars.top, bars.right, safeBottom);' "$A"
           grep -Fq '.setInsets(WindowInsets.Type.systemBars(), android.graphics.Insets.NONE)' "$A"
-          grep -Fq "--safe-bottom','0px','important'" "$A"
+          grep -Fq -- "--safe-bottom','0px','important'" "$A"
           grep -Fq 'versionCode 139' "$G"
           grep -Fq "versionName '1.1.39'" "$G"
           grep -Fq 'build=139' "$M"
