@@ -23,7 +23,7 @@ jobs:
       - name: Generate FRAME Beta 0.12 Instagram Target + Preset Review
         shell: bash
         run: |
-          python3 FRAME-Redesign/beta/patch13.py
+          python3 FRAME-Redesign/beta/patch13_runner.py
 
       - name: Validate functional Beta 0.12 runtime
         shell: bash
