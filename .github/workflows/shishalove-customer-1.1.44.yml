@@ -1,0 +1,130 @@
+name: ShishaLove Customer 1.1.44 Instant Reload
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - '.github/workflows/shishalove-customer-1.1.44.yml'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.44.py'
+      - 'shishalove-mobile/tools/patch-customer-instant-1.1.44.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build Customer Bridge 1.1.44
+        run: |
+          set -euo pipefail
+          rm -rf package dist && mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.44.py package/shishalove-app-bridge
+
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          C='package/shishalove-app-bridge/assets/customer.js'
+          M='package/shishalove-app-bridge/assets/merchant.js'
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.44/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.44');/" "$MAIN"
+          node --check "$C"
+          node --check "$M"
+          php -l "$MAIN"
+          grep -Fq "var BUILD='1.1.44';" "$C"
+          grep -Fq "CFG.version='1.1.44';" "$C"
+          grep -Fq "var DATA_CACHE='stable-v1';" "$C"
+          grep -Fq "cacheGet(key,0)" "$C"
+          grep -Fq "CFG.version='1.1.43';" "$M"
+          grep -Fq 'Version: 1.1.44' "$MAIN"
+
+      - name: Apply Customer Android 1.1.44 instant-reload patch
+        run: |
+          set -euo pipefail
+          python3 shishalove-mobile/tools/patch-customer-instant-1.1.44.py
+          A='shishalove-mobile/customer/src/main/java/eu/shishalove/customer/CustomerActivityV134.java'
+          G='shishalove-mobile/customer/build.gradle'
+          M='shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java'
+          grep -Fq 'getWindow().setDecorFitsSystemWindows(false);' "$A"
+          grep -Fq 'refreshInsetsAndViewport();' "$A"
+          grep -Fq '.setInsets(WindowInsets.Type.systemBars(), android.graphics.Insets.NONE)' "$A"
+          grep -Fq 'v.setPadding(bars.left, bars.top, bars.right, bars.bottom);' "$A"
+          grep -Fq 'bottomInsetCssPx = 0;' "$A"
+          grep -Fq 'versionCode 144' "$G"
+          grep -Fq "versionName '1.1.44'" "$G"
+          grep -Fq 'build=144' "$M"
+          grep -Fq 'WebSettings.LOAD_CACHE_ELSE_NETWORK' "$M"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build Customer update
+        working-directory: shishalove-mobile
+        run: gradle :customer:assembleRelease :customer:assembleDebug --stacktrace
+
+      - name: Verify update identity and signing continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          RELEASE='shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk'
+          DEBUG='shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk'
+
+          "$AAPT" dump badging "$RELEASE" | grep -q "package: name='eu.shishalove.customer' versionCode='144' versionName='1.1.44'"
+          "$AAPT" dump badging "$DEBUG" | grep -q "package: name='eu.shishalove.customer.dev' versionCode='144' versionName='1.1.44-dev'"
+
+          mkdir -p dist/previous
+          gh release download shishalove-customer-1.1.38 --pattern 'ShishaLove-Customer-1.1.38-CURRENT-PHONE-UPDATE.apk' --dir dist/previous
+          digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
+          test "$(digest dist/previous/ShishaLove-Customer-1.1.38-CURRENT-PHONE-UPDATE.apk)" = "$(digest "$RELEASE")"
+
+          cp "$RELEASE" dist/ShishaLove-Customer-1.1.44-CURRENT-PHONE-UPDATE.apk
+          cp "$DEBUG" dist/ShishaLove-Customer-1.1.44-LEGACY-DEV-ONLY.apk
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.44.zip shishalove-app-bridge)
+          sha256sum dist/ShishaLove-Customer-1.1.44-CURRENT-PHONE-UPDATE.apk dist/ShishaLove-Customer-1.1.44-LEGACY-DEV-ONLY.apk dist/shishalove-app-bridge-1.1.44.zip > dist/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-customer-1.1.44
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish Customer 1.1.44
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-customer-1.1.44'
+          NOTES='Customer 1.1.44 is a narrow instant-reload update. Existing Customer bootstrap, home feed, category, product and search caches paint immediately even when stale, then revalidate silently in the background. Android repeat launches prefer the already-cached canonical WebView shell while build=144 guarantees the first launch after this update fetches the new bridge. All approved Customer 1.1.38 safe-area/resume behavior is preserved. Layout, logo, navigation, sorting, categories and product behavior are unchanged. Merchant logic remains 1.1.43. Install the included WordPress Bridge 1.1.44 ZIP first, then update the Customer APK over the existing app.'
+          ASSETS=(dist/ShishaLove-Customer-1.1.44-CURRENT-PHONE-UPDATE.apk dist/ShishaLove-Customer-1.1.44-LEGACY-DEV-ONLY.apk dist/shishalove-app-bridge-1.1.44.zip dist/SHA256SUMS.txt)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+            gh release edit "$TAG" --title 'ShishaLove Customer 1.1.44 — Instant Reload' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" "${ASSETS[@]}" --title 'ShishaLove Customer 1.1.44 — Instant Reload' --notes "$NOTES" --target shishalove-main
+          fi
