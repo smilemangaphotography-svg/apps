@@ -45,7 +45,7 @@ jobs:
           grep -q 'function showResultSummary' FRAME-Redesign/beta/app/src/main/assets/app12.js
           grep -q 'function qualityMasterRecipe' FRAME-Redesign/beta/app/src/main/assets/app12.js
           grep -q 'function scoreRecipe' FRAME-Redesign/beta/app/src/main/assets/app12.js
-          grep -q 'Overlay only appears in Mask mode' FRAME-Redesign/beta/app/src/main/assets/app12.js
+          grep -q "state.tool!=='mask'" FRAME-Redesign/beta/app/src/main/assets/app12.js
           grep -q '9:16' FRAME-Redesign/beta/app/src/main/assets/app12.js
           grep -q 'Export Lightroom XMP' FRAME-Redesign/beta/app/src/main/assets/app12.js
           grep -q 'Add Photos' FRAME-Redesign/beta/app/src/main/assets/index12.html
