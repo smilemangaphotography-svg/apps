@@ -36,10 +36,21 @@ old_bootstrap = "function bootstrap(force){var key=vkey('slm-bootstrap'),cached=
 new_bootstrap = "function bootstrap(force){var key=vkey('slm-bootstrap'),cached=cget(key,0);if(cached){state.bootstrap=cached;CFG.restNonce=cached.nonce||CFG.restNonce;hydrateViewFromCache(state.view);render();if(state.view==='products')loadProducts(false,false);else if(state.view==='stock')loadProducts(true,false);else if(state.view==='orders')loadOrders(false);if(state.view!=='orders')loadOrders(false);setTimeout(prefetchMediaManager,0);}api('merchant/bootstrap').then(function(d){state.bootstrap=d;cset(key,d);CFG.restNonce=d.nonce||CFG.restNonce;hydrateViewFromCache(state.view);render();if(state.view==='products')loadProducts(false,false);else if(state.view==='stock')loadProducts(true,false);else if(state.view==='orders')loadOrders(false);if(!cached&&state.view!=='orders')loadOrders(false);setTimeout(prefetchMediaManager,0);}).catch(function(){if(!state.bootstrap)render();});}"
 t = once(t, old_bootstrap, new_bootstrap, 'merchant instant bootstrap/prefetch')
 
-# Existing 1.1.26 Refresh is already non-destructive and includes Media Library.
-expected_refresh = "function refresh(){if(state.view==='products')loadProducts(false,true);else if(state.view==='stock')loadProducts(true,true);else if(state.view==='orders')loadOrders(true);else if(state.view==='media-library')loadMediaManager(true);else bootstrap(true);}"
-if expected_refresh not in t:
-    raise SystemExit('merchant nonblanking refresh invariant missing')
+# Refresh was already changed to stale-while-revalidate earlier in the canonical
+# lineage. Validate behavior semantically rather than coupling 1.1.40 to the exact
+# list of extra views added by later patches.
+refresh_start = t.find('function refresh(){')
+if refresh_start < 0:
+    raise SystemExit('merchant refresh function missing')
+refresh_end = t.find('}\n', refresh_start)
+if refresh_end < 0:
+    raise SystemExit('merchant refresh function end missing')
+refresh_fn = t[refresh_start:refresh_end + 1]
+for token in ("loadProducts(false,true)", "loadProducts(true,true)", "loadOrders(true)"):
+    if token not in refresh_fn:
+        raise SystemExit('merchant refresh behavior missing: ' + token)
+if "state.productsByView[state.view==='stock'?'stock':'products']=null" in refresh_fn:
+    raise SystemExit('merchant destructive refresh regression detected')
 
 p.write_text(t, encoding='utf-8')
 
@@ -51,5 +62,4 @@ assert "cget(ordersKey(),0)" in final
 assert "state.productsByView[state.view==='stock'?'stock':'products']=null" not in final
 assert "if(state.view!=='orders')loadOrders(false);" in final
 assert 'setTimeout(prefetchMediaManager,0);' in final
-assert expected_refresh in final
 print('ShishaLove Bridge 1.1.40: Merchant instant stale-while-revalidate + orders prefetch applied')
