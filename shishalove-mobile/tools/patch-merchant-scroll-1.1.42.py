@@ -67,6 +67,12 @@ t = once(t, 'versionCode 141', 'versionCode 142', 'merchant versionCode')
 t = once(t, "versionName '1.1.41'", "versionName '1.1.42'", 'merchant versionName')
 t = t.replace('ShishaLoveMerchant/1.1.41', 'ShishaLoveMerchant/1.1.42')
 t = t.replace('slm-native-layout-141', 'slm-native-layout-142')
+# 1.1.36 locked scrolling to a nested-page CSS literal. 1.1.42 intentionally
+# moves scrolling back to the WebView document, so update that invariant too.
+t = t.replace(
+    "if (!permanentSource.contains('overflow-y:auto!important')) throw new GradleException('Permanent Merchant scrolling fix missing')",
+    "if (!permanentSource.contains(\"overflow-y','auto','important'\")) throw new GradleException('Permanent Merchant document scrolling fix missing')"
+)
 gradle.write_text(t, encoding='utf-8')
 
 main = ROOT / 'merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
@@ -85,6 +91,7 @@ assert "overflow:visible!important" in final
 assert "body.slb-merchant .slm-bottom{position:fixed!important" in final
 assert "bottom:0!important" in final
 assert "height:72px!important" in final
+assert "Permanent Merchant document scrolling fix missing" in gradle.read_text(encoding='utf-8')
 assert 'versionCode 142' in gradle.read_text(encoding='utf-8')
 assert "versionName '1.1.42'" in gradle.read_text(encoding='utf-8')
 assert 'build=142' in main.read_text(encoding='utf-8')
