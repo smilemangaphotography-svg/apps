@@ -1,0 +1,125 @@
+name: ShishaLove Merchant 1.1.43 Product Context Fix
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - '.github/workflows/shishalove-merchant-1.1.43.yml'
+      - 'shishalove-mobile/tools/patch-merchant-context-1.1.43.py'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.43.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build Merchant Bridge 1.1.43
+        run: |
+          set -euo pipefail
+          rm -rf package dist && mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.43.py package/shishalove-app-bridge
+
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          M='package/shishalove-app-bridge/assets/merchant.js'
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.43/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.43');/" "$MAIN"
+          node --check "$M"
+          php -l "$MAIN"
+          grep -Fq "CFG.version='1.1.43'" "$M"
+          grep -Fq 'Filter · All' "$M"
+          grep -Fq 'Filter · In stock' "$M"
+          grep -Fq 'Filter · Out of stock' "$M"
+          grep -Fq 'merchantReturnScroll' "$M"
+          grep -Fq "if(state.stockStatus!=='all')url+='&stock_status='" "$M"
+          grep -Fq "resetProductResults(state.view)" "$M"
+          ! grep -Fq "state.query='';state.categoryId=0;state.stockStatus='all';state.page=1;state.view='products'" "$M"
+
+      - name: Apply Merchant Android 1.1.43 cache-bust patch
+        run: |
+          set -euo pipefail
+          python3 shishalove-mobile/tools/patch-merchant-context-1.1.43.py
+          A='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java'
+          G='shishalove-mobile/merchant/build.gradle'
+          M='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+          grep -Fq 'slm-native-layout-142' "$A"
+          grep -Fq "overflow-y','auto','important'" "$A"
+          grep -Fq 'versionCode 143' "$G"
+          grep -Fq "versionName '1.1.43'" "$G"
+          grep -Fq 'build=143' "$M"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build Merchant update
+        working-directory: shishalove-mobile
+        run: gradle :merchant:assembleRelease :merchant:assembleDebug --stacktrace
+
+      - name: Verify update identity and package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          RELEASE='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          DEBUG='shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk'
+          "$AAPT" dump badging "$RELEASE" | grep -q "package: name='eu.shishalove.merchant' versionCode='143' versionName='1.1.43'"
+          "$AAPT" dump badging "$DEBUG" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='143' versionName='1.1.43-dev'"
+
+          mkdir -p dist/previous
+          gh release download shishalove-merchant-1.1.42 --pattern 'ShishaLove-Merchant-1.1.42-CURRENT-PHONE-UPDATE.apk' --dir dist/previous
+          digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
+          test "$(digest dist/previous/ShishaLove-Merchant-1.1.42-CURRENT-PHONE-UPDATE.apk)" = "$(digest "$RELEASE")"
+
+          cp "$RELEASE" dist/ShishaLove-Merchant-1.1.43-CURRENT-PHONE-UPDATE.apk
+          cp "$DEBUG" dist/ShishaLove-Merchant-1.1.43-LEGACY-DEV-ONLY.apk
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.43.zip shishalove-app-bridge)
+          sha256sum dist/ShishaLove-Merchant-1.1.43-CURRENT-PHONE-UPDATE.apk dist/ShishaLove-Merchant-1.1.43-LEGACY-DEV-ONLY.apk dist/shishalove-app-bridge-1.1.43.zip > dist/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-merchant-1.1.43
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish Merchant 1.1.43
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-merchant-1.1.43'
+          NOTES='Merchant 1.1.43 fixes the product-edit workflow without changing the approved 1.1.42 scrolling layout. Products and Stock now both have a stock filter with All / In stock / Out of stock. Updating or trashing a product preserves the current search term, category, stock filter, page, tab and return scroll position; the list is revalidated in place, so a product that no longer matches the selected stock filter disappears while the merchant stays in the same filtered brand/search context. Customer is unchanged. Install the included WordPress Bridge 1.1.43 ZIP first, then update the Merchant APK over the existing app.'
+          ASSETS=(dist/ShishaLove-Merchant-1.1.43-CURRENT-PHONE-UPDATE.apk dist/ShishaLove-Merchant-1.1.43-LEGACY-DEV-ONLY.apk dist/shishalove-app-bridge-1.1.43.zip dist/SHA256SUMS.txt)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+            gh release edit "$TAG" --title 'ShishaLove Merchant 1.1.43 — Product Context & Stock Filter' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" "${ASSETS[@]}" --title 'ShishaLove Merchant 1.1.43 — Product Context & Stock Filter' --notes "$NOTES" --target shishalove-main
+          fi
