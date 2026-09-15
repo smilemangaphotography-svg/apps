@@ -36,11 +36,11 @@ old_bootstrap = "function bootstrap(force){var key=vkey('slm-bootstrap'),cached=
 new_bootstrap = "function bootstrap(force){var key=vkey('slm-bootstrap'),cached=cget(key,0);if(cached){state.bootstrap=cached;CFG.restNonce=cached.nonce||CFG.restNonce;hydrateViewFromCache(state.view);render();if(state.view==='products')loadProducts(false,false);else if(state.view==='stock')loadProducts(true,false);else if(state.view==='orders')loadOrders(false);if(state.view!=='orders')loadOrders(false);setTimeout(prefetchMediaManager,0);}api('merchant/bootstrap').then(function(d){state.bootstrap=d;cset(key,d);CFG.restNonce=d.nonce||CFG.restNonce;hydrateViewFromCache(state.view);render();if(state.view==='products')loadProducts(false,false);else if(state.view==='stock')loadProducts(true,false);else if(state.view==='orders')loadOrders(false);if(!cached&&state.view!=='orders')loadOrders(false);setTimeout(prefetchMediaManager,0);}).catch(function(){if(!state.bootstrap)render();});}"
 t = once(t, old_bootstrap, new_bootstrap, 'merchant instant bootstrap/prefetch')
 
-# Keep current rows on manual refresh. Products, Stock and Orders are revalidated
-# without blanking their current state first.
-old_refresh = "function refresh(){state.productsByView[state.view==='stock'?'stock':'products']=null;if(state.view==='products')loadProducts(false,true);else if(state.view==='stock')loadProducts(true,true);else if(state.view==='orders')loadOrders(true);else bootstrap(true);}"
-new_refresh = "function refresh(){if(state.view==='products')loadProducts(false,true);else if(state.view==='stock')loadProducts(true,true);else if(state.view==='orders')loadOrders(true);else bootstrap(true);}"
-t = once(t, old_refresh, new_refresh, 'merchant nonblanking refresh')
+# 1.1.24 already made manual Refresh non-destructive. Preserve that proven behavior;
+# 1.1.40 only strengthens cache hydration and startup prefetch.
+expected_refresh = "function refresh(){if(state.view==='products')loadProducts(false,true);else if(state.view==='stock')loadProducts(true,true);else if(state.view==='orders')loadOrders(true);else bootstrap(true);}"
+if expected_refresh not in t:
+    raise SystemExit('merchant nonblanking refresh invariant missing')
 
 p.write_text(t, encoding='utf-8')
 
@@ -52,4 +52,5 @@ assert "cget(ordersKey(),0)" in final
 assert "state.productsByView[state.view==='stock'?'stock':'products']=null" not in final
 assert "if(state.view!=='orders')loadOrders(false);" in final
 assert 'setTimeout(prefetchMediaManager,0);' in final
+assert expected_refresh in final
 print('ShishaLove Bridge 1.1.40: Merchant instant stale-while-revalidate + orders prefetch applied')
