@@ -20,12 +20,12 @@ jobs:
       - name: Checkout redesign branch
         uses: actions/checkout@v4
 
-      - name: Generate mockup-locked Beta 0.10 runtime
+      - name: Generate FRAME Beta 0.10.1 migration runtime
         shell: bash
         run: |
-          python3 FRAME-Redesign/beta/patch10.py
+          python3 FRAME-Redesign/beta/patch11.py
 
-      - name: Validate functional Beta 0.10 runtime
+      - name: Validate functional Beta 0.10.1 runtime
         shell: bash
         run: |
           test -f FRAME-Redesign/beta/app/src/main/assets/index10.html
@@ -34,7 +34,8 @@ jobs:
           node --check FRAME-Redesign/beta/app/src/main/assets/app10.js
           grep -q 'app10.js' FRAME-Redesign/beta/app/src/main/assets/index10.html
           grep -q 'index10.html' FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/MainActivity.java
-          grep -q "versionName '0.10.0-beta10'" FRAME-Redesign/beta/app/build.gradle
+          grep -q "versionName '0.10.1-beta11'" FRAME-Redesign/beta/app/build.gradle
+          grep -q "applicationIdSuffix '.debug'" FRAME-Redesign/beta/app/build.gradle
           grep -q 'function activeDisplayCrop' FRAME-Redesign/beta/app/src/main/assets/app10.js
           grep -q 'syncCommittedCropVisual' FRAME-Redesign/beta/app/src/main/assets/app10.js
           grep -q 'function editProgress' FRAME-Redesign/beta/app/src/main/assets/app10.js
@@ -76,31 +77,47 @@ jobs:
           yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null || true
           /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Build FRAME Beta
-        run: gradle --no-daemon -p FRAME-Redesign/beta :app:assembleDebug
+      - name: Build unsigned FRAME Beta
+        run: gradle --no-daemon -p FRAME-Redesign/beta :app:assembleRelease
+
+      - name: Apply stable beta test signature
+        shell: bash
+        run: |
+          UNSIGNED="FRAME-Redesign/beta/app/build/outputs/apk/release/app-release-unsigned.apk"
+          SIGNED="FRAME-Redesign/beta/app/build/outputs/apk/release/FRAME-Redesign-Beta-0.10.1.apk"
+          test -f "$UNSIGNED"
+          mkdir -p FRAME-Redesign/beta/signing-temp
+          curl -fsSL https://raw.githubusercontent.com/aosp-mirror/platform_build/master/target/product/security/testkey.pk8 -o FRAME-Redesign/beta/signing-temp/testkey.pk8
+          curl -fsSL https://raw.githubusercontent.com/aosp-mirror/platform_build/master/target/product/security/testkey.x509.pem -o FRAME-Redesign/beta/signing-temp/testkey.x509.pem
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign \
+            --key FRAME-Redesign/beta/signing-temp/testkey.pk8 \
+            --cert FRAME-Redesign/beta/signing-temp/testkey.x509.pem \
+            --out "$SIGNED" "$UNSIGNED"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$SIGNED" | tee FRAME-Redesign/beta/apk-signature.txt
 
       - name: Verify APK identity
         shell: bash
         run: |
-          APK="FRAME-Redesign/beta/app/build/outputs/apk/debug/app-debug.apk"
+          APK="FRAME-Redesign/beta/app/build/outputs/apk/release/FRAME-Redesign-Beta-0.10.1.apk"
           test -f "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee FRAME-Redesign/beta/apk-badging.txt
           grep -q "package: name='com.ilia.frame.redesignbeta.debug'" FRAME-Redesign/beta/apk-badging.txt
-          grep -q "versionName='0.10.0-beta10-debug'" FRAME-Redesign/beta/apk-badging.txt
+          grep -q "versionName='0.10.1-beta11-debug'" FRAME-Redesign/beta/apk-badging.txt
 
       - name: Collect beta artifact
         shell: bash
         run: |
           mkdir -p frame-beta-apk
-          cp FRAME-Redesign/beta/app/build/outputs/apk/debug/app-debug.apk frame-beta-apk/FRAME-Redesign-Beta-0.10.0.apk
+          cp FRAME-Redesign/beta/app/build/outputs/apk/release/FRAME-Redesign-Beta-0.10.1.apk frame-beta-apk/FRAME-Redesign-Beta-0.10.1.apk
           cp FRAME-Redesign/beta/apk-badging.txt frame-beta-apk/APK-IDENTITY.txt
-          sha256sum frame-beta-apk/FRAME-Redesign-Beta-0.10.0.apk | tee frame-beta-apk/SHA256SUMS.txt
+          cp FRAME-Redesign/beta/apk-signature.txt frame-beta-apk/APK-SIGNATURE.txt
+          sha256sum frame-beta-apk/FRAME-Redesign-Beta-0.10.1.apk | tee frame-beta-apk/SHA256SUMS.txt
           ls -lh frame-beta-apk
 
       - name: Upload FRAME beta APK
         uses: actions/upload-artifact@v4
         with:
-          name: FRAME-REDESIGN-BETA-0.10.0
+          name: FRAME-REDESIGN-BETA-0.10.1-STABLE-SIGNED
           path: frame-beta-apk/*
           if-no-files-found: error
           retention-days: 30
