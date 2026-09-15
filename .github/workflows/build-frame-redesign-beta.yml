@@ -20,33 +20,31 @@ jobs:
       - name: Checkout redesign branch
         uses: actions/checkout@v4
 
-      - name: Generate FRAME Beta 0.10.1 migration runtime
+      - name: Generate FRAME Beta 0.11 Master Quality Engine
         shell: bash
         run: |
-          python3 FRAME-Redesign/beta/patch11.py
+          python3 FRAME-Redesign/beta/patch12.py
 
-      - name: Validate functional Beta 0.10.1 runtime
+      - name: Validate functional Beta 0.11 runtime
         shell: bash
         run: |
-          test -f FRAME-Redesign/beta/app/src/main/assets/index10.html
-          test -f FRAME-Redesign/beta/app/src/main/assets/app10.js
+          test -f FRAME-Redesign/beta/app/src/main/assets/index11.html
+          test -f FRAME-Redesign/beta/app/src/main/assets/app11.js
           test -f FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/SmartMlBridge.java
-          node --check FRAME-Redesign/beta/app/src/main/assets/app10.js
-          grep -q 'app10.js' FRAME-Redesign/beta/app/src/main/assets/index10.html
-          grep -q 'index10.html' FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/MainActivity.java
-          grep -q "versionName '0.10.1-beta11'" FRAME-Redesign/beta/app/build.gradle
+          node --check FRAME-Redesign/beta/app/src/main/assets/app11.js
+          grep -q 'app11.js' FRAME-Redesign/beta/app/src/main/assets/index11.html
+          grep -q 'index11.html' FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/MainActivity.java
+          grep -q "versionName '0.11.0-beta12'" FRAME-Redesign/beta/app/build.gradle
           grep -q "applicationIdSuffix '.debug'" FRAME-Redesign/beta/app/build.gradle
-          grep -q 'function activeDisplayCrop' FRAME-Redesign/beta/app/src/main/assets/app10.js
-          grep -q 'syncCommittedCropVisual' FRAME-Redesign/beta/app/src/main/assets/app10.js
-          grep -q 'function editProgress' FRAME-Redesign/beta/app/src/main/assets/app10.js
-          grep -q 'Apply Full AI Edit' FRAME-Redesign/beta/app/src/main/assets/app10.js
-          grep -q 'Full AI edit applied' FRAME-Redesign/beta/app/src/main/assets/app10.js
-          grep -q 'one-time approval gate' FRAME-Redesign/beta/patch10.py
-          grep -q 'exactRatioRect' FRAME-Redesign/beta/app/src/main/assets/app10.js
-          grep -q '9:16' FRAME-Redesign/beta/app/src/main/assets/app10.js
-          grep -q 'AI Master Recipe' FRAME-Redesign/beta/app/src/main/assets/app10.js
-          grep -q 'Export Lightroom XMP' FRAME-Redesign/beta/app/src/main/assets/app10.js
-          grep -q 'Add Photos' FRAME-Redesign/beta/app/src/main/assets/index10.html
+          grep -q 'function qualityMasterRecipe' FRAME-Redesign/beta/app/src/main/assets/app11.js
+          grep -q 'function scoreRecipe' FRAME-Redesign/beta/app/src/main/assets/app11.js
+          grep -q 'function showCompositionSheet' FRAME-Redesign/beta/app/src/main/assets/app11.js
+          grep -q 'Apply Quality-Gated AI Edit' FRAME-Redesign/beta/app/src/main/assets/app11.js
+          grep -q 'Overlay only appears in Mask mode' FRAME-Redesign/beta/app/src/main/assets/app11.js
+          grep -q 'function compositionScore' FRAME-Redesign/beta/app/src/main/assets/app11.js
+          grep -q '9:16' FRAME-Redesign/beta/app/src/main/assets/app11.js
+          grep -q 'Export Lightroom XMP' FRAME-Redesign/beta/app/src/main/assets/app11.js
+          grep -q 'Add Photos' FRAME-Redesign/beta/app/src/main/assets/index11.html
           grep -q 'saveXmp' FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/MainActivity.java
           grep -q 'PoseDetection' FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/SmartMlBridge.java
           grep -q 'SubjectSegmentation' FRAME-Redesign/beta/app/src/main/java/com/ilia/frame/redesignbeta/SmartMlBridge.java
@@ -84,7 +82,7 @@ jobs:
         shell: bash
         run: |
           UNSIGNED="FRAME-Redesign/beta/app/build/outputs/apk/release/app-release-unsigned.apk"
-          SIGNED="FRAME-Redesign/beta/app/build/outputs/apk/release/FRAME-Redesign-Beta-0.10.1.apk"
+          SIGNED="FRAME-Redesign/beta/app/build/outputs/apk/release/FRAME-Redesign-Beta-0.11.0.apk"
           test -f "$UNSIGNED"
           mkdir -p FRAME-Redesign/beta/signing-temp
           curl -fsSL https://raw.githubusercontent.com/aosp-mirror/platform_build/master/target/product/security/testkey.pk8 -o FRAME-Redesign/beta/signing-temp/testkey.pk8
@@ -98,26 +96,26 @@ jobs:
       - name: Verify APK identity
         shell: bash
         run: |
-          APK="FRAME-Redesign/beta/app/build/outputs/apk/release/FRAME-Redesign-Beta-0.10.1.apk"
+          APK="FRAME-Redesign/beta/app/build/outputs/apk/release/FRAME-Redesign-Beta-0.11.0.apk"
           test -f "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee FRAME-Redesign/beta/apk-badging.txt
           grep -q "package: name='com.ilia.frame.redesignbeta.debug'" FRAME-Redesign/beta/apk-badging.txt
-          grep -q "versionName='0.10.1-beta11-debug'" FRAME-Redesign/beta/apk-badging.txt
+          grep -q "versionName='0.11.0-beta12-debug'" FRAME-Redesign/beta/apk-badging.txt
 
       - name: Collect beta artifact
         shell: bash
         run: |
           mkdir -p frame-beta-apk
-          cp FRAME-Redesign/beta/app/build/outputs/apk/release/FRAME-Redesign-Beta-0.10.1.apk frame-beta-apk/FRAME-Redesign-Beta-0.10.1.apk
+          cp FRAME-Redesign/beta/app/build/outputs/apk/release/FRAME-Redesign-Beta-0.11.0.apk frame-beta-apk/FRAME-Redesign-Beta-0.11.0.apk
           cp FRAME-Redesign/beta/apk-badging.txt frame-beta-apk/APK-IDENTITY.txt
           cp FRAME-Redesign/beta/apk-signature.txt frame-beta-apk/APK-SIGNATURE.txt
-          sha256sum frame-beta-apk/FRAME-Redesign-Beta-0.10.1.apk | tee frame-beta-apk/SHA256SUMS.txt
+          sha256sum frame-beta-apk/FRAME-Redesign-Beta-0.11.0.apk | tee frame-beta-apk/SHA256SUMS.txt
           ls -lh frame-beta-apk
 
       - name: Upload FRAME beta APK
         uses: actions/upload-artifact@v4
         with:
-          name: FRAME-REDESIGN-BETA-0.10.1-STABLE-SIGNED
+          name: FRAME-REDESIGN-BETA-0.11.0-MASTER-QUALITY
           path: frame-beta-apk/*
           if-no-files-found: error
           retention-days: 30
