@@ -1,0 +1,126 @@
+name: ShishaLove Merchant 1.1.40 Runtime Fixes
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - '.github/workflows/shishalove-merchant-1.1.40.yml'
+      - 'shishalove-mobile/tools/patch-merchant-runtime-1.1.40.py'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.40.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build Merchant Bridge 1.1.40
+        run: |
+          set -euo pipefail
+          rm -rf package dist && mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.40.py package/shishalove-app-bridge
+
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          M='package/shishalove-app-bridge/assets/merchant.js'
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.40/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.40');/" "$MAIN"
+          node --check "$M"
+          php -l "$MAIN"
+          grep -Fq "CFG.version='1.1.40'" "$M"
+          grep -Fq "cget(productCacheKey(stock),0)" "$M"
+          grep -Fq "cget(ordersKey(),0)" "$M"
+          grep -Fq "if(state.view!=='orders')loadOrders(false);" "$M"
+          ! grep -Fq "state.productsByView[state.view==='stock'?'stock':'products']=null" "$M"
+
+      - name: Apply Merchant Android 1.1.40 runtime patch
+        run: |
+          set -euo pipefail
+          python3 shishalove-mobile/tools/patch-merchant-runtime-1.1.40.py
+          A='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java'
+          G='shishalove-mobile/merchant/build.gradle'
+          M='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+          grep -Fq 'int systemBottom = Math.max(bars.bottom, nav.bottom);' "$A"
+          grep -Fq 'int safeBottom = Math.min(Math.max(0, systemBottom), dp(64)) + dp(6);' "$A"
+          ! grep -Fq 'WindowInsets.Type.tappableElement()' "$A"
+          ! grep -Fq 'WindowInsets.Type.systemGestures()' "$A"
+          grep -Fq 'flex:1 1 0%!important' "$A"
+          grep -Fq 'touch-action:pan-y!important' "$A"
+          grep -Fq 'versionCode 140' "$G"
+          grep -Fq "versionName '1.1.40'" "$G"
+          grep -Fq 'build=140' "$M"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build Merchant update
+        working-directory: shishalove-mobile
+        run: gradle :merchant:assembleRelease :merchant:assembleDebug --stacktrace
+
+      - name: Verify update identity and package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          RELEASE='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          DEBUG='shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk'
+          "$AAPT" dump badging "$RELEASE" | grep -q "package: name='eu.shishalove.merchant' versionCode='140' versionName='1.1.40'"
+          "$AAPT" dump badging "$DEBUG" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='140' versionName='1.1.40-dev'"
+
+          mkdir -p dist/previous
+          gh release download shishalove-merchant-1.1.39 --pattern 'ShishaLove-Merchant-1.1.39-CURRENT-PHONE-UPDATE.apk' --dir dist/previous
+          digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
+          test "$(digest dist/previous/ShishaLove-Merchant-1.1.39-CURRENT-PHONE-UPDATE.apk)" = "$(digest "$RELEASE")"
+
+          cp "$RELEASE" dist/ShishaLove-Merchant-1.1.40-CURRENT-PHONE-UPDATE.apk
+          cp "$DEBUG" dist/ShishaLove-Merchant-1.1.40-LEGACY-DEV-ONLY.apk
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.40.zip shishalove-app-bridge)
+          sha256sum dist/ShishaLove-Merchant-1.1.40-CURRENT-PHONE-UPDATE.apk dist/ShishaLove-Merchant-1.1.40-LEGACY-DEV-ONLY.apk dist/shishalove-app-bridge-1.1.40.zip > dist/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-merchant-1.1.40
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish Merchant 1.1.40
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-merchant-1.1.40'
+          NOTES='Merchant 1.1.40 fixes the three device-confirmed regressions: (1) bounded Samsung bottom safe zone using the actual navigation-bar inset only, removing the large white dead zone; (2) a single WebView scroll owner with a fixed header/nav and touch pan-y; (3) stale-while-revalidate Merchant data so cached Products/Orders remain visible during refresh, plus Orders prefetch after bootstrap. Customer is unchanged. The WordPress Bridge 1.1.40 ZIP is included because the reload/cache fix lives in Merchant bridge JavaScript.'
+          ASSETS=(dist/ShishaLove-Merchant-1.1.40-CURRENT-PHONE-UPDATE.apk dist/ShishaLove-Merchant-1.1.40-LEGACY-DEV-ONLY.apk dist/shishalove-app-bridge-1.1.40.zip dist/SHA256SUMS.txt)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+            gh release edit "$TAG" --title 'ShishaLove Merchant 1.1.40 — Safe Zone, Scroll & Reload Fix' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" "${ASSETS[@]}" --title 'ShishaLove Merchant 1.1.40 — Safe Zone, Scroll & Reload Fix' --notes "$NOTES" --target shishalove-main
+          fi
