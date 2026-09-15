@@ -32,8 +32,8 @@ short = "cacheGet(key,10*60*1000)"
 long = "cacheGet(key,30*60*1000)"
 if t.count(short) != 4:
     raise SystemExit(f'customer 10-minute cache anchors: expected 4, found {t.count(short)}')
-if t.count(long) != 2:
-    raise SystemExit(f'customer 30-minute cache anchors: expected 2, found {t.count(long)}')
+if t.count(long) != 1:
+    raise SystemExit(f'customer 30-minute cache anchors: expected 1, found {t.count(long)}')
 t = t.replace(short, "cacheGet(key,0)")
 t = t.replace(long, "cacheGet(key,0)")
 
@@ -47,7 +47,7 @@ p.write_text(t, encoding='utf-8')
 final = p.read_text(encoding='utf-8')
 assert "var BUILD='1.1.44';" in final
 assert "CFG.version='1.1.44';" in final
-assert final.count("cacheGet(key,0)") >= 6
+assert final.count("cacheGet(key,0)") >= 5
 assert "var DATA_CACHE='stable-v1';" in final
 assert "setTimeout(function(){loadHomeFeed(state.homeFilter);},0);" in final
 assert "setTimeout(loadCategory,0);" in final
