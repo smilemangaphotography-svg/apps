@@ -43,9 +43,11 @@ jobs:
           grep -Fq "versionName '1.1.39'" "$G"
           grep -Fq 'build=139' "$M"
 
-          # Scope lock: this fix must not alter Customer or WordPress Bridge files.
-          git diff -- shishalove-mobile/customer shishalove-wordpress-bridge | grep -q . && {
-            echo 'Unexpected Customer/Bridge change'; exit 1;
+          # The 1.1.37 baseline patch prepares both Android modules in the temporary
+          # runner, but this workflow builds and publishes Merchant only. The Bridge
+          # source itself must remain completely untouched.
+          git diff -- shishalove-wordpress-bridge | grep -q . && {
+            echo 'Unexpected WordPress Bridge change'; exit 1;
           } || true
 
       - uses: actions/setup-java@v4
