@@ -24,12 +24,13 @@ t = once(t, "CFG.version='1.1.37';", "CFG.version='1.1.40';", 'merchant cfg')
 t = once(t, "slbfix','1.1.37'", "slbfix','1.1.40'", 'merchant bust')
 t = once(t, 'Bridge 1.1.37', 'Bridge 1.1.40', 'merchant label')
 
-t = t.replace("cget(productCacheKey(stock),30*60*1000)", "cget(productCacheKey(stock),0)")
-t = t.replace("cget(ordersKey(),15*60*1000)", "cget(ordersKey(),0)")
-
 old_hydrate = "function hydrateViewFromCache(view){if(view==='products'){state.productsByView.products=cget(productCacheKey(false),30*60*1000)||state.productsByView.products;}else if(view==='stock'){state.productsByView.stock=cget(productCacheKey(true),30*60*1000)||state.productsByView.stock;}else if(view==='orders'){state.orders=cget(ordersKey(),15*60*1000)||state.orders;}}"
 new_hydrate = "function hydrateViewFromCache(view){if(view==='products'){state.productsByView.products=cget(productCacheKey(false),0)||state.productsByView.products;}else if(view==='stock'){state.productsByView.stock=cget(productCacheKey(true),0)||state.productsByView.stock;}else if(view==='orders'){state.orders=cget(ordersKey(),0)||state.orders;}}"
 t = once(t, old_hydrate, new_hydrate, 'merchant stale cache hydration')
+
+# All remaining per-view cache lookups become stale-while-revalidate reads.
+t = t.replace("cget(productCacheKey(stock),30*60*1000)", "cget(productCacheKey(stock),0)")
+t = t.replace("cget(ordersKey(),15*60*1000)", "cget(ordersKey(),0)")
 
 old_bootstrap = "function bootstrap(force){var key=vkey('slm-bootstrap'),cached=cget(key,60*60*1000);if(cached&&!force){state.bootstrap=cached;CFG.restNonce=cached.nonce||CFG.restNonce;hydrateViewFromCache('products');render();loadProducts(false,false);}api('merchant/bootstrap').then(function(d){state.bootstrap=d;cset(key,d);CFG.restNonce=d.nonce||CFG.restNonce;hydrateViewFromCache(state.view);render();if(state.view==='products')loadProducts(false,false);else if(state.view==='stock')loadProducts(true,false);else if(state.view==='orders')loadOrders(false);}).catch(function(){if(!state.bootstrap)render();});}"
 new_bootstrap = "function bootstrap(force){var key=vkey('slm-bootstrap'),cached=cget(key,0);if(cached){state.bootstrap=cached;CFG.restNonce=cached.nonce||CFG.restNonce;hydrateViewFromCache(state.view);render();if(state.view==='products')loadProducts(false,false);else if(state.view==='stock')loadProducts(true,false);else if(state.view==='orders')loadOrders(false);if(state.view!=='orders')loadOrders(false);}api('merchant/bootstrap').then(function(d){state.bootstrap=d;cset(key,d);CFG.restNonce=d.nonce||CFG.restNonce;hydrateViewFromCache(state.view);render();if(state.view==='products')loadProducts(false,false);else if(state.view==='stock')loadProducts(true,false);else if(state.view==='orders')loadOrders(false);if(!cached&&state.view!=='orders')loadOrders(false);}).catch(function(){if(!state.bootstrap)render();});}"
