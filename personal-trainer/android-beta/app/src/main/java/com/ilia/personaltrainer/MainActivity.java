@@ -109,8 +109,6 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                // onPageFinished fires before delayed JavaScript boot can finish on some phones.
-                // Verify the complete runtime handshake with retries instead of showing a false failure.
                 view.postDelayed(() -> verifyRuntimeReady(view, 0), RUNTIME_RETRY_MS);
             }
 
@@ -154,17 +152,18 @@ public class MainActivity extends Activity {
     private void verifyRuntimeReady(WebView view, int attempt) {
         if (view == null || isFinishing()) return;
         final String probe = "(function(){try{" +
+                "var p=window.__ILIA_RUNTIME_PREFLIGHT__||'missing';" +
                 "var s=window.__PT_STYLE29__||'missing';" +
                 "var m=window.__ILIA_MASTER_MOCKUP__||'missing';" +
                 "var f=window.__ILIA_MASTER_FIX__||'missing';" +
-                "return (s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.2-runtime-ready')?'ready':(s+'|'+m+'|'+f);" +
+                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.3-runtime-ready')?'ready':(p+'|'+s+'|'+m+'|'+f);" +
                 "}catch(e){return 'error';}})()";
         view.evaluateJavascript(probe, value -> {
             if ("\"ready\"".equals(value)) return;
             if (attempt + 1 < RUNTIME_MAX_ATTEMPTS) {
                 view.postDelayed(() -> verifyRuntimeReady(view, attempt + 1), RUNTIME_RETRY_MS);
             } else {
-                Toast.makeText(MainActivity.this, "ILIA Coach Beta 2.9.2 runtime failed to initialize", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "ILIA Coach Beta 2.9.3 runtime failed to initialize", Toast.LENGTH_LONG).show();
             }
         });
     }
