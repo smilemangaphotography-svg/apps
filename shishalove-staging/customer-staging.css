@@ -1,0 +1,10 @@
+body.slb-customer .slb-staging-front{margin:0 0 22px;padding:0}
+body.slb-customer .slb-staging-front-visual{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:18px;background:#0b0b0c;box-shadow:0 8px 28px rgba(0,0,0,.10)}
+body.slb-customer .slb-staging-front-visual>img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;padding:28px}
+body.slb-customer .slb-staging-front-visual>img.campaign{object-fit:cover;padding:0}
+body.slb-customer .slb-staging-front-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 24%,rgba(0,0,0,.70) 100%);pointer-events:none}
+body.slb-customer .slb-staging-front-copy{position:absolute;left:18px;right:18px;bottom:18px;display:flex;flex-direction:column;align-items:flex-start;gap:9px;color:#fff;z-index:2}
+body.slb-customer .slb-staging-front-copy strong{font-size:25px;line-height:1.05;font-weight:900;text-shadow:0 1px 4px rgba(0,0,0,.45)}
+body.slb-customer .slb-staging-front-copy button{border:0;border-radius:999px;background:#d72a40;color:#fff;font-weight:900;font-size:13px;letter-spacing:.02em;padding:11px 18px;min-height:42px}
+body.slb-customer .slb-home-feed>.slb-section{padding-top:0!important}
+@media(max-width:390px){body.slb-customer .slb-staging-front-copy strong{font-size:22px}body.slb-customer .slb-staging-front-copy{left:15px;right:15px;bottom:15px}}
