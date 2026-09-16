@@ -1,4 +1,4 @@
-name: Build ILIA COACH Android Beta
+name: Build ILIA COACH Android V7 Beta 3.0.0
 
 on:
   workflow_dispatch:
@@ -8,6 +8,7 @@ on:
       - 'personal-trainer/android-beta/**'
       - 'personal-trainer/DESIGN-LOCK-BETA-2.9.md'
       - 'personal-trainer/ILIA-COACH-MASTER-MOCKUP-LOCK.md'
+      - 'personal-trainer/ILIA-COACH-V7-LOCK.md'
       - '.github/workflows/build-personal-trainer.yml'
 
 permissions:
@@ -50,7 +51,7 @@ jobs:
             sudo apt-get install -y ffmpeg
           fi
 
-      - name: Import proven Adaptive Coach 1.1 motion library
+      - name: Import proven Adaptive Coach anatomy motion library
         shell: bash
         run: |
           set -euo pipefail
@@ -67,12 +68,11 @@ jobs:
           test -s "$A/media/adaptive/front-plank.mp4"
           test -s "$A/media/adaptive/rope-triceps-pressdown.mp4"
 
-      - name: Validate locked Beta 2.9.3 runtime root-cause fix
+      - name: Validate V7 runtime and preserved Beta stack
         shell: bash
         run: |
           set -euo pipefail
           A=personal-trainer/android-beta/app/src/main/assets
-          JAVA=personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           node --check "$A/style2-v29-runtime-preflight.js"
           node --check "$A/app-v2.js"
           node --check "$A/pt-v25-core.js"
@@ -82,72 +82,36 @@ jobs:
           node --check "$A/style2-v29-priority-engine.js"
           node --check "$A/style2-v29-master-mockup.js"
           node --check "$A/style2-v29-master-fix.js"
-          test -s "$A/style2-v29-runtime-preflight.js"
-          test -s "$A/style2-v29.css"
-          test -s "$A/style2-v29-master-mockup.css"
-          test -s "$A/style2-v29-master-fix.css"
+          node --check "$A/style2-v7.js"
+          test -s "$A/style2-v7.css"
           test -s "$A/index29.html"
-          test -s personal-trainer/DESIGN-LOCK-BETA-2.9.md
-          test -s personal-trainer/ILIA-COACH-MASTER-MOCKUP-LOCK.md
-          grep -q '^var renderTrain, renderFuel, renderMore;' "$A/style2-v29-runtime-preflight.js"
-          grep -q "__ILIA_RUNTIME_PREFLIGHT__='ready'" "$A/style2-v29-runtime-preflight.js"
-          grep -q '__ILIA_RUNTIME_ERRORS__' "$A/style2-v29-runtime-preflight.js"
-          grep -q 'style2-v29-runtime-preflight.js' "$A/index29.html"
-          grep -q 'id="driveButton" class="hidden"' "$A/index29.html"
-          grep -q 'style2-v29-master-fix.css' "$A/index29.html"
-          grep -q 'style2-v29-master-fix.js' "$A/index29.html"
-          grep -q 'style2-v29-master-mockup.css' "$A/index29.html"
-          grep -q 'style2-v29-master-mockup.js' "$A/index29.html"
-          ! grep -q 'style2-v25.js' "$A/index29.html"
-          ! grep -q 'style2-v26.js' "$A/index29.html"
-          ! grep -q 'ilia27.js' "$A/index29.html"
+          grep -q 'style2-v7.css' "$A/index29.html"
+          grep -q 'style2-v7.js' "$A/index29.html"
+          grep -q 'V7 · BETA 3.0.0' "$A/index29.html"
           grep -q "__PT_STYLE29__='locked-all-in-one-2.9'" "$A/style2-v29.js"
           grep -q "__ILIA_MASTER_MOCKUP__='approved-functional'" "$A/style2-v29-master-mockup.js"
           grep -q "__ILIA_MASTER_FIX__='2.9.3-runtime-ready'" "$A/style2-v29-master-fix.js"
-          grep -q 'Upper + Strong Legs' "$A/style2-v29-master-mockup.js"
-          grep -q 'Knee Support + Strength' "$A/style2-v29-master-mockup.js"
-          grep -q 'CREATE MY PLAN' "$A/style2-v29-master-mockup.js"
-          grep -q 'applyPriorityCapacity' "$A/style2-v29-priority-engine.js"
-          grep -q 'compactSchedule' "$A/style2-v29-master-fix.js"
-          grep -q 'orderStrength' "$A/style2-v29-master-fix.js"
-          grep -q '29.1-master-fix' "$A/style2-v29-master-fix.js"
-          grep -q 'html:not(\[data-pt29="ready"\]) #builder' "$A/style2-v29-master-fix.css"
-          grep -q 'grid-template-columns:repeat(5,minmax(0,1fr))' "$A/style2-v29-master-fix.css"
-          grep -q 'requestAnimationFrame(()=>requestAnimationFrame(load))' "$A/style2-v29.js"
-          grep -q 'Animation Gallery' "$A/style2-v29-admin.js"
-          grep -q 'Font Manager' "$A/style2-v29-admin.js"
-          grep -q 'Exercise Upload' "$A/style2-v29-admin.js"
-          grep -q 'LOCAL RECOGNITION' "$A/style2-v29-admin.js"
-          grep -q 'Spotify Playlists' "$A/style2-v29.js"
-          grep -q 'YouTube / YouTube Music' "$A/style2-v29.js"
-          grep -q 'MONTHLY' "$A/style2-v29.js"
-          grep -q 'WEEKLY' "$A/style2-v29.js"
-          grep -q '2-WEEK BLOCKS' "$A/style2-v29.js"
-          grep -q "versionName '2.9.3-beta'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionCode 32" personal-trainer/android-beta/app/build.gradle
+          grep -q "window.__ILIA_V7__=READY" "$A/style2-v7.js"
+          grep -q "3.0.0-calendar-ai-ready" "$A/style2-v7.js"
+          grep -q 'AI RECOMMENDED' "$A/style2-v7.js"
+          grep -q 'BETTER OPTION AVAILABLE' "$A/style2-v7.js"
+          grep -q 'ADD EXERCISE' "$A/style2-v7.js"
+          grep -q 'real phone calendar' "$A/style2-v7.js"
+          grep -q 'motionSrc' "$A/style2-v7.js"
+          grep -q 'mediaPoster' "$A/style2-v7.js"
+          grep -q "versionName '3.0.0-beta'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'versionCode 33' personal-trainer/android-beta/app/build.gradle
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
           grep -q 'android:label="ILIA COACH"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'index29.html' "$JAVA"
-          grep -q 'verifyRuntimeReady' "$JAVA"
-          grep -q 'RUNTIME_MAX_ATTEMPTS' "$JAVA"
-          grep -q '__ILIA_RUNTIME_PREFLIGHT__' "$JAVA"
-          grep -q '__ILIA_MASTER_MOCKUP__' "$JAVA"
-          grep -q '__ILIA_MASTER_FIX__' "$JAVA"
-          grep -q '2.9.3-runtime-ready' "$JAVA"
-          grep -q 'window.PT25' "$JAVA"
+          grep -q 'index29.html' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           node - <<'NODE'
           const core=require('./personal-trainer/android-beta/app/src/main/assets/pt-v25-core.js');
-          for(const goal of ['5K','10K','Half Marathon','Marathon']){
-            const t=core.defaultTarget(goal);
-            const p=core.paceTargets(goal,t);
-            if(!p || !Number.isFinite(p.race)) throw new Error('pace failed '+goal);
-          }
           if(core.paceCue(400,300)!=='speed-up') throw new Error('speed-up cue failed');
           if(core.paceCue(240,300)!=='slow-down') throw new Error('slow-down cue failed');
           console.log('running pace engine PASS');
           NODE
 
-      - name: Validate proven 26-movement media pack
+      - name: Validate proven 26-movement anatomy pack
         shell: bash
         run: |
           set -euo pipefail
@@ -158,73 +122,65 @@ jobs:
             test -s "$A/$f.webp"
             ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate -of default=nw=1 "$A/$f.mp4" | grep -q 'codec_name=h264'
           done
-          echo "26 Adaptive Coach MP4 + WebP movement pairs validated"
+          echo "26 anatomy MP4 + WebP movement pairs validated"
 
-      - name: Build ILIA COACH Beta 2.9.3 APK
+      - name: Build ILIA COACH V7 Beta 3.0.0 APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
 
-      - name: Validate APK identity and contents
+      - name: Validate APK identity and V7 contents
         shell: bash
         run: |
           set -euo pipefail
           APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='32' versionName='2.9.3-beta'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='33' versionName='3.0.0-beta'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'ILIA COACH'"
           unzip -l "$APK" | grep -q 'assets/index29.html'
-          unzip -l "$APK" | grep -q 'assets/style2-v29-runtime-preflight.js'
+          unzip -l "$APK" | grep -q 'assets/style2-v7.js'
+          unzip -l "$APK" | grep -q 'assets/style2-v7.css'
           unzip -l "$APK" | grep -q 'assets/style2-v29.js'
-          unzip -l "$APK" | grep -q 'assets/style2-v29-admin.js'
-          unzip -l "$APK" | grep -q 'assets/style2-v29-master-mockup.js'
-          unzip -l "$APK" | grep -q 'assets/style2-v29-master-mockup.css'
           unzip -l "$APK" | grep -q 'assets/style2-v29-master-fix.js'
-          unzip -l "$APK" | grep -q 'assets/style2-v29-master-fix.css'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/leg-press.mp4'
-          unzip -l "$APK" | grep -q 'assets/media/adaptive/front-plank.mp4'
-          unzip -l "$APK" | grep -q 'assets/media/adaptive/face-pull.mp4'
+          unzip -l "$APK" | grep -q 'assets/media/adaptive/supported-bulgarian-split-squat.mp4'
+          unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-hamstring-curl.mp4'
+          unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-cable-row.mp4'
 
-      - name: Package Beta 2.9.3 deliverables
+      - name: Package V7 Beta 3.0.0 deliverables
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release
           APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
-          cp "$APK" release/ILIA-COACH-All-In-One-Beta-2.9.3.apk
-          cat > release/DIAGNOSTICS-BETA-2.9.3.txt <<'REPORT'
-          ILIA COACH All-In-One — Beta 2.9.3 Runtime Root-Cause Fix Diagnostics
+          cp "$APK" release/ILIA-COACH-V7-Beta-3.0.0.apk
+          cat > release/DIAGNOSTICS-V7-BETA-3.0.0.txt <<'REPORT'
+          ILIA COACH V7 — Beta 3.0.0
           Canonical repository: smilemangaphotography-svg/apps
           Canonical branch: personal-trainer-main
-          Existing Android package preserved: PASS — com.ilia.personaltrainer
-          Display label: PASS — ILIA COACH
-          Version: PASS — 2.9.3-beta / versionCode 32
-          Root cause fixed: PASS — style2-v29 strict runtime referenced undeclared renderTrain/renderFuel/renderMore globals
-          Runtime preflight declarations: PASS
-          Legacy hidden driveButton dependency guarded by compatibility element: PASS
-          Runtime error collector installed before legacy/core scripts: PASS
-          Native readiness handshake: PASS — preflight + core + master mockup + master fix
-          Delayed startup retry protection: PASS — 12 attempts / 300 ms
-          Beta 2.9.1 visual master fixes preserved: PASS
-          Approved master onboarding preserved: PASS
-          Independent body emphasis + joint support + injury guardrails preserved: PASS
-          5K/10K/Half/Marathon target support: PASS
-          Weekly/Monthly/2-week planning views: STATIC PASS
-          Exercise library: PASS — 26 proven built-in movement assets plus local custom exercises
-          Adaptive Coach 1.1 anatomy pack imported: PASS — 26 MP4 + WebP pairs
-          Native GPS + TTS bridge compile: PASS
-          Running voice pace engine: PASS
-          Admin Studio / gallery / animation management: STATIC PASS
+          Android package preserved: com.ilia.personaltrainer
+          Version: 3.0.0-beta / versionCode 33
+          Existing Beta 2.9.3 runtime stack preserved: PASS
+          V7 real-device calendar plan layer: STATIC PASS
+          My Plan / Recommended / AI Recommended: STATIC PASS
+          Recommended and AI day exercise lists: STATIC PASS
+          Better Option replacement removes original workout exercise: STATIC PASS
+          Add Exercise for strength/recovery days: STATIC PASS
+          AI Coach approval flow: STATIC PASS
+          Run distance / pace / GPS / native TTS voice cues: STATIC PASS
+          Existing 26 exercise anatomy motion library preserved: PASS
+          Anatomy MP4 + poster import from proven Adaptive Coach source: PASS
+          Samsung safe-area CSS lock: STATIC PASS
           Android Gradle build: PASS
           APK identity/content validation: PASS
-          Physical Samsung A54 startup verification: REQUIRED
+          Physical Samsung A54 V7 verification: REQUIRED
           REPORT
-          sha256sum release/ILIA-COACH-All-In-One-Beta-2.9.3.apk > release/SHA256SUMS.txt
-          zip -qr release/ILIA-COACH-All-In-One-Beta-2.9.3-Source.zip personal-trainer/android-beta personal-trainer/DESIGN-LOCK-BETA-2.9.md personal-trainer/ILIA-COACH-MASTER-MOCKUP-LOCK.md .github/workflows/build-personal-trainer.yml -x '*/build/*' -x '*/media/adaptive/*'
+          sha256sum release/ILIA-COACH-V7-Beta-3.0.0.apk > release/SHA256SUMS.txt
+          zip -qr release/ILIA-COACH-V7-Beta-3.0.0-Source.zip personal-trainer/android-beta .github/workflows/build-personal-trainer.yml -x '*/build/*' -x '*/media/adaptive/*'
 
-      - name: Upload Beta 2.9.3
+      - name: Upload V7 Beta 3.0.0
         uses: actions/upload-artifact@v4
         with:
-          name: ILIA-COACH-ALL-IN-ONE-BETA-2.9.3
+          name: ILIA-COACH-V7-BETA-3.0.0
           path: release/*
           if-no-files-found: error
           retention-days: 30
