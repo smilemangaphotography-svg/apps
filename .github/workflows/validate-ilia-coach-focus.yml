@@ -1,0 +1,40 @@
+name: Validate ILIA COACH Focus Engine
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ personal-trainer-main ]
+    paths:
+      - 'personal-trainer/android-beta/app/src/main/assets/style2-v29-focus.js'
+      - 'personal-trainer/android-beta/app/src/main/assets/style2-v29-priority-engine.js'
+      - 'personal-trainer/android-beta/app/src/main/assets/index29.html'
+      - 'personal-trainer/DESIGN-LOCK-BETA-2.9.md'
+      - '.github/workflows/validate-ilia-coach-focus.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: personal-trainer-main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate focus runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          A=personal-trainer/android-beta/app/src/main/assets
+          node --check "$A/style2-v29-focus.js"
+          node --check "$A/style2-v29-priority-engine.js"
+          grep -q 'style2-v29-focus.js' "$A/index29.html"
+          grep -q 'style2-v29-priority-engine.js' "$A/index29.html"
+          grep -q 'Upper + Strong Legs' "$A/style2-v29-focus.js"
+          grep -q 'Knee Capacity' "$A/style2-v29-focus.js"
+          grep -q 'applyStrengthFocus' "$A/style2-v29-priority-engine.js"
+          grep -q 'applyKneeCapacity' "$A/style2-v29-priority-engine.js"
+          grep -q 'Training emphasis lock' personal-trainer/DESIGN-LOCK-BETA-2.9.md
