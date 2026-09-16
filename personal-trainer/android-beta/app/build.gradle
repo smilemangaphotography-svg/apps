@@ -8,7 +8,7 @@ android {
         applicationId 'com.ilia.personaltrainer'
         minSdk 26
         targetSdk 35
-        versionCode 30
-        versionName '2.9.1-beta'
+        versionCode 31
+        versionName '2.9.2-beta'
     }
 }
