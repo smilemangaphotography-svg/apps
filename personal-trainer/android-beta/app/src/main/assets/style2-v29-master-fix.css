@@ -1,0 +1,40 @@
+/* ILIA COACH Beta 2.9.1 — Samsung / narrow-screen master fix */
+html,body,#app{width:100%;max-width:100%;overflow-x:hidden!important}
+html:not([data-pt29="ready"]) #builder,html:not([data-pt29="ready"]) #mainApp{display:none!important}
+.cover-screen.hidden{display:none!important}
+.cover-screen{position:fixed!important;inset:0!important;z-index:100!important;min-height:100dvh!important;overflow-y:auto!important;overflow-x:hidden!important;background:linear-gradient(145deg,#07150d 0%,#0b2114 58%,#06100b 100%)!important}
+.cover-inner{width:100%!important;max-width:720px!important;min-height:100dvh!important;margin:0 auto!important;padding:calc(42px + env(safe-area-inset-top)) 20px calc(34px + env(safe-area-inset-bottom))!important;display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:flex-start!important}
+.cover-settings{position:fixed!important;top:calc(14px + env(safe-area-inset-top))!important;right:16px!important;left:auto!important;width:48px!important;height:48px!important;border-radius:16px!important;border:1px solid #314336!important;background:#102019!important;color:#f7f7f1!important;box-shadow:none!important;display:grid!important;place-items:center!important;font-size:22px!important}
+.cover-brand{max-width:calc(100vw - 90px)!important;font-size:12px!important;letter-spacing:2.2px!important;line-height:1.3!important;color:#a5aea6!important}
+.cover-title{max-width:100%!important;margin:34px 0 24px!important;font-size:clamp(44px,13vw,72px)!important;line-height:.9!important;letter-spacing:-2.2px!important;overflow-wrap:normal!important;word-break:normal!important}
+.cover-title span{display:block!important}
+.cover-tag{max-width:100%!important;font-size:12px!important;line-height:1.55!important;letter-spacing:.7px!important;color:#c7cec8!important}
+.cover-enter{width:min(100%,360px)!important;min-height:62px!important;margin-top:30px!important;border:0!important;border-radius:18px!important;padding:0 20px!important;background:#f5f0e5!important;color:#101610!important;font-size:15px!important;font-weight:950!important;text-align:left!important}
+.cover-foot{margin-top:14px!important;font-size:10px!important;letter-spacing:1.4px!important;color:#8c968e!important}
+.builder{width:100%!important;max-width:100vw!important;min-height:100dvh!important;padding:18px 16px calc(156px + env(safe-area-inset-bottom))!important;overflow-x:hidden!important}
+#builderBody,.master-head,.master-stack,.preset-grid-master,.body-control-list,.joint-control-list,.field-pair-master,.equipment-grid-master{width:100%!important;max-width:100%!important;min-width:0!important}
+.master-head h1{max-width:100%!important;overflow-wrap:normal!important;word-break:normal!important}
+.body-control-row,.joint-control-row,.master-option{min-width:0!important;max-width:100%!important}
+.level-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.joint-level-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.level-grid button,.joint-level-grid button{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+.builder-footer{position:fixed!important;left:0!important;right:0!important;bottom:0!important;width:100vw!important;max-width:100vw!important;grid-template-columns:minmax(96px,.68fr) minmax(0,1.32fr)!important;gap:8px!important;padding:10px 14px calc(10px + env(safe-area-inset-bottom))!important;background:linear-gradient(180deg,rgba(242,238,228,0),rgba(242,238,228,.97) 20%,#f2eee4 45%)!important;backdrop-filter:blur(8px)!important}
+.builder-footer .btn{min-width:0!important;min-height:56px!important;border-radius:17px!important;padding:0 12px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.main-app{width:100%!important;max-width:100vw!important;overflow-x:hidden!important;padding-bottom:0!important}
+.app-topbar{width:100%!important;max-width:100vw!important;padding:calc(14px + env(safe-area-inset-top)) 18px 14px!important}
+.top-title{font-size:32px!important}
+.icon-btn{width:50px!important;height:50px!important;border-radius:17px!important}
+.page{width:100%!important;max-width:100%!important;min-width:0!important;padding:18px 18px calc(112px + env(safe-area-inset-bottom))!important;overflow-x:hidden!important}
+.bottom-nav{position:fixed!important;left:12px!important;right:12px!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;width:auto!important;max-width:none!important;margin:0!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:2px!important;padding:6px!important;border-radius:24px!important;z-index:80!important}
+.nav-btn{min-width:0!important;min-height:58px!important;padding:5px 2px!important;border-radius:18px!important;overflow:hidden!important}
+.nav-icon{font-size:21px!important;line-height:1!important}.nav-btn small{font-size:8px!important;white-space:nowrap!important}
+.hero-v29,.today-card-v29,.mini-card-v29,.split-v29,.today-meta-v29,.today-blocks-v29,.today-actions-v29,.week-dots-v29{width:100%!important;max-width:100%!important;min-width:0!important}
+.hero-v29{padding:20px!important;border-radius:24px!important;min-height:auto!important}.hero-v29 h1{font-size:clamp(27px,8vw,34px)!important;line-height:1.02!important;letter-spacing:-1.1px!important;margin:9px 0 14px!important;overflow-wrap:anywhere!important}
+.goal-icons-v29{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;margin-top:14px!important}.goal-chip-v29{min-width:0!important;gap:8px!important}.goal-chip-v29 i{width:36px!important;height:36px!important;border-radius:12px!important}.goal-chip-v29 b{font-size:10px!important;line-height:1.2!important;overflow-wrap:anywhere!important}
+.today-card-v29{padding:20px!important;border-radius:24px!important}.today-card-v29 h2{font-size:31px!important;line-height:1.02!important;overflow-wrap:anywhere!important}
+.today-meta-v29{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:0!important}.today-meta-v29 div{min-width:0!important;padding:9px 10px!important}.today-meta-v29 b{font-size:15px!important;line-height:1.22!important;overflow-wrap:anywhere!important}.today-meta-v29 small{font-size:9px!important}
+.today-blocks-v29{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}.today-block-v29{min-width:0!important;padding:11px!important}.today-block-v29 b{font-size:12px!important;line-height:1.2!important;overflow-wrap:anywhere!important}.today-block-v29 small{font-size:11px!important}
+.today-actions-v29{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important}.today-actions-v29 button{min-width:0!important}
+.split-v29{grid-template-columns:1fr!important;gap:10px!important}.mini-card-v29{min-width:0!important}
+.week-dots-v29{display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important;gap:6px!important}.week-dots-v29 i{width:100%!important;max-width:40px!important;height:auto!important;aspect-ratio:1!important;justify-self:center!important}
+@media(max-width:390px){.builder{padding-left:12px!important;padding-right:12px!important}.builder-footer{padding-left:10px!important;padding-right:10px!important;grid-template-columns:minmax(88px,.62fr) minmax(0,1.38fr)!important}.builder-footer .btn{font-size:12px!important}.master-head h1{font-size:32px!important;line-height:.98!important}.master-head p{font-size:13px!important}.preset-grid-master{gap:8px!important}.level-grid button,.joint-level-grid button{font-size:7px!important;padding:3px 2px!important}.page{padding-left:14px!important;padding-right:14px!important}.bottom-nav{left:8px!important;right:8px!important}.nav-btn small{font-size:7px!important}.today-card-v29{padding:17px!important}.today-meta-v29 b{font-size:13px!important}.hero-v29 h1{font-size:27px!important}}
