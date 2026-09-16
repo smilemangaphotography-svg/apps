@@ -10,11 +10,11 @@ android {
         applicationId 'com.ilia.photomasterai'
         minSdk 26
         targetSdk 35
-        versionCode 8
-        versionName '0.15.0-beta'
+        versionCode 9
+        versionName '0.16.0-beta'
 
-        // Beta 0.15 remains zero-cost. Local tools handle MASTER FIX scene
-        // analysis, metadata reading, batch look sync, editing and export.
+        // Beta 0.16 remains zero-cost. Local tools provide MASTER FIX WOW
+        // recommendations, ratings, comparison, batch style sync and export.
         def endpoint = project.findProperty('PHOTO_MASTER_AI_ENDPOINT') ?: ''
         buildConfigField 'String', 'AI_ENDPOINT', '"' + endpoint.toString().replace('\\', '\\\\').replace('"', '\\"') + '"'
     }
