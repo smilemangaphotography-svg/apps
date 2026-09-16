@@ -5,13 +5,15 @@ if(typeof baseBuild!=='function')return;
 const LEVEL={skip:0,train:1,focus:2,priority:3};
 const UPPER=['Chest','Back','Shoulders','Arms'];
 const LOWER=['Quads','Glutes','Hamstrings','Calves'];
-const JOINTS=['Knee','Hip','Ankle','Shoulder','Elbow'];
+const JOINTS=['Knee','Hip','Ankle','Lower Back','Shoulder','Elbow','Wrist'];
 const JOINT_PREF={
   Knee:['sled','stepup','singlelegpress','legpress','hamcurl','hipthrust','seatedcalf','pallof'],
   Hip:['hipthrust','stepup','sideplank','pallof','hamcurl','singlelegpress','onearmrow'],
   Ankle:['seatedcalf','calf','stepup','sled','singlelegpress','pallof'],
+  'Lower Back':['pallof','sideplank','frontplank','hipthrust','onearmrow','hamcurl'],
   Shoulder:['facepull','onearmrow','machinepress','lateral','shoulderpress','pallof'],
-  Elbow:['facepull','onearmrow','triceps','biceps','machinepress','pallof']
+  Elbow:['facepull','onearmrow','triceps','biceps','machinepress','pallof'],
+  Wrist:['onearmrow','biceps','triceps','facepull','machinepress','pallof']
 };
 const allExercises=()=>EX.concat((S.customExercises||[]).filter(x=>!EX.some(e=>e.id===x.id)));
 const levelFor=cat=>LEVEL[(S.priorities&&S.priorities[cat])||'train']??1;
@@ -40,22 +42,28 @@ function idsFor(kind){
   return uniqueIds(allExercises().filter(allowed).sort((a,b)=>levelFor(b.cat)-levelFor(a.cat)),n)
 }
 function strengthSessions(){const out=[];(S.weekPlan||[]).forEach(d=>(d.sessions||[]).forEach(s=>{if(s.type==='strength')out.push(s)}));return out}
+function focusShape(){
+  const upperScore=UPPER.reduce((n,c)=>n+levelFor(c),0),lowerScore=LOWER.reduce((n,c)=>n+levelFor(c),0);
+  const upperFocus=UPPER.filter(c=>levelFor(c)>=2).length>=3;
+  const lowerPriority=LOWER.filter(c=>levelFor(c)>=3).length>=3;
+  const lowerFocus=LOWER.filter(c=>levelFor(c)>=2).length>=3;
+  if(upperFocus&&lowerPriority)return'upperlegs';
+  if(S.focusProfile==='KneeStrength')return'legs';
+  if(lowerPriority||lowerScore>=upperScore+3)return'legs';
+  if(upperFocus&&upperScore>=lowerScore+2)return'upper';
+  if(S.focusProfile==='Runner'&&lowerFocus)return'runner';
+  return'balanced'
+}
 function applyStrengthFocus(){
   const sessions=strengthSessions();if(!sessions.length)return;
-  const upperScore=UPPER.reduce((n,c)=>n+levelFor(c),0),lowerScore=LOWER.reduce((n,c)=>n+levelFor(c),0);
-  let kinds=[];
-  if(S.focusProfile==='UpperLegs')kinds=['upper','lower','mixed','lower'];
-  else if(S.focusProfile==='Upper')kinds=['upper','lower','upper','mixed'];
-  else if(S.focusProfile==='Legs'||S.focusProfile==='KneeStrength')kinds=['lower','upper','lower','mixed'];
-  else if(S.focusProfile==='Runner')kinds=['lower','mixed','upper','lower'];
-  else if(lowerScore>=upperScore+3)kinds=['lower','upper','lower','mixed'];
-  else if(upperScore>=lowerScore+3)kinds=['upper','lower','upper','mixed'];
-  else kinds=['upper','lower','mixed','upper'];
+  const shape=focusShape();
+  const map={upperlegs:['upper','lower','mixed','lower'],upper:['upper','lower','upper','mixed'],legs:['lower','upper','lower','mixed'],runner:['lower','mixed','upper','lower'],balanced:['upper','lower','mixed','upper']};
+  const kinds=map[shape];
   sessions.forEach((s,i)=>{
     const kind=kinds[i%kinds.length],ids=idsFor(kind);if(ids.length)s.ids=ids;
     if(kind==='upper'){s.name=i>2?'Upper Strength B':'Upper Strength';s.muscles='Chest · Back · Shoulders · Arms'}
     if(kind==='lower'){s.name='Lower Strength';s.muscles='Quads · Glutes · Hamstrings · Calves'}
-    if(kind==='mixed'){s.name=S.focusProfile==='UpperLegs'?'Upper + Strong Legs':'Full Body Strength';s.muscles='Upper Body · Legs'}
+    if(kind==='mixed'){s.name=shape==='upperlegs'?'Upper + Strong Legs':'Full Body Strength';s.muscles='Upper Body · Legs'}
   })
 }
 function supportIds(joint,max=5){
@@ -64,7 +72,7 @@ function supportIds(joint,max=5){
   return out
 }
 function relevantStrengthSessions(joint){
-  const lowerJoint=['Knee','Hip','Ankle'].includes(joint);
+  const lowerJoint=['Knee','Hip','Ankle','Lower Back'].includes(joint);
   return strengthSessions().filter(s=>lowerJoint?/Lower|Full Body|Strong Legs/i.test(s.name):/Upper|Full Body|Strong Legs/i.test(s.name));
 }
 function weaveJointSupport(){
@@ -81,9 +89,10 @@ function weaveJointSupport(){
 }
 function existingRehabSessions(){const out=[];(S.weekPlan||[]).forEach(d=>(d.sessions||[]).forEach(s=>{if(s.type==='rehab')out.push(s)}));return out}
 function leastLoadedDay(){return [...(S.weekPlan||[])].sort((a,b)=>(a.sessions?.length||0)-(b.sessions?.length||0))[0]||S.weekPlan?.[6]}
+function injuryKey(joint){return joint==='Lower Back'?'Back':joint}
 function applyPriorityCapacity(){
   const priorities=JOINTS.filter(j=>jointLevel(j)==='priority');if(!priorities.length||!S.weekPlan?.length)return;
-  const injuryMatch=priorities.find(j=>S.injuries?.includes(j));
+  const injuryMatch=priorities.find(j=>S.injuries?.includes(injuryKey(j)));
   const rehab=existingRehabSessions();
   const ids=[];priorities.forEach(j=>supportIds(j,3).forEach(id=>{if(!ids.includes(id)&&ids.length<6)ids.push(id)}));
   if(!ids.length)return;
@@ -100,7 +109,7 @@ function applyPriorityCapacity(){
 }
 function rebuildFlat(){
   const flat=[];(S.weekPlan||[]).forEach(d=>(d.sessions||[]).forEach(s=>{s.programIndex=flat.length;flat.push({...s})}));
-  S.program=flat;S.programVersion='29-master-focus-2';save()
+  S.program=flat;S.programVersion='29-master-mockup';save()
 }
 window.buildProgram=function(){
   S.jointPriorities=S.jointPriorities||{};
