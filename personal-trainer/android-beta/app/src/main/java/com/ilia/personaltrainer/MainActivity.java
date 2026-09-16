@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileCallback;
     private static final int FILE_CHOOSER = 501;
     private static final int LOCATION_PERMISSION = 502;
-    private static final int RUNTIME_MAX_ATTEMPTS = 12;
+    private static final int RUNTIME_MAX_ATTEMPTS = 18;
     private static final long RUNTIME_RETRY_MS = 300L;
     private LocationManager locationManager;
     private boolean locationRunning = false;
@@ -156,14 +156,15 @@ public class MainActivity extends Activity {
                 "var s=window.__PT_STYLE29__||'missing';" +
                 "var m=window.__ILIA_MASTER_MOCKUP__||'missing';" +
                 "var f=window.__ILIA_MASTER_FIX__||'missing';" +
-                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.3-runtime-ready')?'ready':(p+'|'+s+'|'+m+'|'+f);" +
+                "var v=window.__ILIA_V7__||'missing';" +
+                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.3-runtime-ready'&&v==='3.0.0-calendar-ai-ready')?'ready':(p+'|'+s+'|'+m+'|'+f+'|'+v);" +
                 "}catch(e){return 'error';}})()";
         view.evaluateJavascript(probe, value -> {
             if ("\"ready\"".equals(value)) return;
             if (attempt + 1 < RUNTIME_MAX_ATTEMPTS) {
                 view.postDelayed(() -> verifyRuntimeReady(view, attempt + 1), RUNTIME_RETRY_MS);
             } else {
-                Toast.makeText(MainActivity.this, "ILIA Coach Beta 2.9.3 runtime failed to initialize", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "ILIA Coach V7 Beta 3.0.0 runtime failed to initialize", Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -174,7 +175,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void speak(String text) {
             if (text == null || text.trim().isEmpty()) return;
             runOnUiThread(() -> {
-                if (ttsReady) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "ilia-coach-29");
+                if (ttsReady) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "ilia-coach-v7");
             });
         }
         @JavascriptInterface public boolean hasLocationPermission() {
