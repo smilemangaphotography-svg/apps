@@ -66,11 +66,11 @@ if(typeof baseRenderHome==='function')window.renderHome=function(){
   }
 };
 const baseShowMain=window.showMain;
-if(typeof baseShowMain==='function')window.showMain=function(page){baseShowMain(page);const t=document.querySelector('#topLabel');if(t)t.textContent='ILIA COACH · ALL-IN-ONE · BETA 2.9.1'};
+if(typeof baseShowMain==='function')window.showMain=function(page){baseShowMain(page);const t=document.querySelector('#topLabel');if(t)t.textContent='ILIA COACH · ALL-IN-ONE · BETA 2.9.2'};
 const baseShowBuilder=window.showBuilder;
 if(typeof baseShowBuilder==='function')window.showBuilder=function(step){document.querySelector('#style2Cover')?.classList.add('hidden');baseShowBuilder(step);window.scrollTo(0,0)};
-function stamp(){document.title='ILIA Coach Beta 2.9.1';const f=document.querySelector('.cover-foot');if(f)f.textContent='LOCKED DESIGN · BETA 2.9.1'}
+function stamp(){document.title='ILIA Coach Beta 2.9.2';const f=document.querySelector('.cover-foot');if(f)f.textContent='LOCKED DESIGN · BETA 2.9.2'}
 normalizeGoals();stamp();
 setTimeout(()=>{stamp();if(S.built&&S.programVersion!=='29.1-master-fix'&&typeof window.buildProgram==='function')window.buildProgram()},140);
-window.__ILIA_MASTER_FIX__='2.9.1-samsung-layout-program';
+window.__ILIA_MASTER_FIX__='2.9.2-runtime-ready';
 })();
