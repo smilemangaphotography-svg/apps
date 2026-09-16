@@ -88,12 +88,18 @@ php_marker = 'function slb_customer_bootstrap_data() {'
 if php_marker not in php:
     raise SystemExit('customer bootstrap PHP marker missing')
 php = php.replace(php_marker, helper + php_marker, 1)
-php = once(
-    php,
-    "        'logo' => slb_site_logo(),",
-    "        'logo' => slb_site_logo(),\n        'frontPage' => slb_customer_front_page_data(),",
-    'customer front page bootstrap payload'
-)
+bootstrap_anchor = """    $data = array(
+        'version' => SLB_VERSION,
+        'site' => home_url('/'),
+        'logo' => slb_site_logo(),
+        'categories' => slb_top_categories(),"""
+bootstrap_replacement = """    $data = array(
+        'version' => SLB_VERSION,
+        'site' => home_url('/'),
+        'logo' => slb_site_logo(),
+        'frontPage' => slb_customer_front_page_data(),
+        'categories' => slb_top_categories(),"""
+php = once(php, bootstrap_anchor, bootstrap_replacement, 'customer front page bootstrap payload')
 php_path.write_text(php, encoding='utf-8')
 
 css_path = root / 'assets' / 'bridge.css'
