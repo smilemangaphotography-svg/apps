@@ -46,17 +46,8 @@ js = js.replace(marker, front_helper + marker, 1)
 home_anchor = "var html='<main class=\"slb-page slb-home-feed\"><section class=\"slb-section\">"
 if home_anchor not in js:
     raise SystemExit('customer home markup anchor missing')
-js = js.replace(
-    home_anchor,
-    "var html='<main class=\"slb-page slb-home-feed\">'+frontPageMarkup()+'<section class=\"slb-section\'>".replace("slb-section'", "slb-section\"")
-)
-# The replacement above intentionally creates the exact JS source string without
-# rewriting the rest of Home/feed behavior. Normalize it explicitly for readability.
-js = js.replace(
-    "var html='<main class=\"slb-page slb-home-feed\">'+frontPageMarkup()+'<section class=\"slb-section\">",
-    "var html='<main class=\"slb-page slb-home-feed\">'+frontPageMarkup()+'<section class=\"slb-section\">",
-    1
-)
+home_replacement = "var html='<main class=\"slb-page slb-home-feed\">'+frontPageMarkup()+'<section class=\"slb-section\">"
+js = js.replace(home_anchor, home_replacement, 1)
 
 bind_marker = 'function bind(){'
 if bind_marker not in js:
