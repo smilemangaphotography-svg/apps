@@ -41,6 +41,19 @@ Permanent lineage:
 - Calendar may contain more than one session on a day.
 - 2-week blocks change selected training variables without increasing everything simultaneously.
 
+## Training emphasis lock
+- Goal selection and body emphasis are separate controls.
+- User may combine upper-body development with high-priority leg work; choosing upper body must never suppress leg training.
+- Quick profiles: Balanced, Upper + Strong Legs, Upper Body, Legs First, Runner.
+- Body areas remain independently editable: Chest / Back / Shoulders / Arms / Quads / Glutes / Hamstrings / Calves / Core.
+- Each body area supports TRAIN / FOCUS / PRIORITY / SKIP.
+- Core/abs are optional; no aesthetic or six-pack goal is required.
+- Knee Capacity is an independent training preference and may be combined with any body profile.
+- Knee Capacity adds controlled lower-body capacity work without automatically labelling the user as injured; injury guardrails remain a separate step.
+- Generated strength sessions must use the actual saved body-area priorities, not merely display them in the UI.
+- The Upper + Strong Legs profile must preserve meaningful upper-body work while giving quads, glutes, hamstrings and calves higher programming priority.
+- If Knee is selected in Guardrails, existing knee-aware recovery rules remain active and Knee Capacity must respect those guardrails rather than bypass them.
+
 ## Motion lock
 - Use the proven bundled anatomy MP4 approach from the uploaded Adaptive Coach / Performance apps.
 - One motion engine only; no competing legacy observers.
