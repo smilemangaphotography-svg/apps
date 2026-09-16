@@ -1,21 +1,39 @@
-.goal-focus-master{margin:30px 0 4px;padding:18px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(145deg,#101e16,#0b1710)}
-.goal-focus-master .focus-master-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
-.goal-focus-master .focus-master-head h3{margin:5px 0 0;font-size:24px;line-height:1.05;color:var(--white)}
-.goal-focus-master .focus-master-head p{margin:7px 0 0;color:var(--muted);font-size:13px;line-height:1.45}
-.goal-focus-master .focus-master-badge{flex:0 0 auto;border-radius:999px;padding:8px 10px;background:var(--lime);color:#071009;font-size:9px;font-weight:950;letter-spacing:1.2px}
-.goal-focus-master .focus-master-presets{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px}
-.goal-focus-master .focus-master-presets button{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;background:#0d1811;color:#a1aaa3;padding:10px 13px;font-size:11px;font-weight:900}
-.goal-focus-master .focus-master-presets button.selected{background:var(--cream);border-color:var(--cream);color:var(--ink)}
-.goal-focus-master .focus-extra{width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 12px;padding:14px 15px;border:1px solid var(--line);border-radius:18px;background:#0d1811;color:#fff;text-align:left}
-.goal-focus-master .focus-extra span{display:block}.goal-focus-master .focus-extra strong{display:block;font-size:14px}.goal-focus-master .focus-extra small{display:block;margin-top:4px;color:var(--muted);font-size:10px;line-height:1.35}.goal-focus-master .focus-extra>b{flex:0 0 auto;border-radius:999px;padding:8px 10px;background:#26342a;color:#9da69f;font-size:10px}.goal-focus-master .focus-extra.selected{border-color:var(--lime);background:#162516;box-shadow:inset 3px 0 0 var(--lime)}.goal-focus-master .focus-extra.selected>b{background:var(--lime);color:#071009}
-.goal-focus-master .focus-master-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.goal-focus-master .focus-master-area{min-height:74px;border:1px solid var(--line);border-radius:16px;background:#0d1811;color:#fff;padding:12px 13px;text-align:left}
-.goal-focus-master .focus-master-area strong{display:block;font-size:14px}
-.goal-focus-master .focus-master-area small{display:block;margin-top:5px;color:#8f9991;font-size:9px;font-weight:950;letter-spacing:1px}
-.goal-focus-master .focus-master-area.focus{border-color:#708f38;background:#152315}
-.goal-focus-master .focus-master-area.priority{border-color:var(--lime);background:#1a2a16;box-shadow:inset 3px 0 0 var(--lime)}
-.goal-focus-master .focus-master-area.focus small,.goal-focus-master .focus-master-area.priority small{color:var(--lime)}
-.goal-focus-master .focus-master-area.skip{opacity:.48}
-.goal-focus-master .focus-master-note{margin:12px 2px 0;color:var(--muted);font-size:11px;line-height:1.45}
+.focus-quick-v2,.joint-priority-v2{margin:24px 0 4px;padding:18px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(145deg,#101e16,#0b1710)}
+.focus-quick-head h3{margin:5px 0 0;font-size:24px;line-height:1.05;color:var(--white)}
+.focus-quick-head p,.joint-priority-v2>p{margin:7px 0 0;color:var(--muted);font-size:13px;line-height:1.45}
+.focus-master-presets{display:flex;gap:8px;overflow-x:auto;padding:14px 0 2px}
+.focus-master-presets.detail{margin-bottom:12px}
+.focus-master-presets button{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;background:#0d1811;color:#a1aaa3;padding:10px 13px;font-size:11px;font-weight:900}
+.focus-master-presets button.selected{background:var(--cream);border-color:var(--cream);color:var(--ink)}
+.focus-summary-v2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.focus-summary-v2>div{border:1px solid var(--line);border-radius:16px;background:#0d1811;padding:12px}
+.focus-summary-v2 small{display:block;color:var(--muted);font-size:8px;font-weight:950;letter-spacing:1.2px}
+.focus-summary-v2 b{display:block;margin-top:5px;font-size:11px;line-height:1.35;color:#fff}
+.focus-master-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.focus-master-grid.detail{margin-top:8px}
+.focus-master-area{min-height:74px;border:1px solid var(--line);border-radius:16px;background:#0d1811;color:#fff;padding:12px 13px;text-align:left}
+.focus-master-area strong{display:block;font-size:14px}
+.focus-master-area small{display:block;margin-top:5px;color:#8f9991;font-size:9px;font-weight:950;letter-spacing:1px}
+.focus-master-area.focus{border-color:#708f38;background:#152315}
+.focus-master-area.priority{border-color:var(--lime);background:#1a2a16;box-shadow:inset 3px 0 0 var(--lime)}
+.focus-master-area.focus small,.focus-master-area.priority small{color:var(--lime)}
+.focus-master-area.skip{opacity:.46}
+.joint-priority-v2{margin-top:18px}
+.joint-grid-v2{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+.joint-card-v2{min-height:74px;border:1px solid var(--line);border-radius:16px;background:#0d1811;color:#fff;padding:12px 13px;text-align:left}
+.joint-card-v2 strong{display:block;font-size:14px}
+.joint-card-v2 small{display:block;margin-top:5px;color:#8f9991;font-size:9px;font-weight:950;letter-spacing:1px}
+.joint-card-v2.support{border-color:#708f38;background:#152315}
+.joint-card-v2.support small{color:#b6d873}
+.joint-card-v2.priority{border-color:var(--lime);background:#1a2a16;box-shadow:inset 3px 0 0 var(--lime)}
+.joint-card-v2.priority small{color:var(--lime)}
+.focus-master-note{margin:14px 2px 0;color:var(--muted);font-size:11px;line-height:1.48}
+.focus-review-v2 .summary-row b{max-width:62%;text-align:right;font-size:12px;line-height:1.35}
 .builder{padding-bottom:calc(190px + env(safe-area-inset-bottom))}
-@media(max-width:390px){.goal-focus-master{padding:15px}.goal-focus-master .focus-master-head h3{font-size:21px}.goal-focus-master .focus-master-grid{gap:7px}.goal-focus-master .focus-master-area{min-height:68px;padding:10px 11px}}
+@media(max-width:390px){
+  .focus-quick-v2,.joint-priority-v2{padding:15px}
+  .focus-quick-head h3{font-size:21px}
+  .focus-summary-v2{grid-template-columns:1fr}
+  .focus-master-grid,.joint-grid-v2{gap:7px}
+  .focus-master-area,.joint-card-v2{min-height:68px;padding:10px 11px}
+}
