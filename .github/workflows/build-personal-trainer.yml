@@ -67,11 +67,12 @@ jobs:
           test -s "$A/media/adaptive/front-plank.mp4"
           test -s "$A/media/adaptive/rope-triceps-pressdown.mp4"
 
-      - name: Validate locked Beta 2.9.1 master fix runtime
+      - name: Validate locked Beta 2.9.2 runtime master fix
         shell: bash
         run: |
           set -euo pipefail
           A=personal-trainer/android-beta/app/src/main/assets
+          JAVA=personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           node --check "$A/app-v2.js"
           node --check "$A/pt-v25-core.js"
           node --check "$A/style2-v29.js"
@@ -95,7 +96,7 @@ jobs:
           ! grep -q 'ilia27.js' "$A/index29.html"
           grep -q "__PT_STYLE29__='locked-all-in-one-2.9'" "$A/style2-v29.js"
           grep -q "__ILIA_MASTER_MOCKUP__='approved-functional'" "$A/style2-v29-master-mockup.js"
-          grep -q "__ILIA_MASTER_FIX__='2.9.1-samsung-layout-program'" "$A/style2-v29-master-fix.js"
+          grep -q "__ILIA_MASTER_FIX__='2.9.2-runtime-ready'" "$A/style2-v29-master-fix.js"
           grep -q 'Upper + Strong Legs' "$A/style2-v29-master-mockup.js"
           grep -q 'Knee Support + Strength' "$A/style2-v29-master-mockup.js"
           grep -q 'CREATE MY PLAN' "$A/style2-v29-master-mockup.js"
@@ -115,13 +116,17 @@ jobs:
           grep -q 'MONTHLY' "$A/style2-v29.js"
           grep -q 'WEEKLY' "$A/style2-v29.js"
           grep -q '2-WEEK BLOCKS' "$A/style2-v29.js"
-          grep -q "versionName '2.9.1-beta'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionCode 30" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '2.9.2-beta'" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionCode 31" personal-trainer/android-beta/app/build.gradle
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
           grep -q 'android:label="ILIA COACH"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'index29.html' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q '__PT_STYLE29__' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'window.PT25' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'index29.html' "$JAVA"
+          grep -q 'verifyRuntimeReady' "$JAVA"
+          grep -q 'RUNTIME_MAX_ATTEMPTS' "$JAVA"
+          grep -q '__ILIA_MASTER_MOCKUP__' "$JAVA"
+          grep -q '__ILIA_MASTER_FIX__' "$JAVA"
+          grep -q '2.9.2-runtime-ready' "$JAVA"
+          grep -q 'window.PT25' "$JAVA"
           node - <<'NODE'
           const core=require('./personal-trainer/android-beta/app/src/main/assets/pt-v25-core.js');
           for(const goal of ['5K','10K','Half Marathon','Marathon']){
@@ -147,7 +152,7 @@ jobs:
           done
           echo "26 Adaptive Coach MP4 + WebP movement pairs validated"
 
-      - name: Build ILIA COACH Beta 2.9.1 APK
+      - name: Build ILIA COACH Beta 2.9.2 APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
 
       - name: Validate APK identity and contents
@@ -157,7 +162,7 @@ jobs:
           APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='30' versionName='2.9.1-beta'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='31' versionName='2.9.2-beta'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'ILIA COACH'"
           unzip -l "$APK" | grep -q 'assets/index29.html'
           unzip -l "$APK" | grep -q 'assets/style2-v29.js'
@@ -170,32 +175,26 @@ jobs:
           unzip -l "$APK" | grep -q 'assets/media/adaptive/front-plank.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/face-pull.mp4'
 
-      - name: Package Beta 2.9.1 deliverables
+      - name: Package Beta 2.9.2 deliverables
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release
           APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
-          cp "$APK" release/ILIA-COACH-All-In-One-Beta-2.9.1.apk
-          cat > release/DIAGNOSTICS-BETA-2.9.1.txt <<'REPORT'
-          ILIA COACH All-In-One — Beta 2.9.1 Master Fix Diagnostics
+          cp "$APK" release/ILIA-COACH-All-In-One-Beta-2.9.2.apk
+          cat > release/DIAGNOSTICS-BETA-2.9.2.txt <<'REPORT'
+          ILIA COACH All-In-One — Beta 2.9.2 Runtime Master Fix Diagnostics
           Canonical repository: smilemangaphotography-svg/apps
           Canonical branch: personal-trainer-main
           Existing Android package preserved: PASS — com.ilia.personaltrainer
           Display label: PASS — ILIA COACH
-          Version: PASS — 2.9.1-beta / versionCode 30
-          Startup legacy-builder flash guard: STATIC PASS
-          Cover / setup overlap prevention: STATIC PASS
-          Samsung narrow-screen horizontal overflow guard: STATIC PASS
-          Fixed 5-tab navigation width and safe-area placement: STATIC PASS
-          Builder footer width / clipping correction: STATIC PASS
-          Home cards responsive 2-column / 1-column adaptation: STATIC PASS
-          Legacy Running Support goal normalization: STATIC PASS
-          Race target removed from duplicate goal headline: STATIC PASS
-          Weekly active-session cap respects selected training days: STATIC PASS
-          Rehab excess sessions merge before schedule trimming: STATIC PASS
-          Lower-strength ordering prioritizes primary leg work before calf accessories: STATIC PASS
-          Strength exercise count capped to session target: STATIC PASS
+          Version: PASS — 2.9.2-beta / versionCode 31
+          Runtime readiness handshake: STATIC PASS
+          Delayed startup retry protection: STATIC PASS — 12 attempts / 300 ms
+          Full marker validation: PASS — core + master mockup + master fix
+          False onPageFinished startup failure removed: PASS
+          Startup error text version corrected: PASS
+          Beta 2.9.1 visual master fixes preserved: PASS
           Approved master onboarding preserved: PASS
           Independent body emphasis + joint support + injury guardrails preserved: PASS
           5K/10K/Half/Marathon target support: PASS
@@ -207,15 +206,15 @@ jobs:
           Admin Studio / gallery / animation management: STATIC PASS
           Android Gradle build: PASS
           APK identity/content validation: PASS
-          Physical Samsung A54 visual verification: REQUIRED
+          Physical Samsung A54 startup verification: REQUIRED
           REPORT
-          sha256sum release/ILIA-COACH-All-In-One-Beta-2.9.1.apk > release/SHA256SUMS.txt
-          zip -qr release/ILIA-COACH-All-In-One-Beta-2.9.1-Source.zip personal-trainer/android-beta personal-trainer/DESIGN-LOCK-BETA-2.9.md personal-trainer/ILIA-COACH-MASTER-MOCKUP-LOCK.md .github/workflows/build-personal-trainer.yml -x '*/build/*' -x '*/media/adaptive/*'
+          sha256sum release/ILIA-COACH-All-In-One-Beta-2.9.2.apk > release/SHA256SUMS.txt
+          zip -qr release/ILIA-COACH-All-In-One-Beta-2.9.2-Source.zip personal-trainer/android-beta personal-trainer/DESIGN-LOCK-BETA-2.9.md personal-trainer/ILIA-COACH-MASTER-MOCKUP-LOCK.md .github/workflows/build-personal-trainer.yml -x '*/build/*' -x '*/media/adaptive/*'
 
-      - name: Upload Beta 2.9.1
+      - name: Upload Beta 2.9.2
         uses: actions/upload-artifact@v4
         with:
-          name: ILIA-COACH-ALL-IN-ONE-BETA-2.9.1
+          name: ILIA-COACH-ALL-IN-ONE-BETA-2.9.2
           path: release/*
           if-no-files-found: error
           retention-days: 30
