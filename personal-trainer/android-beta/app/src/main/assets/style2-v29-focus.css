@@ -5,6 +5,9 @@
 .goal-focus-master .focus-master-badge{flex:0 0 auto;border-radius:999px;padding:8px 10px;background:var(--lime);color:#071009;font-size:9px;font-weight:950;letter-spacing:1.2px}
 .goal-focus-master .focus-master-presets{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px}
 .goal-focus-master .focus-master-presets button{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;background:#0d1811;color:#a1aaa3;padding:10px 13px;font-size:11px;font-weight:900}
+.goal-focus-master .focus-master-presets button.selected{background:var(--cream);border-color:var(--cream);color:var(--ink)}
+.goal-focus-master .focus-extra{width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 12px;padding:14px 15px;border:1px solid var(--line);border-radius:18px;background:#0d1811;color:#fff;text-align:left}
+.goal-focus-master .focus-extra span{display:block}.goal-focus-master .focus-extra strong{display:block;font-size:14px}.goal-focus-master .focus-extra small{display:block;margin-top:4px;color:var(--muted);font-size:10px;line-height:1.35}.goal-focus-master .focus-extra>b{flex:0 0 auto;border-radius:999px;padding:8px 10px;background:#26342a;color:#9da69f;font-size:10px}.goal-focus-master .focus-extra.selected{border-color:var(--lime);background:#162516;box-shadow:inset 3px 0 0 var(--lime)}.goal-focus-master .focus-extra.selected>b{background:var(--lime);color:#071009}
 .goal-focus-master .focus-master-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .goal-focus-master .focus-master-area{min-height:74px;border:1px solid var(--line);border-radius:16px;background:#0d1811;color:#fff;padding:12px 13px;text-align:left}
 .goal-focus-master .focus-master-area strong{display:block;font-size:14px}
