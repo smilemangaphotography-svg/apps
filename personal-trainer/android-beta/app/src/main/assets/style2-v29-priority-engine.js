@@ -21,24 +21,29 @@ function idsFor(kind){
   }
   return allExercises().filter(allowed).sort((a,b)=>levelFor(b.cat)-levelFor(a.cat)).slice(0,n).map(e=>e.id)
 }
+function focusShape(){
+  const upperScore=UPPER.reduce((n,c)=>n+levelFor(c),0),lowerScore=LOWER.reduce((n,c)=>n+levelFor(c),0);
+  const upperFocus=UPPER.filter(c=>levelFor(c)>=2).length>=3;
+  const lowerPriority=LOWER.filter(c=>levelFor(c)>=3).length>=3;
+  const lowerFocus=LOWER.filter(c=>levelFor(c)>=2).length>=3;
+  if(upperFocus&&lowerPriority)return'upperlegs';
+  if(lowerPriority||lowerScore>=upperScore+3)return'legs';
+  if(upperFocus&&upperScore>=lowerScore+2)return'upper';
+  if(S.focusProfile==='Runner'&&lowerFocus)return'runner';
+  return'balanced'
+}
 function applyStrengthFocus(){
   const sessions=[];(S.weekPlan||[]).forEach(d=>(d.sessions||[]).forEach(s=>{if(s.type==='strength')sessions.push(s)}));
   if(!sessions.length)return;
-  const upperScore=UPPER.reduce((n,c)=>n+levelFor(c),0),lowerScore=LOWER.reduce((n,c)=>n+levelFor(c),0);
-  let kinds=[];
-  if(S.focusProfile==='UpperLegs')kinds=['upper','lower','mixed','upper'];
-  else if(S.focusProfile==='Upper')kinds=['upper','upper','mixed','upper'];
-  else if(S.focusProfile==='Legs')kinds=['lower','lower','mixed','lower'];
-  else if(S.focusProfile==='Runner')kinds=['lower','mixed','lower','mixed'];
-  else if(lowerScore>=upperScore+3)kinds=['lower','mixed','lower','upper'];
-  else if(upperScore>=lowerScore+3)kinds=['upper','mixed','upper','lower'];
-  else kinds=['upper','lower','mixed','upper'];
+  const shape=focusShape();
+  const map={upperlegs:['upper','lower','mixed','upper'],upper:['upper','upper','mixed','lower'],legs:['lower','lower','mixed','upper'],runner:['lower','mixed','lower','upper'],balanced:['upper','lower','mixed','upper']};
+  const kinds=map[shape];
   sessions.forEach((s,i)=>{
     const kind=kinds[i%kinds.length],ids=idsFor(kind);
     if(ids.length)s.ids=ids;
     if(kind==='upper'){s.name=i>2?'Upper Strength B':'Upper Strength';s.muscles='Chest · Back · Shoulders · Arms'}
     if(kind==='lower'){s.name=S.kneeCapacityFocus?'Lower Strength · Leg Priority':'Lower Strength';s.muscles='Quads · Glutes · Hamstrings · Calves'}
-    if(kind==='mixed'){s.name=S.focusProfile==='UpperLegs'?'Upper + Strong Legs':'Full Body Strength';s.muscles='Upper Body · Legs'}
+    if(kind==='mixed'){s.name=shape==='upperlegs'?'Upper + Strong Legs':'Full Body Strength';s.muscles='Upper Body · Legs'}
   })
 }
 function kneeIds(){
