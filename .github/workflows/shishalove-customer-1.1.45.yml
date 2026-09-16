@@ -1,0 +1,135 @@
+name: ShishaLove Customer 1.1.45 Front Page Restore
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - '.github/workflows/shishalove-customer-1.1.45.yml'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.45.py'
+      - 'shishalove-mobile/tools/patch-customer-frontpage-1.1.45.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build Customer Bridge 1.1.45
+        run: |
+          set -euo pipefail
+          rm -rf package dist && mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.45.py package/shishalove-app-bridge
+
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          C='package/shishalove-app-bridge/assets/customer.js'
+          M='package/shishalove-app-bridge/assets/merchant.js'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.45/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.45');/" "$MAIN"
+          node --check "$C"
+          node --check "$M"
+          php -l "$MAIN"
+          grep -Fq "var BUILD='1.1.45';" "$C"
+          grep -Fq "CFG.version='1.1.45';" "$C"
+          grep -Fq "var DATA_CACHE='stable-v1';" "$C"
+          grep -Fq 'function frontPageMarkup()' "$C"
+          grep -Fq 'data-act="front-shop"' "$C"
+          grep -Fq 'slb_customer_front_page_data' "$MAIN"
+          grep -Fq "'frontPage' => slb_customer_front_page_data()" "$MAIN"
+          grep -Fq 'slb-front-visual' "$CSS"
+          grep -Fq "CFG.version='1.1.43';" "$M"
+          grep -Fq 'Version: 1.1.45' "$MAIN"
+
+      - name: Apply Customer Android 1.1.45 patch
+        run: |
+          set -euo pipefail
+          python3 shishalove-mobile/tools/patch-customer-frontpage-1.1.45.py
+          A='shishalove-mobile/customer/src/main/java/eu/shishalove/customer/CustomerActivityV134.java'
+          G='shishalove-mobile/customer/build.gradle'
+          M='shishalove-mobile/customer/src/main/java/eu/shishalove/customer/MainActivity.java'
+          grep -Fq 'getWindow().setDecorFitsSystemWindows(false);' "$A"
+          grep -Fq 'refreshInsetsAndViewport();' "$A"
+          grep -Fq '.setInsets(WindowInsets.Type.systemBars(), android.graphics.Insets.NONE)' "$A"
+          grep -Fq 'v.setPadding(bars.left, bars.top, bars.right, bars.bottom);' "$A"
+          grep -Fq 'bottomInsetCssPx = 0;' "$A"
+          grep -Fq 'versionCode 145' "$G"
+          grep -Fq "versionName '1.1.45'" "$G"
+          grep -Fq 'build=145' "$M"
+          grep -Fq 'WebSettings.LOAD_CACHE_ELSE_NETWORK' "$M"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build Customer update
+        working-directory: shishalove-mobile
+        run: gradle :customer:assembleRelease :customer:assembleDebug --stacktrace
+
+      - name: Verify update identity and signing continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          RELEASE='shishalove-mobile/customer/build/outputs/apk/release/customer-release.apk'
+          DEBUG='shishalove-mobile/customer/build/outputs/apk/debug/customer-debug.apk'
+
+          "$AAPT" dump badging "$RELEASE" | grep -q "package: name='eu.shishalove.customer' versionCode='145' versionName='1.1.45'"
+          "$AAPT" dump badging "$DEBUG" | grep -q "package: name='eu.shishalove.customer.dev' versionCode='145' versionName='1.1.45-dev'"
+
+          mkdir -p dist/previous
+          gh release download shishalove-customer-1.1.44 --pattern 'ShishaLove-Customer-1.1.44-CURRENT-PHONE-UPDATE.apk' --dir dist/previous
+          digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
+          test "$(digest dist/previous/ShishaLove-Customer-1.1.44-CURRENT-PHONE-UPDATE.apk)" = "$(digest "$RELEASE")"
+
+          cp "$RELEASE" dist/ShishaLove-Customer-1.1.45-CURRENT-PHONE-UPDATE.apk
+          cp "$DEBUG" dist/ShishaLove-Customer-1.1.45-LEGACY-DEV-ONLY.apk
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.45.zip shishalove-app-bridge)
+          sha256sum dist/ShishaLove-Customer-1.1.45-CURRENT-PHONE-UPDATE.apk dist/ShishaLove-Customer-1.1.45-LEGACY-DEV-ONLY.apk dist/shishalove-app-bridge-1.1.45.zip > dist/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-customer-1.1.45
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish Customer 1.1.45
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-customer-1.1.45'
+          NOTES='MASTER FIX — Customer front page restoration. The Customer Home/front page is restored above the existing Recommended / Recent Arrivals catalogue feed, using the live WordPress front-page image/header image when available and the official ShishaLove logo as a safe fallback. The Shop Now control stays inside the app and moves to the product feed. Existing Customer 1.1.44 instant loading, safe areas, navigation, search, sorting, cart, favorites, account and cached data behavior are preserved. Merchant remains on 1.1.43 logic. Install the WordPress Bridge 1.1.45 ZIP first, then update the Customer APK over the existing app; do not uninstall.'
+          ASSETS=(dist/ShishaLove-Customer-1.1.45-CURRENT-PHONE-UPDATE.apk dist/ShishaLove-Customer-1.1.45-LEGACY-DEV-ONLY.apk dist/shishalove-app-bridge-1.1.45.zip dist/SHA256SUMS.txt)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+            gh release edit "$TAG" --title 'ShishaLove Customer 1.1.45 — Front Page Restore' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" "${ASSETS[@]}" --title 'ShishaLove Customer 1.1.45 — Front Page Restore' --notes "$NOTES" --target shishalove-main
+          fi
