@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
@@ -40,3 +40,17 @@ jobs:
           name: shishalove-staging-loader
           path: dist/shishalove-staging-loader-1.0.0.zip
           if-no-files-found: error
+      - name: Publish one-time staging loader
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-staging-loader-1.0.0'
+          ASSET='dist/shishalove-staging-loader-1.0.0.zip'
+          NOTES='Install this WordPress plugin once and activate it. It creates the isolated Customer beta route /shishalove-app-beta/. Future MASTER FIX + MASTER UPDATE changes are read from the shishalove-staging branch, so normal UI/JS/CSS testing only requires refreshing the beta page. Production Customer, Merchant and live Bridge remain untouched until MASTER FINALIZE.'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ASSET" --clobber
+            gh release edit "$TAG" --title 'ShishaLove Staging Loader 1.0.0' --notes "$NOTES" --target shishalove-staging
+          else
+            gh release create "$TAG" "$ASSET" --title 'ShishaLove Staging Loader 1.0.0' --notes "$NOTES" --target shishalove-staging
+          fi
