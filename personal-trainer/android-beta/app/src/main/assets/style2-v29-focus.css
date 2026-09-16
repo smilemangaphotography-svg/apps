@@ -1,0 +1,18 @@
+.goal-focus-master{margin:30px 0 4px;padding:18px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(145deg,#101e16,#0b1710)}
+.goal-focus-master .focus-master-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
+.goal-focus-master .focus-master-head h3{margin:5px 0 0;font-size:24px;line-height:1.05;color:var(--white)}
+.goal-focus-master .focus-master-head p{margin:7px 0 0;color:var(--muted);font-size:13px;line-height:1.45}
+.goal-focus-master .focus-master-badge{flex:0 0 auto;border-radius:999px;padding:8px 10px;background:var(--lime);color:#071009;font-size:9px;font-weight:950;letter-spacing:1.2px}
+.goal-focus-master .focus-master-presets{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px}
+.goal-focus-master .focus-master-presets button{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;background:#0d1811;color:#a1aaa3;padding:10px 13px;font-size:11px;font-weight:900}
+.goal-focus-master .focus-master-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.goal-focus-master .focus-master-area{min-height:74px;border:1px solid var(--line);border-radius:16px;background:#0d1811;color:#fff;padding:12px 13px;text-align:left}
+.goal-focus-master .focus-master-area strong{display:block;font-size:14px}
+.goal-focus-master .focus-master-area small{display:block;margin-top:5px;color:#8f9991;font-size:9px;font-weight:950;letter-spacing:1px}
+.goal-focus-master .focus-master-area.focus{border-color:#708f38;background:#152315}
+.goal-focus-master .focus-master-area.priority{border-color:var(--lime);background:#1a2a16;box-shadow:inset 3px 0 0 var(--lime)}
+.goal-focus-master .focus-master-area.focus small,.goal-focus-master .focus-master-area.priority small{color:var(--lime)}
+.goal-focus-master .focus-master-area.skip{opacity:.48}
+.goal-focus-master .focus-master-note{margin:12px 2px 0;color:var(--muted);font-size:11px;line-height:1.45}
+.builder{padding-bottom:calc(190px + env(safe-area-inset-bottom))}
+@media(max-width:390px){.goal-focus-master{padding:15px}.goal-focus-master .focus-master-head h3{font-size:21px}.goal-focus-master .focus-master-grid{gap:7px}.goal-focus-master .focus-master-area{min-height:68px;padding:10px 11px}}
