@@ -17,12 +17,6 @@ def once(text, old, new, label):
         raise SystemExit(f'{label}: expected 1 anchor, found {n}')
     return text.replace(old, new, 1)
 
-# -----------------------------------------------------------------------------
-# CUSTOMER 1.1.45 — restore the approved Home/front-page layer without touching
-# catalogue, search, cart, favorites, account, safe-area, sorting or Merchant logic.
-# Home remains the same Recommended / Recent Arrivals feed, but the campaign/front
-# page is visible immediately above it instead of the app opening as a feed-only page.
-# -----------------------------------------------------------------------------
 customer_path = root / 'assets' / 'customer.js'
 js = customer_path.read_text(encoding='utf-8')
 js = once(js, "var BUILD='1.1.44';", "var BUILD='1.1.45';", 'customer build')
@@ -54,7 +48,14 @@ if home_anchor not in js:
     raise SystemExit('customer home markup anchor missing')
 js = js.replace(
     home_anchor,
-    "var html='<main class=\"slb-page slb-home-feed\">'+frontPageMarkup()+'<section class=\"slb-section\'>".replace("section class=\\\"slb-section\\\'>", "section class=\\\"slb-section\\\">")
+    "var html='<main class=\"slb-page slb-home-feed\">'+frontPageMarkup()+'<section class=\"slb-section\'>".replace("slb-section'", "slb-section\"")
+)
+# The replacement above intentionally creates the exact JS source string without
+# rewriting the rest of Home/feed behavior. Normalize it explicitly for readability.
+js = js.replace(
+    "var html='<main class=\"slb-page slb-home-feed\">'+frontPageMarkup()+'<section class=\"slb-section\">",
+    "var html='<main class=\"slb-page slb-home-feed\">'+frontPageMarkup()+'<section class=\"slb-section\">",
+    1
 )
 
 bind_marker = 'function bind(){'
@@ -67,9 +68,6 @@ js = js.replace(
 )
 customer_path.write_text(js, encoding='utf-8')
 
-# WordPress supplies the front-page campaign image when available. If the active
-# front page has no featured/header image, the official ShishaLove logo is used so
-# Home can never disappear into an empty feed-only state.
 php_path = root / 'shishalove-app-bridge.php'
 php = php_path.read_text(encoding='utf-8')
 helper = r'''function slb_customer_front_page_data() {
@@ -111,7 +109,7 @@ css_path = root / 'assets' / 'bridge.css'
 css = css_path.read_text(encoding='utf-8')
 css += r'''
 
-/* ShishaLove Customer 1.1.45 — approved Home/front-page restoration only */
+/* ShishaLove Customer 1.1.45 — Home/front-page restoration only */
 body.slb-customer .slb-front-page{margin:0 0 22px;padding:0}
 body.slb-customer .slb-front-visual{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:18px;background:#111;box-shadow:0 8px 28px rgba(0,0,0,.10)}
 body.slb-customer .slb-front-visual>img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
