@@ -1,0 +1,42 @@
+name: ShishaLove Staging Validation
+
+on:
+  push:
+    branches: [shishalove-staging]
+    paths:
+      - 'shishalove-staging/**'
+      - 'shishalove-staging-loader/**'
+      - '.github/workflows/shishalove-staging.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+      - name: Validate staging Customer fix
+        run: |
+          set -euo pipefail
+          php -l shishalove-staging-loader/shishalove-staging-loader.php
+          node --check shishalove-staging/customer-staging.js
+          grep -Fq '/shishalove-app-beta/' shishalove-staging-loader/shishalove-staging-loader.php
+          grep -Fq 'raw.githubusercontent.com/smilemangaphotography-svg/apps/shishalove-staging' shishalove-staging-loader/shishalove-staging-loader.php
+          grep -Fq 'slb-staging-front' shishalove-staging/customer-staging.js
+          grep -Fq 'slb-staging-front-visual' shishalove-staging/customer-staging.css
+      - name: Package one-time staging loader
+        run: |
+          mkdir -p dist/shishalove-staging-loader
+          cp shishalove-staging-loader/shishalove-staging-loader.php dist/shishalove-staging-loader/
+          cd dist && zip -qr shishalove-staging-loader-1.0.0.zip shishalove-staging-loader
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-staging-loader
+          path: dist/shishalove-staging-loader-1.0.0.zip
+          if-no-files-found: error
