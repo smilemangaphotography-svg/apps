@@ -1,0 +1,57 @@
+/* ILIA COACH V7.1 — FINAL UI FIX LOCK
+   Loaded after V7. Preserve V7 functionality/anatomy motion. Fix only physical-device UI issues. */
+
+/* Reserve more scroll room for the fixed A54 navigation and keep the nav inside safe areas. */
+[data-ilia-v7="ready"] .bottom-nav{
+  left:max(14px,env(safe-area-inset-left))!important;
+  right:max(14px,env(safe-area-inset-right))!important;
+  bottom:max(10px,env(safe-area-inset-bottom))!important;
+  width:auto!important;
+  height:68px!important;
+  min-height:68px!important;
+  transform:none!important;
+}
+[data-ilia-v7="ready"] .page{scroll-padding-bottom:calc(190px + env(safe-area-inset-bottom))}
+.v7-page{padding-bottom:calc(190px + env(safe-area-inset-bottom))!important}
+
+/* AI must never collide with the bottom nav or Android system bar. */
+.v7-ai-fab{
+  right:max(22px,env(safe-area-inset-right))!important;
+  bottom:calc(150px + env(safe-area-inset-bottom))!important;
+  width:58px!important;
+  height:58px!important;
+}
+
+/* Three-plan selector stays readable on the Galaxy A54. */
+.v7-tabs{grid-template-columns:.88fr 1.12fr 1.34fr!important;gap:7px!important}
+.v7-tabs button{
+  min-width:0!important;
+  white-space:nowrap!important;
+  font-size:10.5px!important;
+  padding:0 6px!important;
+}
+
+/* Calendar carousel: active date remains fully readable while still hinting adjacent days. */
+.v7-days{
+  padding:3px 14px 10px!important;
+  margin-left:-14px!important;
+  margin-right:-14px!important;
+  scroll-padding-inline:14px!important;
+}
+.v7-day{flex:0 0 150px!important;min-width:150px!important;padding:18px 15px!important}
+.v7-day b{white-space:nowrap!important;font-size:15px!important}
+.v7-day small,.v7-day span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Whole exercise cards are now obvious tap targets for anatomy motion/details. */
+.v7-ex{cursor:pointer!important;transition:transform .12s ease,box-shadow .12s ease}
+.v7-ex:active{transform:scale(.992);box-shadow:0 0 0 2px rgba(198,255,49,.22) inset}
+
+/* Do not let the last exercise / Add Exercise button disappear under navigation. */
+.v7-ex-list{padding-bottom:8px}
+.v7-add{margin-bottom:10px}
+
+@media(max-width:370px){
+  .v7-tabs{grid-template-columns:.82fr 1.08fr 1.38fr!important}
+  .v7-tabs button{font-size:9.5px!important;padding:0 4px!important}
+  .v7-day{flex-basis:142px!important;min-width:142px!important}
+}
