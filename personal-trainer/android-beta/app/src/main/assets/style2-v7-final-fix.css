@@ -10,7 +10,7 @@ html,body,#app,#mainApp{width:100%!important;max-width:none!important;min-width:
   min-width:0!important;
   padding-left:0!important;
   padding-right:0!important;
-  padding-bottom:104px!important;
+  padding-bottom:128px!important;
   overflow-x:hidden!important;
 }
 [data-ilia-v7="ready"] .v7-page{
@@ -18,7 +18,7 @@ html,body,#app,#mainApp{width:100%!important;max-width:none!important;min-width:
   max-width:none!important;
   min-width:0!important;
   margin:0!important;
-  padding:18px 16px 110px!important;
+  padding:18px 16px 128px!important;
 }
 [data-ilia-v7="ready"] .v7-plan-card,
 [data-ilia-v7="ready"] .v7-coach-card,
@@ -45,6 +45,13 @@ html,body,#app,#mainApp{width:100%!important;max-width:none!important;min-width:
   grid-template-columns:repeat(5,minmax(0,1fr))!important;
   transform:none!important;
   z-index:90!important;
+  background:#08120d!important;
+  border:1px solid #2b3d31!important;
+  -webkit-backdrop-filter:none!important;
+  backdrop-filter:none!important;
+  box-shadow:0 10px 30px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.02) inset!important;
+  isolation:isolate!important;
+  overflow:hidden!important;
 }
 [data-ilia-v7="ready"] .nav-btn{
   min-width:0!important;
@@ -55,12 +62,27 @@ html,body,#app,#mainApp{width:100%!important;max-width:none!important;min-width:
 [data-ilia-v7="ready"] .nav-icon{font-size:20px!important}
 [data-ilia-v7="ready"] .nav-btn small{font-size:8px!important}
 
+/* OPAQUE NAVIGATION DOCK: scrolling cards/text must never show through or around the fixed nav.
+   This dark base sits behind the rounded nav and masks the scrolling page in the bottom safe zone. */
+[data-ilia-v7="ready"] #mainApp::after{
+  content:"";
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  height:78px;
+  background:#06100b;
+  pointer-events:none;
+  z-index:85;
+}
+
 /* AI stays just above the corrected navigation instead of floating over the workout title. */
 .v7-ai-fab{
   right:18px!important;
   bottom:82px!important;
   width:56px!important;
   height:56px!important;
+  z-index:92!important;
 }
 
 /* Three-plan selector remains one clean row on Galaxy A54. */
