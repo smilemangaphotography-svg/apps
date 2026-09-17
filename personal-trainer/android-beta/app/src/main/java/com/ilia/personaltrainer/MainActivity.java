@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 21) s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
-        WebView.setWebContentsDebuggingEnabled(true);
+        WebView.setWebContentsDebuggingEnabled(false);
 
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         tts = new TextToSpeech(this, status -> {
@@ -164,7 +164,7 @@ public class MainActivity extends Activity {
             if (attempt + 1 < RUNTIME_MAX_ATTEMPTS) {
                 view.postDelayed(() -> verifyRuntimeReady(view, attempt + 1), RUNTIME_RETRY_MS);
             } else {
-                Toast.makeText(MainActivity.this, "ILIA Coach V7 Beta 3.0.0 runtime failed to initialize", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "ILIA COACH 3.0.0 runtime failed to initialize", Toast.LENGTH_LONG).show();
             }
         });
     }
