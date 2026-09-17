@@ -205,7 +205,7 @@ function injectMoreShortcut(){
 }
 function repair(){
  addTrainTools();filterTrainLibrary();injectMoreShortcut();
- const label=$('#topLabel');if(label)label.textContent='ILIA COACH · ALL-IN-ONE · V7 · BETA 3.0.3';
+ const label=$('#topLabel');if(label)label.textContent='ILIA COACH · ALL-IN-ONE · V7 · 3.0.0';
 }
 function init(){
  if(!window.PT29||!window.ILIA_V7||!window.PT29Admin||!window.S){setTimeout(init,120);return}
