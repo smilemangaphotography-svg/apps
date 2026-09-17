@@ -1,0 +1,26 @@
+/* ILIA COACH V7.3 — exercise upload + equipment-aware library */
+.v73-tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.v73-tools button{border:1px solid var(--v7-line,#294035);background:#102019;color:#fff;border-radius:18px;padding:14px;text-align:left;min-width:0}
+.v73-tools button span{font-size:24px;color:var(--v7-lime,#c6ff31);display:block;margin-bottom:8px}
+.v73-tools button b,.v73-tools button small{display:block}
+.v73-tools button b{font-size:13px}.v73-tools button small{font-size:10px;line-height:1.35;color:#8d988f;margin-top:5px}
+.v73-note{padding:14px;border-radius:17px;background:#102019;color:#aeb8b1;line-height:1.5;font-size:12px;margin-bottom:12px}
+.v73-note b{color:#fff}
+.v73-eq-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.v73-eq{min-height:48px;border:1px solid #30473a;background:#0b1a12;color:#8d988f;border-radius:14px;padding:8px 10px;font-size:11px;font-weight:900;text-align:left;display:flex;gap:8px;align-items:center}
+.v73-eq span{display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:#17271e;color:#87948b;flex:0 0 23px}
+.v73-eq.active{border-color:#83ab31;color:#fff;background:#102518}.v73-eq.active span{background:var(--v7-lime,#c6ff31);color:#111}
+.v73-reset{width:100%;margin-top:10px;min-height:46px;border-radius:14px;border:1px solid #415649;background:transparent;color:#d7ddd8;font-weight:900}
+.v73-section{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:18px 0 8px;padding-bottom:8px;border-bottom:1px solid #2a3e32}
+.v73-section b{font-size:13px}.v73-section span{font-size:10px;color:#8d988f}
+.v73-ex-list{display:flex;flex-direction:column;gap:7px;padding-bottom:10px}
+.v73-ex-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px;border:1px solid #2c4235;border-radius:15px;background:#0b1a12}
+.v73-ex-row.off{opacity:.58}.v73-ex-row b,.v73-ex-row small{display:block}.v73-ex-row b{font-size:12px}.v73-ex-row small{font-size:9px;color:#89958c;margin-top:4px;line-height:1.35}
+.v73-ex-row>button{border:1px solid #45604e;background:#102019;color:#fff;border-radius:11px;padding:9px 10px;font-size:9px;font-weight:900}
+.v73-ex-row.off>button{border-color:#7a4b4b;color:#ff9b9f}
+.v73-ex-row select{margin-top:7px;background:#f5f1e8;color:#111;border:0;border-radius:10px;padding:8px;width:100%;font-size:10px}
+.v73-more-tools{display:flex;flex-direction:column;border-bottom:1px solid #23382c;margin-bottom:4px}
+.v73-more-tools button{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;border:0;border-bottom:1px solid #23382c;background:transparent;color:#fff;padding:16px 0;text-align:left}
+.v73-more-tools button span{font-size:10px;color:#8b978f}.v73-more-tools button b{font-size:13px}
+[data-ilia-v73="ready"] .library-card-v29.disabled{display:none!important}
+@media(max-width:370px){.v73-tools{grid-template-columns:1fr}.v73-eq-grid{grid-template-columns:1fr}}
