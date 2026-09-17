@@ -1,2 +1,4 @@
-Personal Trainer diagnostic rebuild after Style 2 lock — 2026-09-09.
-This triggers the existing Beta 2.1 Android pipeline for verification only; it is not a Style 2 release.
+ILIA COACH 3.0.0 official production promotion — 2026-09-18.
+Canonical branch: personal-trainer-main.
+Package: com.ilia.personaltrainer.
+VersionCode: 40.
