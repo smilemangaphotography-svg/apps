@@ -1,28 +1,69 @@
-/* ILIA COACH V7.1 — FINAL UI FIX LOCK
-   Loaded after V7. Preserve V7 functionality/anatomy motion. Fix only physical-device UI issues. */
+/* ILIA COACH V7.2 — MASTER DEVICE FIX LOCK
+   Preserve V7 functionality/anatomy motion. Fix only physical-device layout, safe-area and builder controls. */
 
-/* Reserve more scroll room for the fixed A54 navigation and keep the nav inside safe areas. */
+/* ROOT CAUSE FIX: V7 was receiving horizontal padding twice (.page + .v7-page).
+   Keep one mobile gutter only so the UI uses the actual WebView width. */
+html,body,#app,#mainApp{width:100%!important;max-width:none!important;min-width:0!important;overflow-x:hidden!important}
+[data-ilia-v7="ready"] .page{
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  padding-left:0!important;
+  padding-right:0!important;
+  padding-bottom:104px!important;
+  overflow-x:hidden!important;
+}
+[data-ilia-v7="ready"] .v7-page{
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:18px 16px 110px!important;
+}
+[data-ilia-v7="ready"] .v7-plan-card,
+[data-ilia-v7="ready"] .v7-coach-card,
+[data-ilia-v7="ready"] .v7-next,
+[data-ilia-v7="ready"] .v7-ai-card,
+[data-ilia-v7="ready"] .v7-run-shell{
+  width:100%!important;
+  max-width:none!important;
+}
+
+/* ROOT CAUSE FIX: Android WebView already ends above Samsung's navigation area.
+   Re-adding env(safe-area-inset-bottom) was lifting the app bar a second time. */
 [data-ilia-v7="ready"] .bottom-nav{
-  left:max(14px,env(safe-area-inset-left))!important;
-  right:max(14px,env(safe-area-inset-right))!important;
-  bottom:max(10px,env(safe-area-inset-bottom))!important;
+  position:fixed!important;
+  left:10px!important;
+  right:10px!important;
+  bottom:6px!important;
   width:auto!important;
-  height:68px!important;
-  min-height:68px!important;
+  max-width:none!important;
+  height:auto!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:5px!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
   transform:none!important;
+  z-index:90!important;
 }
-[data-ilia-v7="ready"] .page{scroll-padding-bottom:calc(190px + env(safe-area-inset-bottom))}
-.v7-page{padding-bottom:calc(190px + env(safe-area-inset-bottom))!important}
+[data-ilia-v7="ready"] .nav-btn{
+  min-width:0!important;
+  min-height:54px!important;
+  padding:4px 2px!important;
+  border-radius:17px!important;
+}
+[data-ilia-v7="ready"] .nav-icon{font-size:20px!important}
+[data-ilia-v7="ready"] .nav-btn small{font-size:8px!important}
 
-/* AI must never collide with the bottom nav or Android system bar. */
+/* AI stays just above the corrected navigation instead of floating over the workout title. */
 .v7-ai-fab{
-  right:max(22px,env(safe-area-inset-right))!important;
-  bottom:calc(150px + env(safe-area-inset-bottom))!important;
-  width:58px!important;
-  height:58px!important;
+  right:18px!important;
+  bottom:82px!important;
+  width:56px!important;
+  height:56px!important;
 }
 
-/* Three-plan selector stays readable on the Galaxy A54. */
+/* Three-plan selector remains one clean row on Galaxy A54. */
 .v7-tabs{grid-template-columns:.88fr 1.12fr 1.34fr!important;gap:7px!important}
 .v7-tabs button{
   min-width:0!important;
@@ -31,27 +72,73 @@
   padding:0 6px!important;
 }
 
-/* Calendar carousel: active date remains fully readable while still hinting adjacent days. */
+/* Calendar carousel: full active date, adjacent-day hint, no page-width overflow. */
 .v7-days{
-  padding:3px 14px 10px!important;
-  margin-left:-14px!important;
-  margin-right:-14px!important;
-  scroll-padding-inline:14px!important;
+  width:calc(100% + 32px)!important;
+  max-width:none!important;
+  padding:3px 16px 10px!important;
+  margin-left:-16px!important;
+  margin-right:-16px!important;
+  scroll-padding-inline:16px!important;
 }
 .v7-day{flex:0 0 150px!important;min-width:150px!important;padding:18px 15px!important}
 .v7-day b{white-space:nowrap!important;font-size:15px!important}
 .v7-day small,.v7-day span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* Whole exercise cards are now obvious tap targets for anatomy motion/details. */
+/* Whole exercise cards remain tap targets for anatomical motion/details. */
 .v7-ex{cursor:pointer!important;transition:transform .12s ease,box-shadow .12s ease}
 .v7-ex:active{transform:scale(.992);box-shadow:0 0 0 2px rgba(198,255,49,.22) inset}
+.v7-ex-list{padding-bottom:8px}.v7-add{margin-bottom:10px}
 
-/* Do not let the last exercise / Add Exercise button disappear under navigation. */
-.v7-ex-list{padding-bottom:8px}
-.v7-add{margin-bottom:10px}
+/* BUILDER MASTER FIX: the footer used 100vw + safe-area padding while the WebView was already inset.
+   Anchor with left/right instead, show both controls, and keep the Continue bar fully inside screen. */
+.builder{
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  padding-left:14px!important;
+  padding-right:14px!important;
+  padding-bottom:92px!important;
+  overflow-x:hidden!important;
+}
+.builder-footer{
+  position:fixed!important;
+  left:0!important;
+  right:0!important;
+  bottom:0!important;
+  width:auto!important;
+  max-width:none!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr)!important;
+  gap:8px!important;
+  margin:0!important;
+  padding:9px 12px 10px!important;
+  background:linear-gradient(180deg,rgba(242,238,228,0),rgba(242,238,228,.98) 24%,#f2eee4 48%)!important;
+  z-index:100!important;
+  transform:none!important;
+}
+#builderBack,#builderNext{
+  display:flex!important;
+  visibility:visible!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:56px!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:0 10px!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  text-overflow:ellipsis!important;
+  border-radius:17px!important;
+}
 
 @media(max-width:370px){
+  [data-ilia-v7="ready"] .v7-page{padding-left:12px!important;padding-right:12px!important}
   .v7-tabs{grid-template-columns:.82fr 1.08fr 1.38fr!important}
   .v7-tabs button{font-size:9.5px!important;padding:0 4px!important}
+  .v7-days{width:calc(100% + 24px)!important;margin-left:-12px!important;margin-right:-12px!important;padding-left:12px!important;padding-right:12px!important}
   .v7-day{flex-basis:142px!important;min-width:142px!important}
+  .builder{padding-left:10px!important;padding-right:10px!important}
+  .builder-footer{grid-template-columns:minmax(0,.76fr) minmax(0,1.24fr)!important;padding-left:9px!important;padding-right:9px!important}
+  #builderBack,#builderNext{font-size:12px!important;padding:0 7px!important}
 }
