@@ -38,6 +38,9 @@ Do not replace these assets with web-preview placeholders, static-only generic i
 - The app must remain portrait and retain Android file picker, GPS/location and TTS bridges.
 
 ## Signing
+- Permanent owner key alias: `ilia-coach`
+- Signing certificate SHA-256: `15:96:3D:B9:7E:23:52:B0:39:75:2B:1A:43:55:C8:AF:91:0E:97:F2:99:A6:BD:9D:1F:78:E7:0C:E3:FE:57:0B`
+- Certificate validity: 2026-09-17 through 2054-02-02
 The public repository MUST NOT contain the production private signing key.
 Official distributable APKs must be signed with the permanent owner signing key.
 The same key must be retained for every future direct-APK update to `com.ilia.personaltrainer`.
