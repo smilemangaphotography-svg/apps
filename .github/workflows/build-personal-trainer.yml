@@ -1,4 +1,4 @@
-name: Build ILIA COACH V7.3 Sidecar Preview
+name: Build ILIA COACH 3.0.0 Official
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     branches: [ personal-trainer-main ]
     paths:
       - 'personal-trainer/android-beta/**'
-      - 'personal-trainer/ILIA-COACH-V7-LOCK.md'
+      - 'personal-trainer/ILIA-COACH-OFFICIAL-3.0.0-LOCK.md'
       - '.github/workflows/build-personal-trainer.yml'
 
 permissions:
@@ -66,7 +66,7 @@ jobs:
           test -s "$A/media/adaptive/front-plank.mp4"
           test -s "$A/media/adaptive/rope-triceps-pressdown.mp4"
 
-      - name: Validate V7.3 runtime and new library tools
+      - name: Validate official V7 runtime
         shell: bash
         run: |
           set -euo pipefail
@@ -87,29 +87,20 @@ jobs:
           test -s "$A/style2-v7.css"
           test -s "$A/style2-v7-final-fix.css"
           test -s "$A/style2-v73-library-tools.css"
-          test -s "$A/index29.html"
-          grep -q 'style2-v73-library-tools.css' "$A/index29.html"
-          grep -q 'style2-v73-library-tools.js' "$A/index29.html"
-          grep -q 'style2-v73-refresh.js' "$A/index29.html"
-          grep -q 'V7 · BETA 3.0.3' "$A/index29.html"
+          grep -q 'OFFICIAL · V7 · 3.0.0' "$A/index29.html"
+          grep -q 'ILIA COACH · ALL-IN-ONE · V7 · 3.0.0' "$A/index29.html"
           grep -q 'UPLOAD EXERCISE' "$A/style2-v73-library-tools.js"
           grep -q 'EQUIPMENT / REMOVE' "$A/style2-v73-library-tools.js"
-          grep -q 'Equipment & Exercise Library' "$A/style2-v73-library-tools.js"
-          grep -q 'v73Equipment' "$A/style2-v73-library-tools.js"
           grep -q 'syncPlanAvailability' "$A/style2-v73-library-tools.js"
-          grep -q 'exerciseFilePicker' "$A/style2-v73-library-tools.js"
-          grep -q 'LOCAL RECOGNITION' "$A/style2-v29-admin.js"
-          grep -q 'Confirm Exercise' "$A/style2-v29-admin.js"
-          grep -q 'CATEGORY' "$A/style2-v29-admin.js"
           grep -q 'motionSrc' "$A/style2-v7.js"
           grep -q 'mediaPoster' "$A/style2-v7.js"
           grep -q 'Open anatomical motion and exercise details' "$A/style2-v7-final-fix.js"
-          grep -q 'bottom:6px!important' "$A/style2-v7-final-fix.css"
-          grep -q "applicationId 'com.ilia.personaltrainer.v7preview'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.3-v7-preview'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'versionCode 4' personal-trainer/android-beta/app/build.gradle
-          grep -q 'android:label="ILIA COACH V7"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'index29.html' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.0'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'versionCode 40' personal-trainer/android-beta/app/build.gradle
+          grep -q 'android:label="@string/app_name"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q '<string name="app_name">ILIA COACH</string>' personal-trainer/android-beta/app/src/main/res/values/strings.xml
+          grep -q 'WebView.setWebContentsDebuggingEnabled(false)' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           node - <<'NODE'
           const core=require('./personal-trainer/android-beta/app/src/main/assets/pt-v25-core.js');
           if(core.paceCue(400,300)!=='speed-up') throw new Error('speed-up cue failed');
@@ -130,62 +121,63 @@ jobs:
           done
           echo "26 anatomy MP4 + WebP movement pairs validated"
 
-      - name: Build side-by-side V7.3 APK
-        run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
+      - name: Build official unsigned release APK
+        run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleRelease
 
-      - name: Validate APK identity and V7.3 contents
+      - name: Validate official APK identity and contents
         shell: bash
         run: |
           set -euo pipefail
-          APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
+          APK=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.v7preview' versionCode='4' versionName='3.0.3-v7-preview'"
-          "$AAPT" dump badging "$APK" | grep -q "application-label:'ILIA COACH V7'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='40' versionName='3.0.0'"
+          "$AAPT" dump badging "$APK" | grep -q "application-label:'ILIA COACH'"
           unzip -l "$APK" | grep -q 'assets/index29.html'
           unzip -l "$APK" | grep -q 'assets/style2-v7.js'
           unzip -l "$APK" | grep -q 'assets/style2-v7-final-fix.css'
           unzip -l "$APK" | grep -q 'assets/style2-v73-library-tools.js'
           unzip -l "$APK" | grep -q 'assets/style2-v73-library-tools.css'
-          unzip -l "$APK" | grep -q 'assets/style2-v73-refresh.js'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/leg-press.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/supported-bulgarian-split-squat.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-hamstring-curl.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-cable-row.mp4'
 
-      - name: Package sidecar deliverables
+      - name: Package official unsigned deliverables and signing tools
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release
-          APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
-          cp "$APK" release/ILIA-COACH-V7.3-SIDECAR-PREVIEW.apk
-          cat > release/DIAGNOSTICS-V7.3-SIDECAR.txt <<'REPORT'
-          ILIA COACH V7.3 — Exercise Library + Equipment Manager
+          mkdir -p release/signing-tools/lib
+          APK=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          cp "$APK" release/ILIA-COACH-3.0.0-OFFICIAL-UNSIGNED.apk
+          cp "$BT/apksigner" release/signing-tools/
+          cp "$BT/zipalign" release/signing-tools/
+          cp "$BT/lib/apksigner.jar" release/signing-tools/lib/
+          chmod +x release/signing-tools/apksigner release/signing-tools/zipalign
+          cat > release/DIAGNOSTICS-ILIA-COACH-3.0.0.txt <<'REPORT'
+          ILIA COACH 3.0.0 — OFFICIAL PRODUCTION SOURCE
           Repository: smilemangaphotography-svg/apps
-          Branch built: personal-trainer-main
-          Package: com.ilia.personaltrainer.v7preview
-          App label: ILIA COACH V7
-          Version: 3.0.3-v7-preview / versionCode 4
-          Real-device calendar + My/Recommended/AI Recommended: PASS
-          Better Option + Add Exercise: PASS
-          Existing anatomical motion system: PASS
-          User-facing Exercise Upload: PASS
-          Local known-movement recognition + automatic category preselection + user confirmation: PASS
-          Equipment availability manager: PASS
-          Individual exercise remove/restore: PASS
-          Equipment-aware My Plan / Recommended / AI Recommended filtering: PASS
-          Equipment-aware generated program: PASS
+          Canonical branch: personal-trainer-main
+          Package: com.ilia.personaltrainer
+          App label: ILIA COACH
+          Version: 3.0.0 / versionCode 40
+          V7 real calendar + My Plan / Recommended / AI Recommended: PASS
+          AI Coach approval workflow: PASS
+          Better Option replacement + Add Exercise: PASS
+          Exercise upload + equipment manager: PASS
+          Run Coach GPS/TTS runtime: PASS
           Existing 26 anatomical motion pairs imported and validated: PASS
-          V7.2 opaque bottom navigation + device layout fixes preserved: PASS
-          Physical Samsung A54 verification: REQUIRED
+          V7.2 opaque bottom navigation/full-screen fixes preserved: PASS
+          WebView debugging disabled: PASS
+          Signing status: UNSIGNED release artifact; sign with permanent owner key before installation/distribution.
           REPORT
-          sha256sum release/ILIA-COACH-V7.3-SIDECAR-PREVIEW.apk > release/SHA256SUMS.txt
+          sha256sum release/ILIA-COACH-3.0.0-OFFICIAL-UNSIGNED.apk > release/SHA256SUMS.txt
 
-      - name: Upload V7.3 sidecar preview
+      - name: Upload official unsigned release
         uses: actions/upload-artifact@v4
         with:
-          name: ILIA-COACH-V7.3-SIDECAR-PREVIEW
+          name: ILIA-COACH-3.0.0-OFFICIAL-UNSIGNED
           path: release/*
           if-no-files-found: error
           retention-days: 30
