@@ -1,6 +1,6 @@
 (()=>{'use strict';
-const FIX='3.0.1-final-ui-fix';
-const LABEL='ILIA COACH · ALL-IN-ONE · V7 · BETA 3.0.1';
+const FIX='3.0.2-master-device-fix';
+const LABEL='ILIA COACH · ALL-IN-ONE · V7 · BETA 3.0.2';
 const $=(s,r=document)=>r.querySelector(s);
 
 function enforceHeader(){
@@ -13,12 +13,12 @@ function openExerciseCard(card){
   if(!name)return;
   const e=window.PT29?.catalog?.().find(x=>x.name===name);
   if(!e)return;
-  try{ window.PT29.openDetail(e,{}); }catch(err){ console.warn('V7.1 detail open failed',err); }
+  try{ window.PT29.openDetail(e,{}); }catch(err){ console.warn('V7.2 detail open failed',err); }
 }
 
 function installExerciseDelegation(){
-  if(document.documentElement.dataset.v71ExerciseTap==='ready')return;
-  document.documentElement.dataset.v71ExerciseTap='ready';
+  if(document.documentElement.dataset.v72ExerciseTap==='ready')return;
+  document.documentElement.dataset.v72ExerciseTap='ready';
   document.addEventListener('click',ev=>{
     const card=ev.target.closest?.('.v7-ex');
     if(!card)return;
@@ -69,10 +69,9 @@ function init(){
     labelObs.observe(label,{subtree:true,childList:true,characterData:true});
   }
 
-  /* Older 2.9 setTop() can rewrite the label after navigation; periodic guard is tiny and prevents regression. */
   setInterval(enforceHeader,800);
   window.__ILIA_V7_FINAL_FIX__=FIX;
-  document.documentElement.dataset.iliaV71='ready';
+  document.documentElement.dataset.iliaV72='ready';
 }
 setTimeout(init,520);
 })();
