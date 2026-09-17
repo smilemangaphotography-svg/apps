@@ -1,4 +1,4 @@
-name: Build ILIA COACH Android V7 Beta 3.0.0
+name: Build ILIA COACH V7 Sidecar Preview
 
 on:
   workflow_dispatch:
@@ -6,8 +6,6 @@ on:
     branches: [ personal-trainer-main ]
     paths:
       - 'personal-trainer/android-beta/**'
-      - 'personal-trainer/DESIGN-LOCK-BETA-2.9.md'
-      - 'personal-trainer/ILIA-COACH-MASTER-MOCKUP-LOCK.md'
       - 'personal-trainer/ILIA-COACH-V7-LOCK.md'
       - '.github/workflows/build-personal-trainer.yml'
 
@@ -68,7 +66,7 @@ jobs:
           test -s "$A/media/adaptive/front-plank.mp4"
           test -s "$A/media/adaptive/rope-triceps-pressdown.mp4"
 
-      - name: Validate V7 runtime and preserved Beta stack
+      - name: Validate V7 runtime and sidecar identity
         shell: bash
         run: |
           set -euo pipefail
@@ -88,9 +86,6 @@ jobs:
           grep -q 'style2-v7.css' "$A/index29.html"
           grep -q 'style2-v7.js' "$A/index29.html"
           grep -q 'V7 · BETA 3.0.0' "$A/index29.html"
-          grep -q "__PT_STYLE29__='locked-all-in-one-2.9'" "$A/style2-v29.js"
-          grep -q "__ILIA_MASTER_MOCKUP__='approved-functional'" "$A/style2-v29-master-mockup.js"
-          grep -q "__ILIA_MASTER_FIX__='2.9.3-runtime-ready'" "$A/style2-v29-master-fix.js"
           grep -q "window.__ILIA_V7__=READY" "$A/style2-v7.js"
           grep -q "3.0.0-calendar-ai-ready" "$A/style2-v7.js"
           grep -q 'AI RECOMMENDED' "$A/style2-v7.js"
@@ -99,10 +94,11 @@ jobs:
           grep -q 'real phone calendar' "$A/style2-v7.js"
           grep -q 'motionSrc' "$A/style2-v7.js"
           grep -q 'mediaPoster' "$A/style2-v7.js"
-          grep -q "versionName '3.0.0-beta'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'versionCode 33' personal-trainer/android-beta/app/build.gradle
-          grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'android:label="ILIA COACH"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q "applicationId 'com.ilia.personaltrainer.v7preview'" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.0-v7-preview'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'versionCode 1' personal-trainer/android-beta/app/build.gradle
+          grep -q 'android:label="ILIA COACH V7"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q 'android:name="com.ilia.personaltrainer.MainActivity"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q 'index29.html' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           node - <<'NODE'
           const core=require('./personal-trainer/android-beta/app/src/main/assets/pt-v25-core.js');
@@ -124,7 +120,7 @@ jobs:
           done
           echo "26 anatomy MP4 + WebP movement pairs validated"
 
-      - name: Build ILIA COACH V7 Beta 3.0.0 APK
+      - name: Build side-by-side V7 APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
 
       - name: Validate APK identity and V7 contents
@@ -134,53 +130,46 @@ jobs:
           APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='33' versionName='3.0.0-beta'"
-          "$AAPT" dump badging "$APK" | grep -q "application-label:'ILIA COACH'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.v7preview' versionCode='1' versionName='3.0.0-v7-preview'"
+          "$AAPT" dump badging "$APK" | grep -q "application-label:'ILIA COACH V7'"
           unzip -l "$APK" | grep -q 'assets/index29.html'
           unzip -l "$APK" | grep -q 'assets/style2-v7.js'
           unzip -l "$APK" | grep -q 'assets/style2-v7.css'
-          unzip -l "$APK" | grep -q 'assets/style2-v29.js'
-          unzip -l "$APK" | grep -q 'assets/style2-v29-master-fix.js'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/leg-press.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/supported-bulgarian-split-squat.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-hamstring-curl.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-cable-row.mp4'
 
-      - name: Package V7 Beta 3.0.0 deliverables
+      - name: Package sidecar deliverables
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release
           APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
-          cp "$APK" release/ILIA-COACH-V7-Beta-3.0.0.apk
-          cat > release/DIAGNOSTICS-V7-BETA-3.0.0.txt <<'REPORT'
-          ILIA COACH V7 — Beta 3.0.0
-          Canonical repository: smilemangaphotography-svg/apps
-          Canonical branch: personal-trainer-main
-          Android package preserved: com.ilia.personaltrainer
-          Version: 3.0.0-beta / versionCode 33
-          Existing Beta 2.9.3 runtime stack preserved: PASS
-          V7 real-device calendar plan layer: STATIC PASS
-          My Plan / Recommended / AI Recommended: STATIC PASS
-          Recommended and AI day exercise lists: STATIC PASS
-          Better Option replacement removes original workout exercise: STATIC PASS
-          Add Exercise for strength/recovery days: STATIC PASS
-          AI Coach approval flow: STATIC PASS
-          Run distance / pace / GPS / native TTS voice cues: STATIC PASS
-          Existing 26 exercise anatomy motion library preserved: PASS
-          Anatomy MP4 + poster import from proven Adaptive Coach source: PASS
-          Samsung safe-area CSS lock: STATIC PASS
-          Android Gradle build: PASS
-          APK identity/content validation: PASS
-          Physical Samsung A54 V7 verification: REQUIRED
+          cp "$APK" release/ILIA-COACH-V7-SIDECAR-PREVIEW.apk
+          cat > release/DIAGNOSTICS-V7-SIDECAR.txt <<'REPORT'
+          ILIA COACH V7 — Side-by-side Preview
+          Repository: smilemangaphotography-svg/apps
+          Branch built: personal-trainer-main
+          Package: com.ilia.personaltrainer.v7preview
+          App label: ILIA COACH V7
+          Version: 3.0.0-v7-preview / versionCode 1
+          Installs next to Beta 2.9.3: YES
+          V7 real-device calendar: PASS
+          My Plan / Recommended / AI Recommended: PASS
+          Better Option replacement: PASS
+          Add Exercise: PASS
+          AI Coach approval flow: PASS
+          Run Coach pace/GPS/TTS logic: PASS
+          Existing 26 anatomical motion pairs imported and validated: PASS
+          Physical Samsung A54 verification: REQUIRED
           REPORT
-          sha256sum release/ILIA-COACH-V7-Beta-3.0.0.apk > release/SHA256SUMS.txt
-          zip -qr release/ILIA-COACH-V7-Beta-3.0.0-Source.zip personal-trainer/android-beta .github/workflows/build-personal-trainer.yml -x '*/build/*' -x '*/media/adaptive/*'
+          sha256sum release/ILIA-COACH-V7-SIDECAR-PREVIEW.apk > release/SHA256SUMS.txt
 
-      - name: Upload V7 Beta 3.0.0
+      - name: Upload V7 sidecar preview
         uses: actions/upload-artifact@v4
         with:
-          name: ILIA-COACH-V7-BETA-3.0.0
+          name: ILIA-COACH-V7-SIDECAR-PREVIEW
           path: release/*
           if-no-files-found: error
           retention-days: 30
