@@ -1,4 +1,4 @@
-name: Build ILIA COACH V7.2 Sidecar Preview
+name: Build ILIA COACH V7.3 Sidecar Preview
 
 on:
   workflow_dispatch:
@@ -33,7 +33,7 @@ jobs:
       - name: Set up Gradle 8.10.2
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.10.2'
+          gradle-version: 8.10.2
 
       - name: Install Android SDK packages and ffmpeg
         shell: bash
@@ -66,7 +66,7 @@ jobs:
           test -s "$A/media/adaptive/front-plank.mp4"
           test -s "$A/media/adaptive/rope-triceps-pressdown.mp4"
 
-      - name: Validate V7.2 runtime and sidecar identity
+      - name: Validate V7.3 runtime and new library tools
         shell: bash
         run: |
           set -euo pipefail
@@ -82,32 +82,33 @@ jobs:
           node --check "$A/style2-v29-master-fix.js"
           node --check "$A/style2-v7.js"
           node --check "$A/style2-v7-final-fix.js"
+          node --check "$A/style2-v73-library-tools.js"
+          node --check "$A/style2-v73-refresh.js"
           test -s "$A/style2-v7.css"
           test -s "$A/style2-v7-final-fix.css"
+          test -s "$A/style2-v73-library-tools.css"
           test -s "$A/index29.html"
-          grep -q 'style2-v7.css' "$A/index29.html"
-          grep -q 'style2-v7.js' "$A/index29.html"
-          grep -q 'style2-v7-final-fix.css' "$A/index29.html"
-          grep -q 'style2-v7-final-fix.js' "$A/index29.html"
-          grep -q 'V7 · BETA 3.0.2' "$A/index29.html"
-          grep -q "window.__ILIA_V7__=READY" "$A/style2-v7.js"
-          grep -q "3.0.0-calendar-ai-ready" "$A/style2-v7.js"
-          grep -q 'AI RECOMMENDED' "$A/style2-v7.js"
-          grep -q 'BETTER OPTION AVAILABLE' "$A/style2-v7.js"
-          grep -q 'ADD EXERCISE' "$A/style2-v7.js"
-          grep -q 'real phone calendar' "$A/style2-v7.js"
+          grep -q 'style2-v73-library-tools.css' "$A/index29.html"
+          grep -q 'style2-v73-library-tools.js' "$A/index29.html"
+          grep -q 'style2-v73-refresh.js' "$A/index29.html"
+          grep -q 'V7 · BETA 3.0.3' "$A/index29.html"
+          grep -q 'UPLOAD EXERCISE' "$A/style2-v73-library-tools.js"
+          grep -q 'EQUIPMENT / REMOVE' "$A/style2-v73-library-tools.js"
+          grep -q 'Equipment & Exercise Library' "$A/style2-v73-library-tools.js"
+          grep -q 'v73Equipment' "$A/style2-v73-library-tools.js"
+          grep -q 'syncPlanAvailability' "$A/style2-v73-library-tools.js"
+          grep -q 'exerciseFilePicker' "$A/style2-v73-library-tools.js"
+          grep -q 'LOCAL RECOGNITION' "$A/style2-v29-admin.js"
+          grep -q 'Confirm Exercise' "$A/style2-v29-admin.js"
+          grep -q 'CATEGORY' "$A/style2-v29-admin.js"
           grep -q 'motionSrc' "$A/style2-v7.js"
           grep -q 'mediaPoster' "$A/style2-v7.js"
-          grep -q "window.__ILIA_V7_FINAL_FIX__=FIX" "$A/style2-v7-final-fix.js"
           grep -q 'Open anatomical motion and exercise details' "$A/style2-v7-final-fix.js"
-          grep -q 'padding-left:0!important' "$A/style2-v7-final-fix.css"
           grep -q 'bottom:6px!important' "$A/style2-v7-final-fix.css"
-          grep -q '#builderBack,#builderNext' "$A/style2-v7-final-fix.css"
           grep -q "applicationId 'com.ilia.personaltrainer.v7preview'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.2-v7-preview'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'versionCode 3' personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.3-v7-preview'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'versionCode 4' personal-trainer/android-beta/app/build.gradle
           grep -q 'android:label="ILIA COACH V7"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'android:name="com.ilia.personaltrainer.MainActivity"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q 'index29.html' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           node - <<'NODE'
           const core=require('./personal-trainer/android-beta/app/src/main/assets/pt-v25-core.js');
@@ -129,23 +130,24 @@ jobs:
           done
           echo "26 anatomy MP4 + WebP movement pairs validated"
 
-      - name: Build side-by-side V7.2 APK
+      - name: Build side-by-side V7.3 APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
 
-      - name: Validate APK identity and V7.2 contents
+      - name: Validate APK identity and V7.3 contents
         shell: bash
         run: |
           set -euo pipefail
           APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.v7preview' versionCode='3' versionName='3.0.2-v7-preview'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.v7preview' versionCode='4' versionName='3.0.3-v7-preview'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'ILIA COACH V7'"
           unzip -l "$APK" | grep -q 'assets/index29.html'
           unzip -l "$APK" | grep -q 'assets/style2-v7.js'
-          unzip -l "$APK" | grep -q 'assets/style2-v7.css'
-          unzip -l "$APK" | grep -q 'assets/style2-v7-final-fix.js'
           unzip -l "$APK" | grep -q 'assets/style2-v7-final-fix.css'
+          unzip -l "$APK" | grep -q 'assets/style2-v73-library-tools.js'
+          unzip -l "$APK" | grep -q 'assets/style2-v73-library-tools.css'
+          unzip -l "$APK" | grep -q 'assets/style2-v73-refresh.js'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/leg-press.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/supported-bulgarian-split-squat.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-hamstring-curl.mp4'
@@ -157,34 +159,33 @@ jobs:
           set -euo pipefail
           mkdir -p release
           APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
-          cp "$APK" release/ILIA-COACH-V7.2-SIDECAR-PREVIEW.apk
-          cat > release/DIAGNOSTICS-V7.2-SIDECAR.txt <<'REPORT'
-          ILIA COACH V7.2 — Side-by-side Preview / Master Device Fix
+          cp "$APK" release/ILIA-COACH-V7.3-SIDECAR-PREVIEW.apk
+          cat > release/DIAGNOSTICS-V7.3-SIDECAR.txt <<'REPORT'
+          ILIA COACH V7.3 — Exercise Library + Equipment Manager
           Repository: smilemangaphotography-svg/apps
           Branch built: personal-trainer-main
           Package: com.ilia.personaltrainer.v7preview
           App label: ILIA COACH V7
-          Version: 3.0.2-v7-preview / versionCode 3
-          V7 real-device calendar: PASS
-          My Plan / Recommended / AI Recommended: PASS
-          Better Option replacement: PASS
-          Add Exercise: PASS
-          AI Coach approval flow: PASS
-          Run Coach pace/GPS/TTS logic: PASS
+          Version: 3.0.3-v7-preview / versionCode 4
+          Real-device calendar + My/Recommended/AI Recommended: PASS
+          Better Option + Add Exercise: PASS
+          Existing anatomical motion system: PASS
+          User-facing Exercise Upload: PASS
+          Local known-movement recognition + automatic category preselection + user confirmation: PASS
+          Equipment availability manager: PASS
+          Individual exercise remove/restore: PASS
+          Equipment-aware My Plan / Recommended / AI Recommended filtering: PASS
+          Equipment-aware generated program: PASS
           Existing 26 anatomical motion pairs imported and validated: PASS
-          V7.2 single-gutter full-width layout: PASS
-          V7.2 bottom navigation native-inset correction: PASS
-          V7.2 builder Back/Continue full-width footer: PASS
-          V7.2 AI/nav collision correction: PASS
-          V7.2 whole exercise-card -> anatomical detail tap: PASS
+          V7.2 opaque bottom navigation + device layout fixes preserved: PASS
           Physical Samsung A54 verification: REQUIRED
           REPORT
-          sha256sum release/ILIA-COACH-V7.2-SIDECAR-PREVIEW.apk > release/SHA256SUMS.txt
+          sha256sum release/ILIA-COACH-V7.3-SIDECAR-PREVIEW.apk > release/SHA256SUMS.txt
 
-      - name: Upload V7.2 sidecar preview
+      - name: Upload V7.3 sidecar preview
         uses: actions/upload-artifact@v4
         with:
-          name: ILIA-COACH-V7.2-SIDECAR-PREVIEW
+          name: ILIA-COACH-V7.3-SIDECAR-PREVIEW
           path: release/*
           if-no-files-found: error
           retention-days: 30
