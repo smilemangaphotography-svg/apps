@@ -1,6 +1,6 @@
 (()=>{'use strict';
-const VERSION='3.0.0';
-const READY='3.0.0-calendar-ai-ready';
+const VERSION='3.0.1';
+const READY='3.0.1-calendar-ai-ready';
 const $v=(s,r=document)=>r.querySelector(s);
 const $$v=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -101,7 +101,7 @@ function templateFor(wd,kind='my'){
 }
 function sanitizePlan(p){
  if(!p)return p;
- if(p.ids)p.ids=p.ids.filter(id=>byId(id));
+ if(p.ids)p.ids=[...new Set(p.ids.filter(id=>byId(id)))];
  return p;
 }
 function ensureCalendarPlans(){
@@ -139,14 +139,14 @@ function motionHtml(e,small=true){
 function exerciseHtml(id){
  const e=byId(id); if(!e)return'';
  const r=scoreOf(e);
- return `<article class="v7-ex">
+ return `<article class="v7-ex" data-swipe-exercise="${esc(e.id)}" data-swipe-mode="replace">
    ${motionHtml(e,true)}
    <div class="v7-ex-main"><b>${esc(e.name)}</b><small>${esc(e.muscles||e.cat||'')}</small><div class="v7-badges">${ratingHtml(e,true)}</div></div>
    <strong class="v7-score">${r.score}/10</strong>
  </article>`;
 }
 function planExercisesHtml(p){
- if(p?.ids?.length)return `${p.ids.map(exerciseHtml).join('')}<button class="v7-add" onclick="ILIA_V7.addExercise()">＋ ADD EXERCISE</button>`;
+ if(p?.ids?.length)return `<div class="v7-swipe-hint">← SWIPE LEFT: REMOVE / NO EQUIPMENT · SWIPE RIGHT: REPLACEMENTS →</div>${p.ids.map(exerciseHtml).join('')}<button class="v7-add" onclick="ILIA_V7.addExercise()">＋ ADD EXERCISE</button>`;
  if(p?.run)return `<article class="v7-run-card"><b>${esc(p.run.kind||p.name)}</b><small>${esc(p.run.distance||S.v7.run.distance)} · target ${S.v7.run.paceMin}:${String(S.v7.run.paceSec).padStart(2,'0')} / km</small><button onclick="ILIA_V7.openRun()">OPEN RUN COACH →</button></article>`;
  return `<div class="v7-note">Recovery / mobility day. You can add core or rehab exercises.</div><button class="v7-add" onclick="ILIA_V7.addExercise()">＋ ADD EXERCISE</button>`;
 }
@@ -242,27 +242,48 @@ function renderTrainBanner(){
 function showSheet(title,html){
  if(window.PT29?.sheet){window.PT29.sheet(title,html);return}
 }
-function better(id){
- const e=byId(id),alts=(BETTER[id]||[]).map(byId).filter(Boolean);if(!e||!alts.length)return;
- showSheet('Better Options',`<div class="v7-sheet-note">Only replacement options are shown. Choosing one removes <b>${esc(e.name)}</b> from this workout.</div>${alts.map(a=>`<button class="v7-sheet-row" onclick="ILIA_V7.replace('${id}','${a.id}')">${motionHtml(a,true)}<span><b>${esc(a.name)}</b><small>${scoreOf(a).score}/10 · ${esc(a.muscles||a.cat)}</small></span><em>USE THIS</em></button>`).join('')}`);
+function alternativesFor(id){
+ const e=byId(id);if(!e)return[];
+ const p=selectedPlan(),have=new Set(p?.ids||[]);
+ const out=[],seen=new Set([id]);
+ const addAlt=a=>{if(!a||seen.has(a.id)||have.has(a.id))return;if(window.ILIA_V73?.isAvailable&&window.ILIA_V73.isAvailable(a)===false)return;seen.add(a.id);out.push(a)};
+ (BETTER[id]||[]).map(byId).forEach(addAlt);
+ cat().filter(a=>a&&a.cat===e.cat).sort((a,b)=>scoreOf(b).score-scoreOf(a).score).forEach(addAlt);
+ return out.slice(0,5);
 }
+function showAlternatives(id,mode='replace'){
+ const e=byId(id),alts=alternativesFor(id);if(!e)return;
+ if(!alts.length){toastV7('No compatible replacement available');return}
+ const action=mode==='add'?'ADD':'REPLACE';
+ const rows=alts.map(a=>`<button class="v7-sheet-row" data-swipe-exercise="${esc(a.id)}" data-swipe-mode="add" onclick="${mode==='add'?`ILIA_V7.add('${a.id}')`:`ILIA_V7.replace('${id}','${a.id}')`}">${motionHtml(a,true)}<span><b>${esc(a.name)}</b><small>${scoreOf(a).score}/10 · ${esc(a.muscles||a.cat)}</small></span><em>${action}</em></button>`).join('');
+ showSheet('Replacement Options',`<div class="v7-sheet-note">Alternatives for <b>${esc(e.name)}</b>. Existing exercises in this workout are hidden so duplicates cannot be created.</div>${rows}`);
+ setTimeout(()=>window.ILIA_V73?.bindSwipeGestures?.(),20);
+}
+function better(id){showAlternatives(id,'replace')}
 function replace(oldId,newId){
  const p=selectedPlan();if(!p?.ids)return;
  const i=p.ids.indexOf(oldId);if(i<0)return;
- p.ids[i]=newId;saveAll();window.PT29?.closeSheet?.();toastV7(`${byId(oldId)?.name||oldId} removed · ${byId(newId)?.name||newId} added`);renderPlanV7();
+ if(newId!==oldId&&p.ids.includes(newId)){
+  p.ids.splice(i,1);p.ids=[...new Set(p.ids)];
+  saveAll();window.PT29?.closeSheet?.();toastV7(`${byId(newId)?.name||newId} is already in this workout · duplicate prevented`);renderPlanV7();return;
+ }
+ p.ids[i]=newId;p.ids=[...new Set(p.ids)];saveAll();window.PT29?.closeSheet?.();toastV7(`${byId(oldId)?.name||oldId} removed · ${byId(newId)?.name||newId} added`);renderPlanV7();
 }
 function addExercise(){
  const p=selectedPlan();if(!p)return;
  const group=p.type==='Upper'?['Chest','Back','Shoulders','Arms']:p.type==='Legs'?['Quads','Glutes','Hamstrings','Calves','Rehab']:['Core','Rehab'];
  const have=new Set(p.ids||[]);
- const list=cat().filter(e=>group.includes(e.cat)&&!have.has(e.id)).sort((a,b)=>scoreOf(b).score-scoreOf(a).score);
- showSheet('Add Exercise',`<div class="v7-sheet-note">Best matches appear first. Tap any exercise to add it to ${esc(p.name)}.</div>${list.map(e=>`<button class="v7-sheet-row" onclick="ILIA_V7.add('${e.id}')">${motionHtml(e,true)}<span><b>${esc(e.name)}</b><small>${scoreOf(e).score}/10 · ${esc(e.muscles||e.cat)}</small>${ratingHtml(e,false)}</span><em>ADD</em></button>`).join('')||'<div class="v7-note">No more matching exercises available.</div>'}`);
+ const list=cat().filter(e=>group.includes(e.cat)&&!have.has(e.id)&&(!window.ILIA_V73?.isAvailable||window.ILIA_V73.isAvailable(e)!==false)).sort((a,b)=>scoreOf(b).score-scoreOf(a).score);
+ showSheet('Add Exercise',`<div class="v7-sheet-note">Best matches appear first. Tap to add. <b>Swipe left</b> to remove an exercise you cannot perform / do not have equipment for. <b>Swipe right</b> to see replacements.</div>${list.map(e=>`<button class="v7-sheet-row" data-swipe-exercise="${esc(e.id)}" data-swipe-mode="add" onclick="ILIA_V7.add('${e.id}')">${motionHtml(e,true)}<span><b>${esc(e.name)}</b><small>${scoreOf(e).score}/10 · ${esc(e.muscles||e.cat)}</small>${ratingHtml(e,false)}</span><em>ADD</em></button>`).join('')||'<div class="v7-note">No more matching exercises available.</div>'}`);
+ setTimeout(()=>window.ILIA_V73?.bindSwipeGestures?.(),20);
 }
 function add(id){
- const p=selectedPlan();if(!p.ids)p.ids=[];if(!p.ids.includes(id))p.ids.push(id);saveAll();window.PT29?.closeSheet?.();toastV7(`${byId(id)?.name||id} added`);renderPlanV7();
+ const p=selectedPlan();if(!p.ids)p.ids=[];
+ if(p.ids.includes(id)){toastV7(`${byId(id)?.name||id} is already in this workout`);return}
+ p.ids.push(id);p.ids=[...new Set(p.ids)];saveAll();window.PT29?.closeSheet?.();toastV7(`${byId(id)?.name||id} added`);renderPlanV7();
 }
-function applyRecommended(){S.v7.myPlans[S.v7.selectedDate]=clone(S.v7.recommendedPlans[S.v7.selectedDate]);saveAll();syncLegacyProgram();toastV7('Recommended day copied to My Plan')}
-function applyAI(){S.v7.myPlans[S.v7.selectedDate]=clone(S.v7.aiPlans[S.v7.selectedDate]);saveAll();syncLegacyProgram();toastV7('AI day copied to My Plan')}
+function applyRecommended(){S.v7.myPlans[S.v7.selectedDate]=sanitizePlan(clone(S.v7.recommendedPlans[S.v7.selectedDate]));saveAll();syncLegacyProgram();toastV7('Recommended day copied to My Plan');renderPlanV7()}
+function applyAI(){S.v7.myPlans[S.v7.selectedDate]=sanitizePlan(clone(S.v7.aiPlans[S.v7.selectedDate]));saveAll();syncLegacyProgram();toastV7('AI day copied to My Plan');renderPlanV7()}
 function syncLegacyProgram(){
  const start=today0();
  S.program=Array.from({length:7},(_,i)=>{
@@ -441,12 +462,12 @@ function init(){
  if(window.PT25)window.PT25.onLocation=function(lat,lon,speed,accuracy,ts){try{prior?.(lat,lon,speed,accuracy,ts)}catch(e){}handleLoc(lat,lon,speed,accuracy)};
  const active=$v('.page.active')?.dataset.page;
  if(active==='home')renderHomeV7();else if(active==='plan')renderPlanV7();else if(active==='more')renderMoreEnhancements();else if(active==='train')renderTrainBanner();
- const label=$v('#topLabel');if(label)label.textContent='ILIA COACH · ALL-IN-ONE · V7 · 3.0.0';
+ const label=$v('#topLabel');if(label)label.textContent='ILIA COACH · ALL-IN-ONE · V7 · 3.0.1';
  window.__ILIA_V7__=READY;
  document.documentElement.dataset.iliaV7='ready';
 }
 window.ILIA_V7={
- tab,pickDate,openPlanDate,better,replace,addExercise,add,applyRecommended,applyAI,openAI,fillAI,askAI,sendAI,cancelAI,
+ tab,pickDate,openPlanDate,better,showAlternatives,replace,addExercise,add,applyRecommended,applyAI,openAI,fillAI,askAI,sendAI,cancelAI,
  coachSetup,setPriority,setDuration,runSettings,setRun,openRun,startRun,stopRun,simCue,renderPlan:renderPlanV7,renderHome:renderHomeV7
 };
 setTimeout(init,380);
