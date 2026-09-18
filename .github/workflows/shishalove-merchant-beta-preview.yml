@@ -41,8 +41,8 @@ jobs:
           G='shishalove-mobile/merchant/build.gradle'
           M='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
           X='shishalove-mobile/merchant/src/main/AndroidManifest.xml'
-          grep -Fq 'versionCode 14302' "$G"
-          grep -Fq "versionName '1.1.43-preview2'" "$G"
+          grep -Fq 'versionCode 14303' "$G"
+          grep -Fq "versionName '1.1.43-preview3'" "$G"
           grep -Fq '/shishalove-merchant-beta/' "$M"
           grep -Fq 'ShishaLove Merchant Beta' "$X"
           grep -Fq 'android.permission.POST_NOTIFICATIONS' "$X"
@@ -56,14 +56,14 @@ jobs:
           set -euo pipefail
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
           APK='shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk'
-          "$AAPT" dump badging "$APK" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='14302'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='14303'"
           mkdir -p dist
-          cp "$APK" dist/ShishaLove-Merchant-BETA-PREVIEW-2.apk
-          sha256sum dist/ShishaLove-Merchant-BETA-PREVIEW-2.apk > dist/SHA256SUMS.txt
+          cp "$APK" dist/ShishaLove-Merchant-BETA-PREVIEW-3.apk
+          sha256sum dist/ShishaLove-Merchant-BETA-PREVIEW-3.apk > dist/SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v4
         with:
-          name: shishalove-merchant-beta-preview-2
+          name: shishalove-merchant-beta-preview-3
           path: dist/*
           if-no-files-found: error
 
@@ -72,11 +72,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG='shishalove-merchant-beta-preview-2'
-          NOTES='Side-by-side test APK only. Package eu.shishalove.merchant.dev, so it does not replace the production Merchant app. Loads /shishalove-merchant-beta/ to test the exact Merchant UI plus the scrolling/bottom-nav MASTER FIX, live partial Products/Stock search, fresh order synchronization and native Android order notifications before MASTER UPDATE.'
+          TAG='shishalove-merchant-beta-preview-3'
+          NOTES='Side-by-side test APK only. Package eu.shishalove.merchant.dev, so it does not replace the production Merchant app. Loads /shishalove-merchant-beta/ to test cold-open bottom navigation placement, faster cached shell/reload, editor CANCEL/UPDATE directly below Stock management, plus the already-approved scrolling/search/orders/notifications behavior before MASTER UPDATE.'
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/ShishaLove-Merchant-BETA-PREVIEW-2.apk dist/SHA256SUMS.txt --clobber
-            gh release edit "$TAG" --title 'ShishaLove Merchant — Beta Preview 2' --notes "$NOTES" --target shishalove-staging
+            gh release upload "$TAG" dist/ShishaLove-Merchant-BETA-PREVIEW-3.apk dist/SHA256SUMS.txt --clobber
+            gh release edit "$TAG" --title 'ShishaLove Merchant — Beta Preview 3' --notes "$NOTES" --target shishalove-staging
           else
-            gh release create "$TAG" dist/ShishaLove-Merchant-BETA-PREVIEW-2.apk dist/SHA256SUMS.txt --title 'ShishaLove Merchant — Beta Preview 2' --notes "$NOTES" --target shishalove-staging
+            gh release create "$TAG" dist/ShishaLove-Merchant-BETA-PREVIEW-3.apk dist/SHA256SUMS.txt --title 'ShishaLove Merchant — Beta Preview 3' --notes "$NOTES" --target shishalove-staging
           fi
