@@ -44,14 +44,6 @@ old_api = "function api(path,opts){opts=opts||{};var h=opts.headers||{};if(CFG.r
 new_api = "function api(path,opts){opts=opts||{};var h=opts.headers||{};if(CFG.restNonce)h['X-WP-Nonce']=CFG.restNonce;if(opts.body&&!h['Content-Type'])h['Content-Type']='application/json';opts.headers=h;opts.credentials='same-origin';if(!opts.method||String(opts.method).toUpperCase()==='GET')opts.cache='no-store';return fetch(CFG.rest+path,opts).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}"
 t = once(t, old_api, new_api, 'merchant no-store api')
 
-# Dashboard bug found during staging: these variables were referenced but never declared.
-t = once(
-    t,
-    'function loadDashboardStats(force){',
-    'var dashboardStats=null,dashboardStatsLoading=false;\nfunction loadDashboardStats(force){',
-    'dashboard state'
-)
-
 # Product list thumbnails: request the lightweight WP thumbnail first, then fall
 # back to the exact source URL if that derivative does not exist.
 image_helper = r'''function fastProductImage(src){src=String(src||'');return src.replace(/-\d+x\d+(\.[a-z0-9]+)(\?.*)?$/i,'-150x150$1$2');}
@@ -187,6 +179,16 @@ t = replace_func(t, 'loadOrders', r'''function loadOrders(force,allowNotify){
     if(!state.orders){state.orders={items:[]};if(state.view==='orders')render();}
   }).finally(function(){merchantOrderBusy=false;});
 }''')
+
+# Declare dashboard state after function replacement so the helper is not lost
+# between loadOrders() and loadDashboardStats().
+t = once(
+    t,
+    'function loadDashboardStats(force){',
+    'var dashboardStats=null,dashboardStatsLoading=false;\nfunction loadDashboardStats(force){',
+    'dashboard state'
+)
+
 t = once(t, 'render();bootstrap(false);', 'render();bootstrap(false);startMerchantOrderSync();', 'merchant order sync bootstrap')
 
 merchant.write_text(t, encoding='utf-8')
