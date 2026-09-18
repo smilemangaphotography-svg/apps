@@ -47,3 +47,26 @@ button.v7-badge{appearance:none}.v7-good{color:var(--v7-green);border-color:rgba
 [data-swipe-exercise]{touch-action:pan-y;will-change:transform;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
 [data-swipe-exercise].v73-swipe-left{box-shadow:-10px 0 0 rgba(255,90,95,.28);border-color:rgba(255,90,95,.7)!important}
 [data-swipe-exercise].v73-swipe-right{box-shadow:10px 0 0 rgba(198,255,49,.24);border-color:rgba(198,255,49,.75)!important}
+
+/* 3.0.2 selected launch option 4 + swipe actions */
+.cover-screen.cover-v4{
+ position:fixed!important;inset:0!important;width:100%!important;height:100%!important;min-height:100%!important;
+ padding:0!important;margin:0!important;overflow:hidden!important;background:#06100b!important;z-index:500!important;
+}
+.cover-v4-art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center center;display:block;user-select:none;-webkit-user-drag:none;pointer-events:none}
+.cover-v4-hit{position:absolute;z-index:4;border:0;background:transparent!important;color:transparent!important;box-shadow:none!important;padding:0!important}
+.cover-v4-settings{top:1.8%;right:4.5%;width:18%;height:11%}
+.cover-v4-enter{left:6%;right:6%;bottom:9.2%;height:9.6%;width:auto}
+.cover-v4-version{
+ position:absolute;z-index:3;left:5%;bottom:3.8%;font-size:11px;font-weight:600;letter-spacing:3.2px;color:#8f9992;
+ background:rgba(5,15,10,.96);padding:8px 12px 8px 2px;box-shadow:0 0 18px 12px rgba(5,15,10,.96);white-space:nowrap;
+}
+[data-swipe-exercise]{position:relative;overflow:hidden;touch-action:pan-y!important}
+[data-swipe-exercise]::before,[data-swipe-exercise]::after{
+ position:absolute;top:0;bottom:0;width:86px;display:flex;align-items:center;justify-content:center;
+ font-size:10px;font-weight:950;letter-spacing:.5px;opacity:0;pointer-events:none;transition:opacity .12s ease;z-index:0
+}
+[data-swipe-exercise]::before{content:"REPLACE";left:0;background:#c6ff31;color:#07120d}
+[data-swipe-exercise]::after{content:"REMOVE";right:0;background:#ff5a5f;color:white}
+[data-swipe-exercise].v73-swipe-right::before,[data-swipe-exercise].v73-swipe-left::after{opacity:1}
+[data-swipe-exercise]>*{position:relative;z-index:1}
