@@ -64,8 +64,26 @@ jobs:
           set -euo pipefail
           M='merchant-stage-package/shishalove-app-bridge/assets/merchant.js'
           cp "$M" shishalove-staging/merchant-generated.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('shishalove-staging/merchant-generated.js')
+          t=p.read_text(encoding='utf-8')
+          t=t.replace(
+              "var CFG=window.SHISHALOVE_BRIDGE||{};\nCFG.version='staging-merchant-sync-search-1';",
+              "var CFG=window.SHISHALOVE_BRIDGE||{};\nCFG.version='staging-merchant-sync-search-2';\nif(/^\\/shishalove-merchant-beta\\/?$/i.test(location.pathname)){CFG.rest=location.origin+'/wp-json/shishalove-staging/v1/';}"
+          )
+          t=t.replace("var DATA_CACHE='stable-v1';","var DATA_CACHE='staging-beta-v2';")
+          t=t.replace(
+              "api('merchant/bootstrap').then(function(d){state.bootstrap=d;",
+              "api('merchant/bootstrap').then(function(d){if(d&&Array.isArray(d.categories))d.categories={quick:d.categories.slice(0,10),all:d.categories};state.bootstrap=d;"
+          )
+          p.write_text(t,encoding='utf-8')
+          PY
           node --check shishalove-staging/merchant-generated.js
-          grep -Fq "CFG.version='staging-merchant-sync-search-1'" shishalove-staging/merchant-generated.js
+          grep -Fq "CFG.version='staging-merchant-sync-search-2'" shishalove-staging/merchant-generated.js
+          grep -Fq "CFG.rest=location.origin+'/wp-json/shishalove-staging/v1/'" shishalove-staging/merchant-generated.js
+          grep -Fq "var DATA_CACHE='staging-beta-v2';" shishalove-staging/merchant-generated.js
+          grep -Fq "Array.isArray(d.categories)" shishalove-staging/merchant-generated.js
           grep -Fq 's.oninput=function()' shishalove-staging/merchant-generated.js
           grep -Fq 'window.SLM_CHECK_ORDERS=function(){loadOrders(true,true);};' shishalove-staging/merchant-generated.js
 
@@ -77,6 +95,8 @@ jobs:
           grep -Fq "rest_url('shishalove/v1/')" shishalove-staging-loader/shishalove-staging-loader.php
           grep -Fq "merchant-generated.js" shishalove-staging-loader/shishalove-staging-loader.php
           ! grep -Fq "slsl_remote_asset_url('merchant-css')" shishalove-staging-loader/shishalove-staging-loader.php
+          grep -Fq "CFG.rest=location.origin+'/wp-json/shishalove-staging/v1/'" shishalove-staging/merchant-generated.js
+          grep -Fq "var DATA_CACHE='staging-beta-v2';" shishalove-staging/merchant-generated.js
 
       - name: Save exact Merchant beta script to staging branch
         env:
