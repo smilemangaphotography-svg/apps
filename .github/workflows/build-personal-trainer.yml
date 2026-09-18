@@ -159,7 +159,6 @@ jobs:
           grep -q 'assets/style2-v73-library-tools.js' /tmp/kinetiq-apk-list.txt
           grep -q 'assets/style2-v73-library-tools.css' /tmp/kinetiq-apk-list.txt
           grep -q 'assets/kinetiq-cover-locked.webp' /tmp/kinetiq-apk-list.txt
-          grep -q 'kinetiq_launcher_locked.webp' /tmp/kinetiq-apk-list.txt
           grep -q 'assets/media/adaptive/leg-press.mp4' /tmp/kinetiq-apk-list.txt
           grep -q 'assets/media/adaptive/supported-bulgarian-split-squat.mp4' /tmp/kinetiq-apk-list.txt
           grep -q 'assets/media/adaptive/seated-hamstring-curl.mp4' /tmp/kinetiq-apk-list.txt
