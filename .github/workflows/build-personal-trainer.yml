@@ -1,4 +1,4 @@
-name: Build ILIA COACH 3.0.0 Official
+name: Build ILIA COACH 3.0.1 Official
 
 on:
   workflow_dispatch:
@@ -95,10 +95,20 @@ jobs:
           grep -q 'motionSrc' "$A/style2-v7.js"
           grep -q 'mediaPoster' "$A/style2-v7.js"
           grep -q 'Open anatomical motion and exercise details' "$A/style2-v7-final-fix.js"
+          grep -q 'data-swipe-exercise' "$A/style2-v7.js"
+          grep -q 'duplicate prevented' "$A/style2-v7.js"
+          grep -q 'bindSwipeGestures' "$A/style2-v73-library-tools.js"
+          grep -q 'swipeRemove' "$A/style2-v73-library-tools.js"
+          grep -q 'OFFICIAL · V7 · 3.0.1' "$A/index29.html"
+          test -s "$A/ilia-coach-mark.svg"
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.0'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'versionCode 40' personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.1'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'versionCode 41' personal-trainer/android-beta/app/build.gradle
           grep -q 'android:label="@string/app_name"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q 'android:icon="@mipmap/ic_launcher"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          test -s personal-trainer/android-beta/app/src/main/res/drawable/ic_launcher_foreground.xml
+          test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           grep -q '<string name="app_name">ILIA COACH</string>' personal-trainer/android-beta/app/src/main/res/values/strings.xml
           grep -q 'WebView.setWebContentsDebuggingEnabled(false)' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           node - <<'NODE'
@@ -131,7 +141,7 @@ jobs:
           APK=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='40' versionName='3.0.0'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='41' versionName='3.0.1'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'ILIA COACH'"
           unzip -l "$APK" | grep -q 'assets/index29.html'
           unzip -l "$APK" | grep -q 'assets/style2-v7.js'
@@ -150,18 +160,18 @@ jobs:
           mkdir -p release/signing-tools/lib
           APK=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
-          cp "$APK" release/ILIA-COACH-3.0.0-OFFICIAL-UNSIGNED.apk
+          cp "$APK" release/ILIA-COACH-3.0.1-OFFICIAL-UNSIGNED.apk
           cp "$BT/apksigner" release/signing-tools/
           cp "$BT/zipalign" release/signing-tools/
           cp "$BT/lib/apksigner.jar" release/signing-tools/lib/
           chmod +x release/signing-tools/apksigner release/signing-tools/zipalign
-          cat > release/DIAGNOSTICS-ILIA-COACH-3.0.0.txt <<'REPORT'
-          ILIA COACH 3.0.0 — OFFICIAL PRODUCTION SOURCE
+          cat > release/DIAGNOSTICS-ILIA-COACH-3.0.1.txt <<'REPORT'
+          ILIA COACH 3.0.1 — OFFICIAL PRODUCTION SOURCE
           Repository: smilemangaphotography-svg/apps
           Canonical branch: personal-trainer-main
           Package: com.ilia.personaltrainer
           App label: ILIA COACH
-          Version: 3.0.0 / versionCode 40
+          Version: 3.0.0 / versionCode 41
           V7 real calendar + My Plan / Recommended / AI Recommended: PASS
           AI Coach approval workflow: PASS
           Better Option replacement + Add Exercise: PASS
@@ -172,12 +182,12 @@ jobs:
           WebView debugging disabled: PASS
           Signing status: UNSIGNED release artifact; sign with permanent owner key before installation/distribution.
           REPORT
-          sha256sum release/ILIA-COACH-3.0.0-OFFICIAL-UNSIGNED.apk > release/SHA256SUMS.txt
+          sha256sum release/ILIA-COACH-3.0.1-OFFICIAL-UNSIGNED.apk > release/SHA256SUMS.txt
 
       - name: Upload official unsigned release
         uses: actions/upload-artifact@v4
         with:
-          name: ILIA-COACH-3.0.0-OFFICIAL-UNSIGNED
+          name: ILIA-COACH-3.0.1-OFFICIAL-UNSIGNED
           path: release/*
           if-no-files-found: error
           retention-days: 30
