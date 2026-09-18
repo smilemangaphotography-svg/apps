@@ -209,7 +209,17 @@ new_search = r'''    if ($search !== '') {
             $args['s'] = $search;
         }
     }'''
-php = once(php, old_search, new_search, 'merchant partial search backend')
+query_start = php.find('function slb_query_products(')
+if query_start < 0:
+    raise SystemExit('slb_query_products missing')
+query_end = php.find('\nfunction ', query_start + 1)
+if query_end < 0:
+    raise SystemExit('slb_query_products end missing')
+query_fn = php[query_start:query_end]
+if query_fn.count(old_search) != 1:
+    raise SystemExit(f'merchant partial search backend: expected 1 anchor in slb_query_products, found {query_fn.count(old_search)}')
+query_fn = query_fn.replace(old_search, new_search, 1)
+php = php[:query_start] + query_fn + php[query_end:]
 
 rest_marker = "add_action('rest_api_init', function() {"
 rest_guard = r'''function slb_merchant_rest_no_store($response, $server, $request) {
