@@ -152,17 +152,18 @@ jobs:
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
           "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='45' versionName='3.0.5'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
-          unzip -l "$APK" | grep -q 'assets/index29.html'
-          unzip -l "$APK" | grep -q 'assets/style2-v7.js'
-          unzip -l "$APK" | grep -q 'assets/style2-v7-final-fix.css'
-          unzip -l "$APK" | grep -q 'assets/style2-v73-library-tools.js'
-          unzip -l "$APK" | grep -q 'assets/style2-v73-library-tools.css'
-          unzip -l "$APK" | grep -q 'assets/kinetiq-cover-locked.webp'
-          unzip -l "$APK" | grep -q 'kinetiq_launcher_locked.webp'
-          unzip -l "$APK" | grep -q 'assets/media/adaptive/leg-press.mp4'
-          unzip -l "$APK" | grep -q 'assets/media/adaptive/supported-bulgarian-split-squat.mp4'
-          unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-hamstring-curl.mp4'
-          unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-cable-row.mp4'
+          unzip -l "$APK" > /tmp/kinetiq-apk-list.txt
+          grep -q 'assets/index29.html' /tmp/kinetiq-apk-list.txt
+          grep -q 'assets/style2-v7.js' /tmp/kinetiq-apk-list.txt
+          grep -q 'assets/style2-v7-final-fix.css' /tmp/kinetiq-apk-list.txt
+          grep -q 'assets/style2-v73-library-tools.js' /tmp/kinetiq-apk-list.txt
+          grep -q 'assets/style2-v73-library-tools.css' /tmp/kinetiq-apk-list.txt
+          grep -q 'assets/kinetiq-cover-locked.webp' /tmp/kinetiq-apk-list.txt
+          grep -q 'kinetiq_launcher_locked.webp' /tmp/kinetiq-apk-list.txt
+          grep -q 'assets/media/adaptive/leg-press.mp4' /tmp/kinetiq-apk-list.txt
+          grep -q 'assets/media/adaptive/supported-bulgarian-split-squat.mp4' /tmp/kinetiq-apk-list.txt
+          grep -q 'assets/media/adaptive/seated-hamstring-curl.mp4' /tmp/kinetiq-apk-list.txt
+          grep -q 'assets/media/adaptive/seated-cable-row.mp4' /tmp/kinetiq-apk-list.txt
 
       - name: Package KINETIQ unsigned deliverables and signing tools
         shell: bash
