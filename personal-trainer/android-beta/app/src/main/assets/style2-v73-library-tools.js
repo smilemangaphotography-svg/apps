@@ -281,7 +281,7 @@ function injectMoreShortcut(){
 }
 function repair(){
  addTrainTools();filterTrainLibrary();injectMoreShortcut();bindSwipeGestures();
- const label=$('#topLabel');if(label)label.textContent='KINETIQ';
+ const label=$('#topLabel');if(label)label.textContent='ILIA COACH · ALL-IN-ONE · V7 · 3.0.2';
 }
 function init(){
  if(!window.PT29||!window.ILIA_V7||!window.PT29Admin||!window.S){setTimeout(init,120);return}
