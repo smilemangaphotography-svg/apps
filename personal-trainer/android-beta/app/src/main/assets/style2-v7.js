@@ -1,6 +1,6 @@
 (()=>{'use strict';
-const VERSION='3.0.3';
-const READY='3.0.3-calendar-ai-ready';
+const VERSION='3.0.4';
+const READY='3.0.4-calendar-ai-ready';
 const $v=(s,r=document)=>r.querySelector(s);
 const $$v=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
