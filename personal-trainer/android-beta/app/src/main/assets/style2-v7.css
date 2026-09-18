@@ -71,6 +71,7 @@ button.v7-badge{appearance:none}.v7-good{color:var(--v7-green);border-color:rgba
 [data-swipe-exercise].v73-swipe-right::before,[data-swipe-exercise].v73-swipe-left::after{opacity:1}
 [data-swipe-exercise]>*{position:relative;z-index:1}
 
+
 /* KINETIQ 3.0.3 MASTER SPLASH */
 .kinetiq-cover{
  position:fixed!important;inset:0!important;width:100%!important;height:100%!important;min-height:100%!important;
