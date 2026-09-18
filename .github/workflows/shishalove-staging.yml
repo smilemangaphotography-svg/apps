@@ -68,22 +68,74 @@ jobs:
           from pathlib import Path
           p=Path('shishalove-staging/merchant-generated.js')
           t=p.read_text(encoding='utf-8')
-          t=t.replace(
+
+          def once(old,new,label):
+              global t
+              n=t.count(old)
+              if n!=1:
+                  raise SystemExit(f'{label}: expected 1 anchor, found {n}')
+              t=t.replace(old,new,1)
+
+          once(
               "var CFG=window.SHISHALOVE_BRIDGE||{};\nCFG.version='staging-merchant-sync-search-1';",
-              "var CFG=window.SHISHALOVE_BRIDGE||{};\nCFG.version='staging-merchant-sync-search-2';\nif(/^\\/shishalove-merchant-beta\\/?$/i.test(location.pathname)){CFG.rest=location.origin+'/wp-json/shishalove-staging/v1/';}"
+              "var CFG=window.SHISHALOVE_BRIDGE||{};\nCFG.version='staging-merchant-sync-search-3';\nvar MERCHANT_CANONICAL_REST=location.origin+'/wp-json/shishalove/v1/';\nvar MERCHANT_STAGING_REST=location.origin+'/wp-json/shishalove-staging/v1/';",
+              'beta rest roots'
           )
-          t=t.replace("var DATA_CACHE='stable-v1';","var DATA_CACHE='staging-beta-v2';")
-          t=t.replace(
-              "api('merchant/bootstrap').then(function(d){state.bootstrap=d;",
-              "api('merchant/bootstrap').then(function(d){if(d&&Array.isArray(d.categories))d.categories={quick:d.categories.slice(0,10),all:d.categories};state.bootstrap=d;"
+          once("var DATA_CACHE='stable-v1';","var DATA_CACHE='staging-beta-v3';",'beta cache')
+
+          old_api="function api(path,opts){opts=opts||{};var h=opts.headers||{};if(CFG.restNonce)h['X-WP-Nonce']=CFG.restNonce;if(opts.body&&!h['Content-Type'])h['Content-Type']='application/json';opts.headers=h;opts.credentials='same-origin';if(!opts.method||String(opts.method).toUpperCase()==='GET')opts.cache='no-store';return fetch(CFG.rest+path,opts).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}"
+          new_api="function api(path,opts){opts=opts||{};var h=opts.headers||{};if(CFG.restNonce)h['X-WP-Nonce']=CFG.restNonce;if(opts.body&&!h['Content-Type'])h['Content-Type']='application/json';opts.headers=h;opts.credentials='same-origin';if(!opts.method||String(opts.method).toUpperCase()==='GET')opts.cache='no-store';var base=/^merchant\\/(?:products|orders)(?:\\?|$)/.test(path)?MERCHANT_STAGING_REST:MERCHANT_CANONICAL_REST;return fetch(base+path,opts).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}"
+          once(old_api,new_api,'split staging/canonical api')
+
+          # Dashboard failed because the stats variables were referenced without
+          # ever being declared in the generated 1.1.43 Merchant runtime.
+          once(
+              "function loadDashboardStats(force){",
+              "var dashboardStats=null,dashboardStatsLoading=false;\nfunction loadDashboardStats(force){",
+              'dashboard state'
           )
+
+          # Stock management is an owner rule: it is always on and cannot be
+          # accidentally disabled from the phone editor.
+          once(
+              "var p=state.editor,creating=!p.id,busy=!!p._mediaBusy,manage=!!p.manage_stock;",
+              "var p=state.editor,creating=!p.id,busy=!!p._mediaBusy,manage=true;",
+              'stock management render'
+          )
+          t=t.replace("manage_stock:false,stock_quantity:''","manage_stock:true,stock_quantity:''")
+          once(
+              "var ms=document.getElementById('slm-manage-stock'),manage=!!(ms&&ms.checked);",
+              "var ms=document.getElementById('slm-manage-stock'),manage=true;if(ms)ms.checked=true;",
+              'stock management save'
+          )
+          once(
+              "var ms=document.getElementById('slm-manage-stock');if(ms)ms.onchange=function(){var q=document.getElementById('slm-stock-qty-wrap');if(q)q.style.display=this.checked?'block':'none';};",
+              "var ms=document.getElementById('slm-manage-stock');if(ms){ms.checked=true;ms.onchange=function(){this.checked=true;var q=document.getElementById('slm-stock-qty-wrap');if(q)q.style.display='block';};}",
+              'stock management lock'
+          )
+
+          # Product list thumbnails: request the small WP thumbnail first, with
+          # the original image as an automatic fallback. This reduces list paint
+          # time without altering stored product artwork.
+          image_helper="function fastProductImage(src){src=String(src||'');return src.replace(/-\\d+x\\d+(\\.[a-z0-9]+)(\\?.*)?$/i,'-150x150$1$2');}\n"
+          once("function productRows(items){",image_helper+"function productRows(items){",'image helper')
+          once(
+              '<img src="'+esc(p.image)+'" alt="">',
+              '<img src="'+esc(fastProductImage(p.image))+'" data-fallback="'+esc(p.image)+'" loading="eager" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.src=this.dataset.fallback" alt="">',
+              'fast product thumbnail'
+          )
+
           p.write_text(t,encoding='utf-8')
           PY
           node --check shishalove-staging/merchant-generated.js
-          grep -Fq "CFG.version='staging-merchant-sync-search-2'" shishalove-staging/merchant-generated.js
-          grep -Fq "CFG.rest=location.origin+'/wp-json/shishalove-staging/v1/'" shishalove-staging/merchant-generated.js
-          grep -Fq "var DATA_CACHE='staging-beta-v2';" shishalove-staging/merchant-generated.js
-          grep -Fq "Array.isArray(d.categories)" shishalove-staging/merchant-generated.js
+          grep -Fq "CFG.version='staging-merchant-sync-search-3'" shishalove-staging/merchant-generated.js
+          grep -Fq "MERCHANT_CANONICAL_REST" shishalove-staging/merchant-generated.js
+          grep -Fq "MERCHANT_STAGING_REST" shishalove-staging/merchant-generated.js
+          grep -Fq "var DATA_CACHE='staging-beta-v3';" shishalove-staging/merchant-generated.js
+          grep -Fq "var dashboardStats=null,dashboardStatsLoading=false;" shishalove-staging/merchant-generated.js
+          grep -Fq "var p=state.editor,creating=!p.id,busy=!!p._mediaBusy,manage=true;" shishalove-staging/merchant-generated.js
+          grep -Fq "manage=true;if(ms)ms.checked=true" shishalove-staging/merchant-generated.js
+          grep -Fq "fastProductImage" shishalove-staging/merchant-generated.js
           grep -Fq 's.oninput=function()' shishalove-staging/merchant-generated.js
           grep -Fq 'window.SLM_CHECK_ORDERS=function(){loadOrders(true,true);};' shishalove-staging/merchant-generated.js
 
@@ -95,8 +147,10 @@ jobs:
           grep -Fq "rest_url('shishalove/v1/')" shishalove-staging-loader/shishalove-staging-loader.php
           grep -Fq "merchant-generated.js" shishalove-staging-loader/shishalove-staging-loader.php
           ! grep -Fq "slsl_remote_asset_url('merchant-css')" shishalove-staging-loader/shishalove-staging-loader.php
-          grep -Fq "CFG.rest=location.origin+'/wp-json/shishalove-staging/v1/'" shishalove-staging/merchant-generated.js
-          grep -Fq "var DATA_CACHE='staging-beta-v2';" shishalove-staging/merchant-generated.js
+          grep -Fq "MERCHANT_CANONICAL_REST" shishalove-staging/merchant-generated.js
+          grep -Fq "MERCHANT_STAGING_REST" shishalove-staging/merchant-generated.js
+          grep -Fq "var DATA_CACHE='staging-beta-v3';" shishalove-staging/merchant-generated.js
+          grep -Fq "var dashboardStats=null,dashboardStatsLoading=false;" shishalove-staging/merchant-generated.js
 
       - name: Save exact Merchant beta script to staging branch
         env:
