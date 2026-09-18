@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<iq:manifest version="3" xmlns:iq="http://www.garmin.com/xml/connectiq">
+    <iq:application
+        id="6f45763b-8a9e-4e7f-a70d-a0d915f6d013"
+        type="watch-app"
+        name="@Strings.AppName"
+        entry="IliaCoachApp"
+        launcherIcon="@Drawables.LauncherIcon"
+        minSdkVersion="4.0.0">
+        <iq:products>
+            <iq:product id="vivoactive5"/>
+        </iq:products>
+        <iq:permissions>
+            <iq:uses-permission id="Communications"/>
+            <iq:uses-permission id="Fit"/>
+        </iq:permissions>
+        <iq:languages>
+            <iq:language>eng</iq:language>
+        </iq:languages>
+        <iq:barrels/>
+    </iq:application>
+</iq:manifest>
