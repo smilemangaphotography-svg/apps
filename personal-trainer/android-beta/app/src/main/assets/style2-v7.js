@@ -108,9 +108,9 @@ function ensureCalendarPlans(){
  const V=S.v7;
  calendarDates().forEach(d=>{
   const k=ymd(d),wd=d.getDay();
-  if(!V.myPlans[k])V.myPlans[k]=sanitizePlan(templateFor(wd,'my'));
-  if(!V.recommendedPlans[k])V.recommendedPlans[k]=sanitizePlan(templateFor(wd,'recommended'));
-  if(!V.aiPlans[k])V.aiPlans[k]=clone(V.recommendedPlans[k]);
+  V.myPlans[k]=sanitizePlan(V.myPlans[k]||templateFor(wd,'my'));
+  V.recommendedPlans[k]=sanitizePlan(V.recommendedPlans[k]||templateFor(wd,'recommended'));
+  V.aiPlans[k]=sanitizePlan(V.aiPlans[k]||clone(V.recommendedPlans[k]));
  });
  if(!V.myPlans[V.selectedDate])V.selectedDate=ymd(today0());
 }
