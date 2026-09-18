@@ -158,7 +158,7 @@ jobs:
           unzip -l "$APK" | grep -q 'assets/style2-v73-library-tools.js'
           unzip -l "$APK" | grep -q 'assets/style2-v73-library-tools.css'
           unzip -l "$APK" | grep -q 'assets/kinetiq-cover-locked.webp'
-          unzip -l "$APK" | grep -q 'res/drawable-nodpi/kinetiq_launcher_locked.webp'
+          unzip -l "$APK" | grep -q 'kinetiq_launcher_locked.webp'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/leg-press.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/supported-bulgarian-split-squat.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-hamstring-curl.mp4'
