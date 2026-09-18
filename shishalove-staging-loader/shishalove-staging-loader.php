@@ -2,13 +2,13 @@
 /**
  * Plugin Name: ShishaLove Staging Loader
  * Description: Isolated Customer + Merchant beta routes for one-by-one testing. Production Customer/Merchant routes remain untouched.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: ShishaLove
  */
 
 if (!defined('ABSPATH')) { exit; }
 
-define('SLSL_VERSION', '1.1.0');
+define('SLSL_VERSION', '1.2.0');
 define('SLSL_REMOTE_BASE', 'https://raw.githubusercontent.com/smilemangaphotography-svg/apps/shishalove-staging/shishalove-staging/');
 
 function slsl_request_path() {
@@ -51,7 +51,7 @@ function slsl_proxy_remote_asset() {
     $map = array(
         'customer-js' => array('customer-staging.js', 'application/javascript; charset=UTF-8'),
         'customer-css' => array('customer-staging.css', 'text/css; charset=UTF-8'),
-        'merchant-js' => array('merchant-staging.js', 'application/javascript; charset=UTF-8'),
+        'merchant-js' => array('merchant-generated.js', 'application/javascript; charset=UTF-8'),
         'merchant-css' => array('merchant-staging.css', 'text/css; charset=UTF-8'),
     );
     if (!isset($map[$name])) {
@@ -126,7 +126,7 @@ function slsl_render_merchant_beta() {
         'staging' => true,
         'site' => home_url('/'),
         'logo' => slsl_logo(),
-        'rest' => esc_url_raw(rest_url('shishalove-staging/v1/')),
+        'rest' => esc_url_raw(rest_url('shishalove/v1/')),
         'restNonce' => is_user_logged_in() ? wp_create_nonce('wp_rest') : '',
         'loggedIn' => is_user_logged_in(),
         'merchantAllowed' => $allowed,
@@ -141,7 +141,6 @@ function slsl_render_merchant_beta() {
 <meta name="robots" content="noindex,nofollow">
 <title>ShishaLove Merchant Beta</title>
 <link rel="stylesheet" href="<?php echo esc_url(plugins_url('shishalove-app-bridge/assets/bridge.css')); ?>">
-<link rel="stylesheet" href="<?php echo esc_url(slsl_remote_asset_url('merchant-css')); ?>">
 </head>
 <body class="slb slb-merchant slb-staging slsl-merchant-beta">
 <div id="slb-root" aria-live="polite"></div>
