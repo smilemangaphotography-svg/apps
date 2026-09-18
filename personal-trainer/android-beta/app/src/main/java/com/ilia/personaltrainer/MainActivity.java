@@ -157,14 +157,14 @@ public class MainActivity extends Activity {
                 "var m=window.__ILIA_MASTER_MOCKUP__||'missing';" +
                 "var f=window.__ILIA_MASTER_FIX__||'missing';" +
                 "var v=window.__ILIA_V7__||'missing';" +
-                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.3-runtime-ready'&&v==='3.0.4-calendar-ai-ready')?'ready':(p+'|'+s+'|'+m+'|'+f+'|'+v);" +
+                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.3-runtime-ready'&&v==='3.0.5-calendar-ai-ready')?'ready':(p+'|'+s+'|'+m+'|'+f+'|'+v);" +
                 "}catch(e){return 'error';}})()";
         view.evaluateJavascript(probe, value -> {
             if ("\"ready\"".equals(value)) return;
             if (attempt + 1 < RUNTIME_MAX_ATTEMPTS) {
                 view.postDelayed(() -> verifyRuntimeReady(view, attempt + 1), RUNTIME_RETRY_MS);
             } else {
-                Toast.makeText(MainActivity.this, "ILIA COACH 3.0.4 runtime failed to initialize", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "ILIA COACH 3.0.5 runtime failed to initialize", Toast.LENGTH_LONG).show();
             }
         });
     }
