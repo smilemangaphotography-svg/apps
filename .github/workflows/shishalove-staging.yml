@@ -17,10 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
           tools: none
+
       - name: Validate staging Customer fix
         run: |
           set -euo pipefail
@@ -30,16 +32,45 @@ jobs:
           grep -Fq 'raw.githubusercontent.com/smilemangaphotography-svg/apps/shishalove-staging' shishalove-staging-loader/shishalove-staging-loader.php
           grep -Fq 'slb-staging-front' shishalove-staging/customer-staging.js
           grep -Fq 'slb-staging-front-visual' shishalove-staging/customer-staging.css
+
+      - name: Validate staging Merchant master fix
+        run: |
+          set -euo pipefail
+          rm -rf merchant-stage-package
+          mkdir -p merchant-stage-package
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge merchant-stage-package/shishalove-app-bridge
+          python3 shishalove-staging/patch-shishalove-merchant-masterfix-staging.py merchant-stage-package/shishalove-app-bridge
+
+          M='merchant-stage-package/shishalove-app-bridge/assets/merchant.js'
+          P='merchant-stage-package/shishalove-app-bridge/shishalove-app-bridge.php'
+          node --check "$M"
+          php -l "$P"
+
+          grep -Fq "CFG.version='staging-merchant-sync-search-1'" "$M"
+          grep -Fq 's.oninput=function()' "$M"
+          grep -Fq '},220);' "$M"
+          grep -Fq "merchant/orders?page=1&per_page=20&_slm_fresh=" "$M"
+          grep -Fq 'window.SLM_CHECK_ORDERS=function(){loadOrders(true,true);};' "$M"
+          grep -Fq 'window.__SLM_ORDER_WATCH_INSTALLED=true;' "$M"
+          grep -Fq 'ShishaLoveNative.notifyOrder' "$M"
+          grep -Fq 'p.post_title LIKE %s OR pm.meta_value LIKE %s' "$P"
+          grep -Fq 't.name LIKE %s' "$P"
+          grep -Fq 'Cloudflare-CDN-Cache-Control' "$P"
+          grep -Fq 'merchantReturnScroll' "$M"
+          grep -Fq 'Filter · All' "$M"
+
       - name: Package one-time staging loader
         run: |
           mkdir -p dist/shishalove-staging-loader
           cp shishalove-staging-loader/shishalove-staging-loader.php dist/shishalove-staging-loader/
           cd dist && zip -qr shishalove-staging-loader-1.0.0.zip shishalove-staging-loader
+
       - uses: actions/upload-artifact@v4
         with:
           name: shishalove-staging-loader
           path: dist/shishalove-staging-loader-1.0.0.zip
           if-no-files-found: error
+
       - name: Publish one-time staging loader
         env:
           GH_TOKEN: ${{ github.token }}
