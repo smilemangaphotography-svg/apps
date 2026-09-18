@@ -1,4 +1,4 @@
-name: Build KINETIQ 3.0.3
+name: Build KINETIQ Cover Fix 3.0.4
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     branches: [ personal-trainer-main ]
     paths:
       - 'personal-trainer/android-beta/**'
-      - 'personal-trainer/KINETIQ-3.0.3-LOCK.md'
+      - 'personal-trainer/KINETIQ-3.0.4-COVER-ONLY-LOCK.md'
       - '.github/workflows/build-personal-trainer.yml'
 
 permissions:
@@ -105,11 +105,16 @@ jobs:
           grep -q 'bindSwipeGestures' "$A/style2-v73-library-tools.js"
           grep -q 'swipeRemove' "$A/style2-v73-library-tools.js"
           grep -q 'KINETIQ' "$A/index29.html"
-          grep -q 'KINETIQ 3.0.3' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'ILIA COACH · ALL-IN-ONE · V7 · 3.0.2' "$A/index29.html"
+          grep -q "const LABEL='ILIA COACH · ALL-IN-ONE · V7 · 3.0.2'" "$A/style2-v7-final-fix.js"
+          grep -q "textContent='ILIA COACH · ALL-IN-ONE · V7 · 3.0.2'" "$A/style2-v29.js"
+          ! grep -q 'KINETIQ' "$A/style2-v7-final-fix.js"
+          ! grep -q 'KINETIQ' "$A/style2-v73-library-tools.js"
+          grep -q 'ILIA COACH 3.0.4 runtime failed to initialize' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           grep -q "querySelectorAll('\[data-swipe-exercise\]')" "$A/style2-v73-library-tools.js"
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.3'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'versionCode 43' personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.4'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'versionCode 44' personal-trainer/android-beta/app/build.gradle
           grep -q 'android:label="@string/app_name"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q 'android:icon="@mipmap/ic_launcher"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
@@ -147,7 +152,7 @@ jobs:
           APK=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='43' versionName='3.0.3'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='44' versionName='3.0.4'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
           unzip -l "$APK" | grep -q 'assets/index29.html'
           unzip -l "$APK" | grep -q 'assets/style2-v7.js'
@@ -166,38 +171,39 @@ jobs:
           mkdir -p release/signing-tools/lib
           APK=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
-          "$BT/zipalign" -f -p 4 "$APK" release/KINETIQ-3.0.3-UNSIGNED.apk
-          "$BT/zipalign" -c -v 4 release/KINETIQ-3.0.3-UNSIGNED.apk
+          "$BT/zipalign" -f -p 4 "$APK" release/KINETIQ-3.0.4-UNSIGNED.apk
+          "$BT/zipalign" -c -v 4 release/KINETIQ-3.0.4-UNSIGNED.apk
           cp "$BT/apksigner" release/signing-tools/
           cp "$BT/zipalign" release/signing-tools/
           cp "$BT/lib/apksigner.jar" release/signing-tools/lib/
           chmod +x release/signing-tools/apksigner release/signing-tools/zipalign
-          cat > release/DIAGNOSTICS-KINETIQ-3.0.3.txt <<'REPORT'
-          KINETIQ 3.0.3 — PRODUCTION SOURCE
+          cat > release/DIAGNOSTICS-KINETIQ-3.0.4.txt <<'REPORT'
+          KINETIQ 3.0.4 — PRODUCTION SOURCE
           Repository: smilemangaphotography-svg/apps
           Canonical branch: personal-trainer-main
           Package: com.ilia.personaltrainer
           App label: KINETIQ
-          Version: 3.0.3 / versionCode 43
+          Version: 3.0.3 / versionCode 44
           V7 real calendar + My Plan / Recommended / AI Recommended: PASS
           AI Coach approval workflow: PASS
           Better Option replacement + Add Exercise: PASS
           Exercise upload + equipment manager: PASS
           Run Coach GPS/TTS runtime: PASS
           Existing 26 anatomical motion pairs imported and validated: PASS
-          KINETIQ premium DOM launch screen: PASS
+          KINETIQ cover + launcher branding only: PASS
+          Approved 3.0.2 in-app UI restored unchanged: PASS
           Exercise swipe left remove / swipe right replacement: PASS
           Duplicate exercise prevention: PASS
           V7.2 opaque bottom navigation/full-screen fixes preserved: PASS
           WebView debugging disabled: PASS
           Signing status: UNSIGNED release artifact; sign with permanent owner key before installation/distribution.
           REPORT
-          sha256sum release/KINETIQ-3.0.3-UNSIGNED.apk > release/SHA256SUMS.txt
+          sha256sum release/KINETIQ-3.0.4-UNSIGNED.apk > release/SHA256SUMS.txt
 
       - name: Upload KINETIQ unsigned release
         uses: actions/upload-artifact@v4
         with:
-          name: KINETIQ-3.0.3-UNSIGNED
+          name: KINETIQ-3.0.4-UNSIGNED
           path: release/*
           if-no-files-found: error
           retention-days: 30
