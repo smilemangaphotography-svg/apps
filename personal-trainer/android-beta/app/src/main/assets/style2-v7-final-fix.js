@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const FIX='3.0.3-master-device-fix';
-const LABEL='KINETIQ';
+const LABEL='ILIA COACH · ALL-IN-ONE · V7 · 3.0.2';
 const $=(s,r=document)=>r.querySelector(s);
 
 function enforceHeader(){
