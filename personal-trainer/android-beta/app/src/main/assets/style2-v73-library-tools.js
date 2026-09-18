@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const VERSION='3.0.3-exercise-equipment-tools';
+const VERSION='3.0.1-exercise-equipment-swipe';
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -130,6 +130,62 @@ function toggleExercise(id){
  applyAvailability(true);openEquipmentManager();
  toast73(next?`${e.name} removed from your library`:`${e.name} restored`);
 }
+let swipeClickLockUntil=0;
+function swipeRemove(id){
+ ensureState();
+ const e=byId(id);if(!e)return;
+ S.v73ManualDisabled[id]=true;
+ applyAvailability(true);
+ setTimeout(()=>{
+  filterV7Sheet();
+  if($('#pagePlan.active'))window.ILIA_V7?.renderPlan?.();
+  if($('#pageTrain.active'))filterTrainLibrary();
+  bindSwipeGestures();
+ },20);
+ toast73(`${e.name} removed · restore anytime in Equipment & Exercise Library`);
+}
+function bindSwipeGestures(root=document){
+ $('[data-swipe-exercise]',root).forEach(row=>{
+  if(row.dataset.v73SwipeBound==='1')return;
+  row.dataset.v73SwipeBound='1';
+  let sx=0,sy=0,dx=0,dy=0,tracking=false;
+  row.addEventListener('touchstart',ev=>{
+   const t=ev.touches?.[0];if(!t)return;
+   sx=t.clientX;sy=t.clientY;dx=0;dy=0;tracking=true;
+  },{passive:true});
+  row.addEventListener('touchmove',ev=>{
+   if(!tracking)return;const t=ev.touches?.[0];if(!t)return;
+   dx=t.clientX-sx;dy=t.clientY-sy;
+   if(Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.15){
+    const shift=Math.max(-58,Math.min(58,dx*.42));
+    row.style.transform=`translateX(${shift}px)`;
+    row.classList.toggle('v73-swipe-left',dx<0);
+    row.classList.toggle('v73-swipe-right',dx>0);
+   }
+  },{passive:true});
+  row.addEventListener('touchend',()=>{
+   if(!tracking)return;tracking=false;
+   const horizontal=Math.abs(dx)>=72&&Math.abs(dx)>Math.abs(dy)*1.15;
+   row.style.transform='';row.classList.remove('v73-swipe-left','v73-swipe-right');
+   if(!horizontal)return;
+   swipeClickLockUntil=Date.now()+650;row.dataset.v73SwipeUntil=String(swipeClickLockUntil);
+   const id=row.dataset.swipeExercise,mode=row.dataset.swipeMode||'replace';
+   if(dx<0)swipeRemove(id);
+   else window.ILIA_V7?.showAlternatives?.(id,mode);
+  },{passive:true});
+  row.addEventListener('touchcancel',()=>{tracking=false;row.style.transform='';row.classList.remove('v73-swipe-left','v73-swipe-right')},{passive:true});
+ });
+}
+if(!window.__ILIA_V73_SWIPE_CLICK_GUARD__){
+ document.addEventListener('click',ev=>{
+  const row=ev.target?.closest?.('[data-swipe-exercise]');
+  if(row&&Number(row.dataset.v73SwipeUntil||0)>Date.now()){
+   ev.preventDefault();ev.stopPropagation();ev.stopImmediatePropagation?.();
+  }
+ },true);
+ window.__ILIA_V73_SWIPE_CLICK_GUARD__=true;
+}
+
 function assignEquipment(id,value){
  ensureState();
  if(!value)delete S.v73ExerciseEquipment[id];else S.v73ExerciseEquipment[id]=[value];
@@ -204,8 +260,8 @@ function injectMoreShortcut(){
  host.prepend(box);
 }
 function repair(){
- addTrainTools();filterTrainLibrary();injectMoreShortcut();
- const label=$('#topLabel');if(label)label.textContent='ILIA COACH · ALL-IN-ONE · V7 · 3.0.0';
+ addTrainTools();filterTrainLibrary();injectMoreShortcut();bindSwipeGestures();
+ const label=$('#topLabel');if(label)label.textContent='ILIA COACH · ALL-IN-ONE · V7 · 3.0.1';
 }
 function init(){
  if(!window.PT29||!window.ILIA_V7||!window.PT29Admin||!window.S){setTimeout(init,120);return}
@@ -214,6 +270,6 @@ function init(){
  window.__ILIA_V73_LIBRARY_TOOLS__=VERSION;
  document.documentElement.dataset.iliaV73='ready';
 }
-window.ILIA_V73={uploadExercise,openEquipmentManager,setEquipment,toggleExercise,assignEquipment,fullGym,isAvailable,requirementLabel,syncPlanAvailability};
+window.ILIA_V73={uploadExercise,openEquipmentManager,setEquipment,toggleExercise,swipeRemove,bindSwipeGestures,assignEquipment,fullGym,isAvailable,requirementLabel,syncPlanAvailability};
 setTimeout(init,760);
 })();
