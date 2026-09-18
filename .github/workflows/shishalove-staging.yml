@@ -120,8 +120,8 @@ jobs:
           image_helper="function fastProductImage(src){src=String(src||'');return src.replace(/-\\d+x\\d+(\\.[a-z0-9]+)(\\?.*)?$/i,'-150x150$1$2');}\n"
           once("function productRows(items){",image_helper+"function productRows(items){",'image helper')
           once(
-              '<img src="'+esc(p.image)+'" alt="">',
-              '<img src="'+esc(fastProductImage(p.image))+'" data-fallback="'+esc(p.image)+'" loading="eager" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.src=this.dataset.fallback" alt="">',
+              """<img src="'+esc(p.image)+'" alt="">""",
+              """<img src="'+esc(fastProductImage(p.image))+'" data-fallback="'+esc(p.image)+'" loading="eager" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.src=this.dataset.fallback" alt="">""",
               'fast product thumbnail'
           )
 
