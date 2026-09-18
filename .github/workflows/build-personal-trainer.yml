@@ -1,4 +1,4 @@
-name: Build ILIA COACH 3.0.1 Official
+name: Build ILIA COACH 3.0.2 Official
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     branches: [ personal-trainer-main ]
     paths:
       - 'personal-trainer/android-beta/**'
-      - 'personal-trainer/ILIA-COACH-OFFICIAL-3.0.1-LOCK.md'
+      - 'personal-trainer/ILIA-COACH-OFFICIAL-3.0.2-LOCK.md'
       - '.github/workflows/build-personal-trainer.yml'
 
 permissions:
@@ -87,8 +87,8 @@ jobs:
           test -s "$A/style2-v7.css"
           test -s "$A/style2-v7-final-fix.css"
           test -s "$A/style2-v73-library-tools.css"
-          grep -q 'OFFICIAL · V7 · 3.0.1' "$A/index29.html"
-          grep -q 'ILIA COACH · ALL-IN-ONE · V7 · 3.0.1' "$A/index29.html"
+          grep -q 'OFFICIAL · V7 · 3.0.2' "$A/index29.html"
+          grep -q 'ILIA COACH · ALL-IN-ONE · V7 · 3.0.2' "$A/index29.html"
           grep -q 'UPLOAD EXERCISE' "$A/style2-v73-library-tools.js"
           grep -q 'EQUIPMENT / REMOVE' "$A/style2-v73-library-tools.js"
           grep -q 'syncPlanAvailability' "$A/style2-v73-library-tools.js"
@@ -99,11 +99,14 @@ jobs:
           grep -q 'duplicate prevented' "$A/style2-v7.js"
           grep -q 'bindSwipeGestures' "$A/style2-v73-library-tools.js"
           grep -q 'swipeRemove' "$A/style2-v73-library-tools.js"
-          grep -q 'OFFICIAL · V7 · 3.0.1' "$A/index29.html"
+          grep -q 'OFFICIAL · V7 · 3.0.2' "$A/index29.html"
           test -s "$A/ilia-coach-mark.svg"
+          test -s "$A/cover-v4.webp"
+          grep -q 'cover-v4.webp' "$A/index29.html"
+          grep -q "\$\$('\[data-swipe-exercise\]'" "$A/style2-v73-library-tools.js"
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.1'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'versionCode 41' personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.2'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'versionCode 42' personal-trainer/android-beta/app/build.gradle
           grep -q 'android:label="@string/app_name"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q 'android:icon="@mipmap/ic_launcher"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q 'android:roundIcon="@mipmap/ic_launcher_round"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
@@ -141,13 +144,14 @@ jobs:
           APK=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='41' versionName='3.0.1'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='42' versionName='3.0.2'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'ILIA COACH'"
           unzip -l "$APK" | grep -q 'assets/index29.html'
           unzip -l "$APK" | grep -q 'assets/style2-v7.js'
           unzip -l "$APK" | grep -q 'assets/style2-v7-final-fix.css'
           unzip -l "$APK" | grep -q 'assets/style2-v73-library-tools.js'
           unzip -l "$APK" | grep -q 'assets/style2-v73-library-tools.css'
+          unzip -l "$APK" | grep -q 'assets/cover-v4.webp'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/leg-press.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/supported-bulgarian-split-squat.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-hamstring-curl.mp4'
@@ -160,34 +164,37 @@ jobs:
           mkdir -p release/signing-tools/lib
           APK=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
-          cp "$APK" release/ILIA-COACH-3.0.1-OFFICIAL-UNSIGNED.apk
+          cp "$APK" release/ILIA-COACH-3.0.2-OFFICIAL-UNSIGNED.apk
           cp "$BT/apksigner" release/signing-tools/
           cp "$BT/zipalign" release/signing-tools/
           cp "$BT/lib/apksigner.jar" release/signing-tools/lib/
           chmod +x release/signing-tools/apksigner release/signing-tools/zipalign
-          cat > release/DIAGNOSTICS-ILIA-COACH-3.0.1.txt <<'REPORT'
-          ILIA COACH 3.0.1 — OFFICIAL PRODUCTION SOURCE
+          cat > release/DIAGNOSTICS-ILIA-COACH-3.0.2.txt <<'REPORT'
+          ILIA COACH 3.0.2 — OFFICIAL PRODUCTION SOURCE
           Repository: smilemangaphotography-svg/apps
           Canonical branch: personal-trainer-main
           Package: com.ilia.personaltrainer
           App label: ILIA COACH
-          Version: 3.0.1 / versionCode 41
+          Version: 3.0.2 / versionCode 42
           V7 real calendar + My Plan / Recommended / AI Recommended: PASS
           AI Coach approval workflow: PASS
           Better Option replacement + Add Exercise: PASS
           Exercise upload + equipment manager: PASS
           Run Coach GPS/TTS runtime: PASS
           Existing 26 anatomical motion pairs imported and validated: PASS
+          Selected launch screen option 4 full-screen artwork: PASS
+          Exercise swipe left remove / swipe right replacement: PASS
+          Duplicate exercise prevention: PASS
           V7.2 opaque bottom navigation/full-screen fixes preserved: PASS
           WebView debugging disabled: PASS
           Signing status: UNSIGNED release artifact; sign with permanent owner key before installation/distribution.
           REPORT
-          sha256sum release/ILIA-COACH-3.0.1-OFFICIAL-UNSIGNED.apk > release/SHA256SUMS.txt
+          sha256sum release/ILIA-COACH-3.0.2-OFFICIAL-UNSIGNED.apk > release/SHA256SUMS.txt
 
       - name: Upload official unsigned release
         uses: actions/upload-artifact@v4
         with:
-          name: ILIA-COACH-3.0.1-OFFICIAL-UNSIGNED
+          name: ILIA-COACH-3.0.2-OFFICIAL-UNSIGNED
           path: release/*
           if-no-files-found: error
           retention-days: 30
