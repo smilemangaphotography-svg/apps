@@ -58,8 +58,8 @@ button.v7-badge{appearance:none}.v7-good{color:var(--v7-green);border-color:rgba
 .cover-v4-settings{top:1.8%;right:4.5%;width:18%;height:11%}
 .cover-v4-enter{left:6%;right:6%;bottom:9.2%;height:9.6%;width:auto}
 .cover-v4-version{
- position:absolute;z-index:3;left:5%;bottom:3.8%;font-size:11px;font-weight:600;letter-spacing:3.2px;color:#8f9992;
- background:rgba(5,15,10,.96);padding:8px 12px 8px 2px;box-shadow:0 0 18px 12px rgba(5,15,10,.96);white-space:nowrap;
+ position:absolute;z-index:3;left:4%;bottom:5.2%;font-size:11px;font-weight:600;letter-spacing:3.2px;color:#8f9992;
+ background:rgba(5,15,10,.98);padding:9px 18px 9px 2%;box-shadow:0 0 28px 20px rgba(5,15,10,.98);white-space:nowrap;
 }
 [data-swipe-exercise]{position:relative;overflow:hidden;touch-action:pan-y!important}
 [data-swipe-exercise]::before,[data-swipe-exercise]::after{
