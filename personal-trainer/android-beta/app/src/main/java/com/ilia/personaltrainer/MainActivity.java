@@ -52,12 +52,12 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().setStatusBarColor(Color.rgb(6,16,11));
-        getWindow().setNavigationBarColor(Color.rgb(6,16,11));
+        getWindow().setStatusBarColor(Color.BLACK);
+        getWindow().setNavigationBarColor(Color.BLACK);
         if (Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
 
         root = new FrameLayout(this);
-        root.setBackgroundColor(Color.rgb(6,16,11));
+        root.setBackgroundColor(Color.BLACK);
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(6,16,11));
         webView.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
@@ -164,7 +164,7 @@ public class MainActivity extends Activity {
             if (attempt + 1 < RUNTIME_MAX_ATTEMPTS) {
                 view.postDelayed(() -> verifyRuntimeReady(view, attempt + 1), RUNTIME_RETRY_MS);
             } else {
-                Toast.makeText(MainActivity.this, "KINETIQ 3.0.3 runtime failed to initialize", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "ILIA COACH 3.0.3 runtime failed to initialize", Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -175,7 +175,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void speak(String text) {
             if (text == null || text.trim().isEmpty()) return;
             runOnUiThread(() -> {
-                if (ttsReady) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "kinetiq-run");
+                if (ttsReady) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "ilia-coach-v7");
             });
         }
         @JavascriptInterface public boolean hasLocationPermission() {
