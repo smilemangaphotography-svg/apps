@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#06100b">
-<title>ILIA COACH 3.0.2</title>
+<title>KINETIQ</title>
 <link rel="stylesheet" href="app-v2.css">
 <link rel="stylesheet" href="style2-v29.css">
 <link rel="stylesheet" href="style2-v29-focus.css">
@@ -15,11 +15,35 @@
 <link rel="stylesheet" href="style2-v73-library-tools.css">
 </head>
 <body>
-<section id="style2Cover" class="cover-screen cover-v4">
-  <img class="cover-v4-art" src="cover-v4.webp" alt="">
-  <button id="coverSettings" class="cover-v4-hit cover-v4-settings" aria-label="Settings"></button>
-  <button id="coverEnter" class="cover-v4-hit cover-v4-enter" aria-label="Get started"></button>
-  <div class="cover-v4-version">OFFICIAL · V7 · 3.0.2</div>
+<section id="style2Cover" class="cover-screen kinetiq-cover">
+  <div class="kinetiq-atmosphere" aria-hidden="true">
+    <span class="kinetiq-arc arc-a"></span>
+    <span class="kinetiq-arc arc-b"></span>
+    <span class="kinetiq-arc arc-c"></span>
+  </div>
+  <div class="kinetiq-brand">
+    <svg class="kinetiq-mark" viewBox="0 0 240 260" role="img" aria-label="KINETIQ motion mark">
+      <defs>
+        <linearGradient id="kqSilver" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#f2f1e8"/>
+          <stop offset=".46" stop-color="#8d978f"/>
+          <stop offset="1" stop-color="#253129"/>
+        </linearGradient>
+        <linearGradient id="kqLime" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#f0ffd0"/>
+          <stop offset=".48" stop-color="#cfff62"/>
+          <stop offset="1" stop-color="#799b36"/>
+        </linearGradient>
+      </defs>
+      <path fill="url(#kqSilver)" d="M127 32c-34 9-59 31-66 59-6 25 6 44 21 61 12 14 12 29 2 47-9 16-25 31-45 47 39-13 70-33 84-57 13-22 11-43-4-61-12-15-22-27-16-45 5-17 14-34 24-51z"/>
+      <path fill="url(#kqLime)" d="M128 69c29 5 52 24 55 46 3 20-11 35-28 45-15 9-17 20-8 31 8 10 22 18 39 25-29-1-55-10-67-26-13-18-9-37 8-52 13-12 26-21 23-34-2-12-12-24-22-35z"/>
+      <circle cx="169" cy="42" r="17" fill="url(#kqLime)"/>
+    </svg>
+    <div class="kinetiq-wordmark">KINETI<span>Q</span></div>
+    <div class="kinetiq-statement">A HIGHER YOU</div>
+  </div>
+  <button id="coverEnter" class="kinetiq-enter" aria-label="Enter KINETIQ"><span>Q</span></button>
+  <button id="coverSettings" class="kinetiq-hidden-settings" aria-label="Settings"></button>
 </section>
 <div id="app">
   <section id="builder" class="builder hidden">
@@ -31,7 +55,7 @@
     </div>
   </section>
   <main id="mainApp" class="main-app hidden">
-    <header class="app-topbar"><div><div class="tiny-label" id="topLabel">ILIA COACH · ALL-IN-ONE · V7 · 3.0.2</div><div class="top-title" id="topTitle">Home</div></div><button id="topProfile" class="icon-btn" aria-label="Settings">⚙</button></header>
+    <header class="app-topbar"><div><div class="tiny-label" id="topLabel">KINETIQ</div><div class="top-title" id="topTitle">Home</div></div><button id="topProfile" class="icon-btn" aria-label="Settings">⚙</button></header>
     <section id="pageHome" class="page active" data-page="home"></section>
     <section id="pagePlan" class="page" data-page="plan"></section>
     <section id="pageTrain" class="page" data-page="train"></section>
