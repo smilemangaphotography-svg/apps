@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const VERSION='3.0.4-exercise-equipment-swipe';
+const VERSION='3.0.5-exercise-equipment-swipe';
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
