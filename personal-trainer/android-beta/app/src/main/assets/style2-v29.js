@@ -29,7 +29,7 @@ function applyFont(){const stacks={Inter:'Inter,Arial,sans-serif',Poppins:'Poppi
 function mediaPoster(e){if(e.customPosterKey&&window.PT29Admin)return'';const slug=MAP[e.id];return slug?`media/adaptive/${slug}.webp`:e.media||''}
 function motionSrc(e){const slug=MAP[e.id];return slug?`media/adaptive/${slug}.mp4`:''}
 function countEnabled(){return catalog().filter(e=>enabled(e.id)).length}
-function setTop(page){const names={home:'Home',plan:'Plan',train:'Train',fuel:'Fuel',more:'More'};$('#topTitle').textContent=S.pageCopy?.[page]?.title||names[page];$('#topLabel').textContent='ILIA COACH · ALL-IN-ONE · V7 · 3.0.2'}
+function setTop(page){const names={home:'Home',plan:'Plan',train:'Train',fuel:'Fuel',more:'More'};$('#topTitle').textContent=S.pageCopy?.[page]?.title||names[page];$('#topLabel').textContent='KINETIQ'}
 showMain=function(page){ensure();$('#style2Cover').classList.add('hidden');$('#builder').classList.add('hidden');$('#mainApp').classList.remove('hidden');$$('.page').forEach(p=>p.classList.toggle('active',p.dataset.page===page));$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.nav===page));setTop(page);renderPage(page);scrollTo(0,0)};
 renderPage=function(p){if(p==='home')renderHome();if(p==='plan')renderPlan();if(p==='train')renderTrain();if(p==='fuel')renderFuel();if(p==='more')renderMore()};
 function wireNav(){$$('.nav-btn').forEach(b=>b.onclick=()=>showMain(b.dataset.nav));$('#topProfile').onclick=()=>showMain('more')}
