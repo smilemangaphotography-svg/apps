@@ -166,7 +166,8 @@ jobs:
           mkdir -p release/signing-tools/lib
           APK=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
-          cp "$APK" release/KINETIQ-3.0.3-UNSIGNED.apk
+          "$BT/zipalign" -f -p 4 "$APK" release/KINETIQ-3.0.3-UNSIGNED.apk
+          "$BT/zipalign" -c -v 4 release/KINETIQ-3.0.3-UNSIGNED.apk
           cp "$BT/apksigner" release/signing-tools/
           cp "$BT/zipalign" release/signing-tools/
           cp "$BT/lib/apksigner.jar" release/signing-tools/lib/
