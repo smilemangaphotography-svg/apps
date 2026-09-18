@@ -40,3 +40,10 @@ button.v7-badge{appearance:none}.v7-good{color:var(--v7-green);border-color:rgba
 .v7-more-card{margin:22px 26px 10px}.v7-more-card button{width:100%;display:flex;justify-content:space-between;gap:10px;border:0;border-bottom:1px solid #23382c;background:transparent;color:white;padding:16px 0;text-align:left}.v7-more-card button:last-child{border-bottom:0}
 .v7-train-banner{margin:22px 26px 0}.v7-train-banner b{display:block;font-size:17px;margin:7px 0}.v7-train-banner p{color:#8b968e;line-height:1.45}
 @media(max-width:370px){.v7-page{padding-left:18px;padding-right:18px}.v7-tabs{grid-template-columns:1fr 1fr}.v7-tabs button:last-child{grid-column:1/-1}.v7-ex{grid-template-columns:62px 1fr}.v7-score{grid-column:2;text-align:left}.v7-motion.small{width:62px;height:62px}}
+
+/* 3.0.1 master fix */
+.cover-logo{width:78px;height:78px;display:block;margin:0 0 24px;filter:drop-shadow(0 12px 26px rgba(0,0,0,.28))}
+.v7-swipe-hint{font-size:9px;font-weight:900;letter-spacing:.55px;color:#8b938d;line-height:1.45;padding:3px 2px 8px;text-align:center}
+[data-swipe-exercise]{touch-action:pan-y;will-change:transform;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+[data-swipe-exercise].v73-swipe-left{box-shadow:-10px 0 0 rgba(255,90,95,.28);border-color:rgba(255,90,95,.7)!important}
+[data-swipe-exercise].v73-swipe-right{box-shadow:10px 0 0 rgba(198,255,49,.24);border-color:rgba(198,255,49,.75)!important}
