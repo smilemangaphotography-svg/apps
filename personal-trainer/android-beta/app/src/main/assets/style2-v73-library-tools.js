@@ -145,7 +145,7 @@ function swipeRemove(id){
  toast73(`${e.name} removed · restore anytime in Equipment & Exercise Library`);
 }
 function bindSwipeGestures(root=document){
- $('[data-swipe-exercise]',root).forEach(row=>{
+ root.querySelectorAll('[data-swipe-exercise]').forEach(row=>{
   if(row.dataset.v73SwipeBound==='1')return;
   row.dataset.v73SwipeBound='1';
   let sx=0,sy=0,dx=0,dy=0,tracking=false,pointerId=null;
