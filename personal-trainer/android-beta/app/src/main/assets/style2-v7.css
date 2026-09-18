@@ -70,3 +70,27 @@ button.v7-badge{appearance:none}.v7-good{color:var(--v7-green);border-color:rgba
 [data-swipe-exercise]::after{content:"REMOVE";right:0;background:#ff5a5f;color:white}
 [data-swipe-exercise].v73-swipe-right::before,[data-swipe-exercise].v73-swipe-left::after{opacity:1}
 [data-swipe-exercise]>*{position:relative;z-index:1}
+
+/* KINETIQ 3.0.3 MASTER SPLASH */
+.kinetiq-cover{
+ position:fixed!important;inset:0!important;width:100%!important;height:100%!important;min-height:100%!important;
+ margin:0!important;padding:0!important;overflow:hidden!important;background:
+ radial-gradient(100% 70% at 12% 98%,rgba(117,151,55,.16),transparent 54%),
+ radial-gradient(80% 55% at 93% 5%,rgba(198,255,49,.07),transparent 48%),
+ linear-gradient(180deg,#07100c 0%,#050c08 47%,#07100b 100%)!important;z-index:500!important;
+}
+.kinetiq-atmosphere{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.kinetiq-arc{position:absolute;border:1px solid rgba(213,255,132,.28);border-radius:50%;filter:drop-shadow(0 0 13px rgba(190,255,88,.15))}
+.kinetiq-arc.arc-a{width:112vw;height:58vw;left:-44vw;top:-22vw;transform:rotate(-19deg);background:radial-gradient(ellipse at 70% 72%,transparent 63%,rgba(198,255,49,.055) 64%,transparent 68%)}
+.kinetiq-arc.arc-b{width:104vw;height:85vw;right:-59vw;bottom:-14vw;transform:rotate(17deg);background:linear-gradient(120deg,transparent 58%,rgba(220,255,174,.045) 60%,transparent 64%)}
+.kinetiq-arc.arc-c{width:120vw;height:72vw;left:-20vw;bottom:-49vw;border-color:rgba(198,255,49,.18)}
+.kinetiq-brand{position:absolute;left:8%;right:8%;top:24%;display:flex;flex-direction:column;align-items:center;text-align:center}
+.kinetiq-mark{width:min(42vw,190px);height:auto;overflow:visible;filter:drop-shadow(0 18px 28px rgba(0,0,0,.44)) drop-shadow(0 0 20px rgba(194,255,96,.09))}
+.kinetiq-wordmark{margin-top:18px;color:#e8e9df;font-size:clamp(29px,8.2vw,44px);font-weight:400;letter-spacing:clamp(8px,2.8vw,15px);line-height:1;font-family:Arial,sans-serif;text-shadow:0 2px 18px rgba(255,255,255,.05)}
+.kinetiq-wordmark span{position:relative;color:#eef0e7}.kinetiq-wordmark span::after{content:"";position:absolute;width:.34em;height:2px;background:#c6ff31;right:-.12em;bottom:.02em;transform:rotate(40deg);border-radius:2px;box-shadow:0 0 8px rgba(198,255,49,.25)}
+.kinetiq-statement{margin-top:27px;color:#b8c0b8;font-size:clamp(10px,2.6vw,13px);font-weight:500;letter-spacing:clamp(5px,1.8vw,8px);white-space:nowrap}
+.kinetiq-enter{position:absolute;left:50%;bottom:10.5%;transform:translateX(-50%);width:106px;height:106px;border-radius:50%;border:1px solid rgba(230,255,196,.7);background:radial-gradient(circle at 50% 42%,rgba(31,44,35,.96),rgba(8,15,10,.98) 67%);color:#edf0e6;box-shadow:0 0 0 1px rgba(198,255,49,.16) inset,0 0 30px rgba(176,255,77,.12),0 20px 35px rgba(0,0,0,.4);font:400 44px/1 Arial,sans-serif;display:grid;place-items:center;padding:0}
+.kinetiq-enter span{position:relative;transform:translateY(-1px)}.kinetiq-enter span::after{content:"";position:absolute;width:16px;height:3px;background:#c6ff31;right:-7px;bottom:4px;transform:rotate(42deg);border-radius:3px}
+.kinetiq-enter:active{transform:translateX(-50%) scale(.96);box-shadow:0 0 0 1px rgba(198,255,49,.28) inset,0 0 38px rgba(176,255,77,.18)}
+.kinetiq-hidden-settings{display:none!important}
+@media(max-height:690px){.kinetiq-brand{top:18%}.kinetiq-enter{bottom:7.5%;width:92px;height:92px;font-size:38px}.kinetiq-statement{margin-top:20px}}
