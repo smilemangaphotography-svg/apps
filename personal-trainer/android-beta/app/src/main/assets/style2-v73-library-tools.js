@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const VERSION='3.0.1-exercise-equipment-swipe';
+const VERSION='3.0.2-exercise-equipment-swipe';
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -148,32 +148,52 @@ function bindSwipeGestures(root=document){
  $('[data-swipe-exercise]',root).forEach(row=>{
   if(row.dataset.v73SwipeBound==='1')return;
   row.dataset.v73SwipeBound='1';
-  let sx=0,sy=0,dx=0,dy=0,tracking=false;
-  row.addEventListener('touchstart',ev=>{
-   const t=ev.touches?.[0];if(!t)return;
-   sx=t.clientX;sy=t.clientY;dx=0;dy=0;tracking=true;
-  },{passive:true});
-  row.addEventListener('touchmove',ev=>{
-   if(!tracking)return;const t=ev.touches?.[0];if(!t)return;
-   dx=t.clientX-sx;dy=t.clientY-sy;
-   if(Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.15){
-    const shift=Math.max(-58,Math.min(58,dx*.42));
+  let sx=0,sy=0,dx=0,dy=0,tracking=false,pointerId=null;
+  const start=(x,y,id=null)=>{sx=x;sy=y;dx=0;dy=0;tracking=true;pointerId=id};
+  const move=(x,y,ev)=>{
+   if(!tracking)return;
+   dx=x-sx;dy=y-sy;
+   if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)*1.08){
+    if(ev?.cancelable)ev.preventDefault();
+    const shift=Math.max(-86,Math.min(86,dx*.62));
     row.style.transform=`translateX(${shift}px)`;
     row.classList.toggle('v73-swipe-left',dx<0);
     row.classList.toggle('v73-swipe-right',dx>0);
    }
-  },{passive:true});
-  row.addEventListener('touchend',()=>{
-   if(!tracking)return;tracking=false;
-   const horizontal=Math.abs(dx)>=72&&Math.abs(dx)>Math.abs(dy)*1.15;
-   row.style.transform='';row.classList.remove('v73-swipe-left','v73-swipe-right');
+  };
+  const finish=()=>{
+   if(!tracking)return;
+   tracking=false;
+   const horizontal=Math.abs(dx)>=52&&Math.abs(dx)>Math.abs(dy)*1.08;
+   row.style.transform='';
+   row.classList.remove('v73-swipe-left','v73-swipe-right');
    if(!horizontal)return;
-   swipeClickLockUntil=Date.now()+650;row.dataset.v73SwipeUntil=String(swipeClickLockUntil);
+   swipeClickLockUntil=Date.now()+750;
+   row.dataset.v73SwipeUntil=String(swipeClickLockUntil);
    const id=row.dataset.swipeExercise,mode=row.dataset.swipeMode||'replace';
    if(dx<0)swipeRemove(id);
    else window.ILIA_V7?.showAlternatives?.(id,mode);
-  },{passive:true});
-  row.addEventListener('touchcancel',()=>{tracking=false;row.style.transform='';row.classList.remove('v73-swipe-left','v73-swipe-right')},{passive:true});
+  };
+
+  if(window.PointerEvent){
+   row.addEventListener('pointerdown',ev=>{
+    if(ev.pointerType==='mouse'&&ev.button!==0)return;
+    start(ev.clientX,ev.clientY,ev.pointerId);
+    try{row.setPointerCapture(ev.pointerId)}catch(_){}
+   });
+   row.addEventListener('pointermove',ev=>{if(pointerId===null||ev.pointerId===pointerId)move(ev.clientX,ev.clientY,ev)});
+   row.addEventListener('pointerup',ev=>{if(pointerId===null||ev.pointerId===pointerId){finish();pointerId=null}});
+   row.addEventListener('pointercancel',()=>{tracking=false;pointerId=null;row.style.transform='';row.classList.remove('v73-swipe-left','v73-swipe-right')});
+  }else{
+   row.addEventListener('touchstart',ev=>{
+    const t=ev.touches?.[0];if(t)start(t.clientX,t.clientY);
+   },{passive:true});
+   row.addEventListener('touchmove',ev=>{
+    const t=ev.touches?.[0];if(t)move(t.clientX,t.clientY,ev);
+   },{passive:false});
+   row.addEventListener('touchend',finish,{passive:true});
+   row.addEventListener('touchcancel',()=>{tracking=false;row.style.transform='';row.classList.remove('v73-swipe-left','v73-swipe-right')},{passive:true});
+  }
  });
 }
 if(!window.__ILIA_V73_SWIPE_CLICK_GUARD__){
@@ -261,7 +281,7 @@ function injectMoreShortcut(){
 }
 function repair(){
  addTrainTools();filterTrainLibrary();injectMoreShortcut();bindSwipeGestures();
- const label=$('#topLabel');if(label)label.textContent='ILIA COACH · ALL-IN-ONE · V7 · 3.0.1';
+ const label=$('#topLabel');if(label)label.textContent='ILIA COACH · ALL-IN-ONE · V7 · 3.0.2';
 }
 function init(){
  if(!window.PT29||!window.ILIA_V7||!window.PT29Admin||!window.S){setTimeout(init,120);return}
