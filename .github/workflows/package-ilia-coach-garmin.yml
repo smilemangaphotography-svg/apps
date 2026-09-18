@@ -1,0 +1,66 @@
+name: Package ILIA COACH Garmin Companion Source
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ ilia-coach-garmin-main ]
+    paths:
+      - 'ilia-coach-garmin/**'
+      - '.github/workflows/package-ilia-coach-garmin.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Garmin companion branch
+        uses: actions/checkout@v4
+        with:
+          ref: ilia-coach-garmin-main
+
+      - name: Validate source package
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s ilia-coach-garmin/manifest.xml
+          test -s ilia-coach-garmin/monkey.jungle
+          test -s ilia-coach-garmin/source/IliaCoachApp.mc
+          test -s ilia-coach-garmin/source/IliaCoachView.mc
+          test -s ilia-coach-garmin/source/IliaCoachDelegate.mc
+          grep -q 'vivoactive5' ilia-coach-garmin/manifest.xml
+          grep -q 'Communications' ilia-coach-garmin/manifest.xml
+          grep -q 'Fit' ilia-coach-garmin/manifest.xml
+          grep -q 'START WORKOUT' ilia-coach-garmin/source/IliaCoachView.mc
+          grep -q 'RUN COACH' ilia-coach-garmin/source/IliaCoachView.mc
+          grep -q 'SPEED UP' ilia-coach-garmin/source/IliaCoachView.mc
+          grep -q 'SLOW DOWN' ilia-coach-garmin/source/IliaCoachView.mc
+          grep -q 'sync_request' ilia-coach-garmin/source/IliaCoachApp.mc
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          for p in [
+              "ilia-coach-garmin/manifest.xml",
+              "ilia-coach-garmin/resources/strings/strings.xml",
+              "ilia-coach-garmin/resources/drawables/drawables.xml",
+          ]:
+              ET.parse(p)
+              print("XML PASS", p)
+          PY
+
+      - name: Package source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          zip -qr release/ILIA-COACH-GARMIN-VIVOACTIVE5-SOURCE-0.1.0.zip ilia-coach-garmin
+          sha256sum release/ILIA-COACH-GARMIN-VIVOACTIVE5-SOURCE-0.1.0.zip > release/SHA256SUMS.txt
+
+      - name: Upload source package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ILIA-COACH-GARMIN-VIVOACTIVE5-SOURCE-0.1.0
+          path: release/*
+          if-no-files-found: error
+          retention-days: 30
