@@ -462,7 +462,7 @@ function init(){
  if(window.PT25)window.PT25.onLocation=function(lat,lon,speed,accuracy,ts){try{prior?.(lat,lon,speed,accuracy,ts)}catch(e){}handleLoc(lat,lon,speed,accuracy)};
  const active=$v('.page.active')?.dataset.page;
  if(active==='home')renderHomeV7();else if(active==='plan')renderPlanV7();else if(active==='more')renderMoreEnhancements();else if(active==='train')renderTrainBanner();
- const label=$v('#topLabel');if(label)label.textContent='KINETIQ';
+ const label=$v('#topLabel');if(label)label.textContent='ILIA COACH · ALL-IN-ONE · V7 · 3.0.2';
  window.__ILIA_V7__=READY;
  document.documentElement.dataset.iliaV7='ready';
 }
