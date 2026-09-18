@@ -59,29 +59,42 @@ jobs:
           grep -Fq 'merchantReturnScroll' "$M"
           grep -Fq 'Filter · All' "$M"
 
-      - name: Package one-time staging loader
+      - name: Validate Merchant WebView beta
         run: |
-          mkdir -p dist/shishalove-staging-loader
+          set -euo pipefail
+          php -l shishalove-staging-loader/shishalove-staging-loader.php
+          node --check shishalove-staging/merchant-staging.js
+          grep -Fq '/shishalove-merchant-beta/' shishalove-staging-loader/shishalove-staging-loader.php
+          grep -Fq "register_rest_route('shishalove-staging/v1', '/merchant/products'" shishalove-staging-loader/shishalove-staging-loader.php
+          grep -Fq "register_rest_route('shishalove-staging/v1', '/merchant/orders'" shishalove-staging-loader/shishalove-staging-loader.php
+          grep -Fq 'Cloudflare-CDN-Cache-Control' shishalove-staging-loader/shishalove-staging-loader.php
+          grep -Fq 'setTimeout(function(){state.query=' shishalove-staging/merchant-staging.js
+          grep -Fq '},220);' shishalove-staging/merchant-staging.js
+          grep -Fq 'setInterval(function(){if(!document.hidden)loadOrders(true);},10000);' shishalove-staging/merchant-staging.js
+
+      - name: Package staging loader 1.1.0
+        run: |
+          rm -rf dist && mkdir -p dist/shishalove-staging-loader
           cp shishalove-staging-loader/shishalove-staging-loader.php dist/shishalove-staging-loader/
-          cd dist && zip -qr shishalove-staging-loader-1.0.0.zip shishalove-staging-loader
+          cd dist && zip -qr shishalove-staging-loader-1.1.0.zip shishalove-staging-loader
 
       - uses: actions/upload-artifact@v4
         with:
-          name: shishalove-staging-loader
-          path: dist/shishalove-staging-loader-1.0.0.zip
+          name: shishalove-staging-loader-1.1.0
+          path: dist/shishalove-staging-loader-1.1.0.zip
           if-no-files-found: error
 
-      - name: Publish one-time staging loader
+      - name: Publish staging loader 1.1.0
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG='shishalove-staging-loader-1.0.0'
-          ASSET='dist/shishalove-staging-loader-1.0.0.zip'
-          NOTES='Install this WordPress plugin once and activate it. It creates the isolated Customer beta route /shishalove-app-beta/. Future MASTER FIX + MASTER UPDATE changes are read from the shishalove-staging branch, so normal UI/JS/CSS testing only requires refreshing the beta page. Production Customer, Merchant and live Bridge remain untouched until MASTER FINALIZE.'
+          TAG='shishalove-staging-loader-1.1.0'
+          ASSET='dist/shishalove-staging-loader-1.1.0.zip'
+          NOTES='Staging only. Adds /shishalove-merchant-beta/ with fresh WooCommerce Orders plus 10-second synchronization and live 220ms partial Products/Stock search. Also preserves /shishalove-app-beta/. Production Customer, Merchant and live Bridge are not changed.'
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --clobber
-            gh release edit "$TAG" --title 'ShishaLove Staging Loader 1.0.0' --notes "$NOTES" --target shishalove-staging
+            gh release edit "$TAG" --title 'ShishaLove Staging Loader 1.1.0 — Merchant WebView Beta' --notes "$NOTES" --target shishalove-staging
           else
-            gh release create "$TAG" "$ASSET" --title 'ShishaLove Staging Loader 1.0.0' --notes "$NOTES" --target shishalove-staging
+            gh release create "$TAG" "$ASSET" --title 'ShishaLove Staging Loader 1.1.0 — Merchant WebView Beta' --notes "$NOTES" --target shishalove-staging
           fi
