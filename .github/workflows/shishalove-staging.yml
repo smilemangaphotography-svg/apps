@@ -114,6 +114,20 @@ jobs:
               'stock management lock'
           )
 
+          # Beta-only notification diagnostic. This does not create an order or
+          # touch production data; it only proves the Android native bridge can
+          # post a notification before we test a real WooCommerce order.
+          once(
+              "function moreBody(){var u=state.bootstrap&&state.bootstrap.user||{};return '<main class=\"slm-page\"><div class=\"slm-head\"><div><h1>More</h1><div class=\"slm-muted\">Signed in as '+esc(u.name||'WordPress user')+'</div></div></div><div class=\"slb-account-card\">Bridge 1.1.43</div><button class=\"slb-account-card slm-account-button\" data-view=\"media-library\">Media Library</button><a class=\"slb-account-card\" href=\"'+esc(CFG.site)+'wp-admin/\">Open WordPress Admin</a><a class=\"slb-account-card\" href=\"'+esc(CFG.site)+'wp-admin/admin.php?page=wc-admin\">WooCommerce Admin</a></main>';}",
+              "function moreBody(){var u=state.bootstrap&&state.bootstrap.user||{},nativeOk=!!(window.ShishaLoveNative&&typeof window.ShishaLoveNative.notifyOrder==='function');return '<main class=\"slm-page\"><div class=\"slm-head\"><div><h1>More</h1><div class=\"slm-muted\">Signed in as '+esc(u.name||'WordPress user')+'</div></div></div><div class=\"slb-account-card\">Bridge 1.1.43</div><div class=\"slb-account-card\"><strong>Order notifications</strong><div class=\"slm-muted\" style=\"margin-top:6px\">'+(nativeOk?'Android notification bridge detected':'Browser preview only — open Merchant Beta app for phone notifications')+'</div></div><button class=\"slb-account-card slm-account-button\" data-act=\"test-native-notification\">TEST PHONE NOTIFICATION</button><button class=\"slb-account-card slm-account-button\" data-view=\"media-library\">Media Library</button><a class=\"slb-account-card\" href=\"'+esc(CFG.site)+'wp-admin/\">Open WordPress Admin</a><a class=\"slb-account-card\" href=\"'+esc(CFG.site)+'wp-admin/admin.php?page=wc-admin\">WooCommerce Admin</a></main>';}",
+              'notification diagnostic card'
+          )
+          once(
+              "root.querySelectorAll('[data-act=\"refresh\"]').forEach(function(e){e.onclick=refresh;});",
+              "root.querySelectorAll('[data-act=\"refresh\"]').forEach(function(e){e.onclick=refresh;});root.querySelectorAll('[data-act=\"test-native-notification\"]').forEach(function(e){e.onclick=function(){if(window.ShishaLoveNative&&typeof window.ShishaLoveNative.notifyOrder==='function'){window.ShishaLoveNative.notifyOrder('TEST','Merchant notification test','€0.00');}else{alert('Open this preview inside the ShishaLove Merchant Beta app to test Android notifications.');}};});",
+              'notification diagnostic binding'
+          )
+
           # Product list thumbnails: request the small WP thumbnail first, with
           # the original image as an automatic fallback. This reduces list paint
           # time without altering stored product artwork.
@@ -136,6 +150,8 @@ jobs:
           grep -Fq "var p=state.editor,creating=!p.id,busy=!!p._mediaBusy,manage=true;" shishalove-staging/merchant-generated.js
           grep -Fq "manage=true;if(ms)ms.checked=true" shishalove-staging/merchant-generated.js
           grep -Fq "fastProductImage" shishalove-staging/merchant-generated.js
+          grep -Fq "TEST PHONE NOTIFICATION" shishalove-staging/merchant-generated.js
+          grep -Fq "test-native-notification" shishalove-staging/merchant-generated.js
           grep -Fq 's.oninput=function()' shishalove-staging/merchant-generated.js
           grep -Fq 'window.SLM_CHECK_ORDERS=function(){loadOrders(true,true);};' shishalove-staging/merchant-generated.js
 
