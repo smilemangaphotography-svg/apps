@@ -6,7 +6,7 @@ on:
     branches: [ personal-trainer-main ]
     paths:
       - 'personal-trainer/android-beta/**'
-      - 'personal-trainer/ILIA-COACH-OFFICIAL-3.0.0-LOCK.md'
+      - 'personal-trainer/ILIA-COACH-OFFICIAL-3.0.1-LOCK.md'
       - '.github/workflows/build-personal-trainer.yml'
 
 permissions:
@@ -87,8 +87,8 @@ jobs:
           test -s "$A/style2-v7.css"
           test -s "$A/style2-v7-final-fix.css"
           test -s "$A/style2-v73-library-tools.css"
-          grep -q 'OFFICIAL · V7 · 3.0.0' "$A/index29.html"
-          grep -q 'ILIA COACH · ALL-IN-ONE · V7 · 3.0.0' "$A/index29.html"
+          grep -q 'OFFICIAL · V7 · 3.0.1' "$A/index29.html"
+          grep -q 'ILIA COACH · ALL-IN-ONE · V7 · 3.0.1' "$A/index29.html"
           grep -q 'UPLOAD EXERCISE' "$A/style2-v73-library-tools.js"
           grep -q 'EQUIPMENT / REMOVE' "$A/style2-v73-library-tools.js"
           grep -q 'syncPlanAvailability' "$A/style2-v73-library-tools.js"
@@ -171,7 +171,7 @@ jobs:
           Canonical branch: personal-trainer-main
           Package: com.ilia.personaltrainer
           App label: ILIA COACH
-          Version: 3.0.0 / versionCode 41
+          Version: 3.0.1 / versionCode 41
           V7 real calendar + My Plan / Recommended / AI Recommended: PASS
           AI Coach approval workflow: PASS
           Better Option replacement + Add Exercise: PASS
