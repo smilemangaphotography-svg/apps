@@ -14,11 +14,50 @@
 <link rel="stylesheet" href="style2-v7.css">
 <link rel="stylesheet" href="style2-v7-final-fix.css">
 <link rel="stylesheet" href="style2-v73-library-tools.css">
+<style id="previewQFix">
+/* PREVIEW ONLY — visible Q entry control. Android app source remains unchanged. */
+#style2Cover .preview-q-enter{
+  position:absolute!important;
+  left:50%!important;
+  right:auto!important;
+  top:auto!important;
+  bottom:8.5%!important;
+  transform:translateX(-50%)!important;
+  width:104px!important;
+  height:104px!important;
+  border-radius:50%!important;
+  border:1px solid rgba(220,255,170,.72)!important;
+  background:radial-gradient(circle at 50% 42%,rgba(27,38,31,.93),rgba(7,14,10,.96) 70%)!important;
+  color:#edf0e6!important;
+  display:grid!important;
+  place-items:center!important;
+  z-index:6!important;
+  box-shadow:0 0 0 1px rgba(198,255,49,.12) inset,0 0 30px rgba(198,255,49,.12),0 18px 34px rgba(0,0,0,.4)!important;
+  padding:0!important;
+}
+#style2Cover .preview-q-enter span{
+  position:relative;
+  font:400 43px/1 Arial,sans-serif;
+  letter-spacing:0;
+}
+#style2Cover .preview-q-enter span::after{
+  content:"";
+  position:absolute;
+  width:16px;
+  height:3px;
+  right:-7px;
+  bottom:4px;
+  border-radius:3px;
+  background:#c6ff31;
+  transform:rotate(42deg);
+}
+#style2Cover .preview-q-enter:active{transform:translateX(-50%) scale(.96)!important}
+</style>
 </head>
 <body>
 <section id="style2Cover" class="cover-screen kinetiq-cover-locked">
   <img class="kinetiq-cover-locked-art" src="kinetiq-cover-locked.webp" alt="KINETIQ">
-  <button id="coverEnter" class="kinetiq-cover-locked-enter" aria-label="Enter KINETIQ"></button>
+  <button id="coverEnter" class="kinetiq-cover-locked-enter preview-q-enter" aria-label="Enter KINETIQ"><span>Q</span></button>
   <button id="coverSettings" class="kinetiq-cover-locked-settings" aria-label="Settings"></button>
 </section>
 <div id="app">
