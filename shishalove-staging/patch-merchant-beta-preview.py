@@ -76,16 +76,16 @@ t = replace_method(t, '    private void showLastSnapshot()', r'''    private voi
 # still be hydrating. Hide only after onPageFinished and a short paint window.
 t = replace_method(t, '            public void onPageCommitVisible(WebView view, String url)', r'''            public void onPageCommitVisible(WebView view, String url) {
                 super.onPageCommitVisible(view, url);
-                applyRuntimeJs(view);
+                applyRuntimeJs(view, url);
                 progressBar.setVisibility(View.GONE);
             }''')
 
 t = replace_method(t, '            public void onPageFinished(WebView view, String url)', r'''            public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                applyRuntimeJs(view);
+                applyRuntimeJs(view, url);
                 progressBar.setVisibility(View.GONE);
                 view.postDelayed(() -> {
-                    applyRuntimeJs(view);
+                    applyRuntimeJs(view, url);
                     hideLastSnapshot();
                     captureSnapshot();
                 }, 220);
