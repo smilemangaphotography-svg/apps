@@ -66,7 +66,7 @@ jobs:
           test -s "$A/media/adaptive/front-plank.mp4"
           test -s "$A/media/adaptive/rope-triceps-pressdown.mp4"
 
-      - name: Validate official V7 runtime
+      - name: Validate KINETIQ runtime
         shell: bash
         run: |
           set -euo pipefail
@@ -137,10 +137,10 @@ jobs:
           done
           echo "26 anatomy MP4 + WebP movement pairs validated"
 
-      - name: Build official unsigned release APK
+      - name: Build KINETIQ unsigned release APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleRelease
 
-      - name: Validate official APK identity and contents
+      - name: Validate KINETIQ APK identity and contents
         shell: bash
         run: |
           set -euo pipefail
@@ -159,14 +159,14 @@ jobs:
           unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-hamstring-curl.mp4'
           unzip -l "$APK" | grep -q 'assets/media/adaptive/seated-cable-row.mp4'
 
-      - name: Package official unsigned deliverables and signing tools
+      - name: Package KINETIQ unsigned deliverables and signing tools
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release/signing-tools/lib
           APK=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
-          cp "$APK" release/KINETIQ-3.0.3-OFFICIAL-UNSIGNED.apk
+          cp "$APK" release/KINETIQ-3.0.3-UNSIGNED.apk
           cp "$BT/apksigner" release/signing-tools/
           cp "$BT/zipalign" release/signing-tools/
           cp "$BT/lib/apksigner.jar" release/signing-tools/lib/
@@ -177,7 +177,7 @@ jobs:
           Canonical branch: personal-trainer-main
           Package: com.ilia.personaltrainer
           App label: KINETIQ
-          Version: 3.0.2 / versionCode 43
+          Version: 3.0.3 / versionCode 43
           V7 real calendar + My Plan / Recommended / AI Recommended: PASS
           AI Coach approval workflow: PASS
           Better Option replacement + Add Exercise: PASS
@@ -191,12 +191,12 @@ jobs:
           WebView debugging disabled: PASS
           Signing status: UNSIGNED release artifact; sign with permanent owner key before installation/distribution.
           REPORT
-          sha256sum release/KINETIQ-3.0.3-OFFICIAL-UNSIGNED.apk > release/SHA256SUMS.txt
+          sha256sum release/KINETIQ-3.0.3-UNSIGNED.apk > release/SHA256SUMS.txt
 
-      - name: Upload official unsigned release
+      - name: Upload KINETIQ unsigned release
         uses: actions/upload-artifact@v4
         with:
-          name: KINETIQ-3.0.3-OFFICIAL-UNSIGNED
+          name: KINETIQ-3.0.3-UNSIGNED
           path: release/*
           if-no-files-found: error
           retention-days: 30
