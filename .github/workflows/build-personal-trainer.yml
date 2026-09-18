@@ -103,7 +103,7 @@ jobs:
           test -s "$A/ilia-coach-mark.svg"
           test -s "$A/cover-v4.webp"
           grep -q 'cover-v4.webp' "$A/index29.html"
-          grep -q "\$\$('\[data-swipe-exercise\]'" "$A/style2-v73-library-tools.js"
+          grep -q "querySelectorAll('\[data-swipe-exercise\]')" "$A/style2-v73-library-tools.js"
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
           grep -q "versionName '3.0.2'" personal-trainer/android-beta/app/build.gradle
           grep -q 'versionCode 42' personal-trainer/android-beta/app/build.gradle
