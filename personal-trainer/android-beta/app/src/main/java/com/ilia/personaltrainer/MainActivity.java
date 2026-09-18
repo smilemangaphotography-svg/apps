@@ -52,12 +52,12 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().setStatusBarColor(Color.BLACK);
-        getWindow().setNavigationBarColor(Color.BLACK);
+        getWindow().setStatusBarColor(Color.rgb(6,16,11));
+        getWindow().setNavigationBarColor(Color.rgb(6,16,11));
         if (Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
 
         root = new FrameLayout(this);
-        root.setBackgroundColor(Color.BLACK);
+        root.setBackgroundColor(Color.rgb(6,16,11));
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(6,16,11));
         webView.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
@@ -157,14 +157,14 @@ public class MainActivity extends Activity {
                 "var m=window.__ILIA_MASTER_MOCKUP__||'missing';" +
                 "var f=window.__ILIA_MASTER_FIX__||'missing';" +
                 "var v=window.__ILIA_V7__||'missing';" +
-                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.3-runtime-ready'&&v==='3.0.2-calendar-ai-ready')?'ready':(p+'|'+s+'|'+m+'|'+f+'|'+v);" +
+                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.3-runtime-ready'&&v==='3.0.3-calendar-ai-ready')?'ready':(p+'|'+s+'|'+m+'|'+f+'|'+v);" +
                 "}catch(e){return 'error';}})()";
         view.evaluateJavascript(probe, value -> {
             if ("\"ready\"".equals(value)) return;
             if (attempt + 1 < RUNTIME_MAX_ATTEMPTS) {
                 view.postDelayed(() -> verifyRuntimeReady(view, attempt + 1), RUNTIME_RETRY_MS);
             } else {
-                Toast.makeText(MainActivity.this, "ILIA COACH 3.0.2 runtime failed to initialize", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "KINETIQ 3.0.3 runtime failed to initialize", Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -175,7 +175,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void speak(String text) {
             if (text == null || text.trim().isEmpty()) return;
             runOnUiThread(() -> {
-                if (ttsReady) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "ilia-coach-v7");
+                if (ttsReady) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "kinetiq-run");
             });
         }
         @JavascriptInterface public boolean hasLocationPermission() {
