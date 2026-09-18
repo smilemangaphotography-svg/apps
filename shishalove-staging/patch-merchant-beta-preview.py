@@ -35,17 +35,17 @@ def replace_method(text, signature, replacement):
     return text[:start] + replacement.rstrip() + text[end:]
 
 # ---------------------------------------------------------------------------
-# SIDE-BY-SIDE BETA IDENTITY — Preview 3
+# SIDE-BY-SIDE BETA IDENTITY — Preview 4
 # ---------------------------------------------------------------------------
 main = ROOT / 'merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
 t = main.read_text(encoding='utf-8')
 t = once(
     t,
     'https://shishalove.eu/shishalove-merchant/?app=android&build=143',
-    'https://shishalove.eu/shishalove-merchant-beta/?app=android&build=merchant-preview-3',
+    'https://shishalove.eu/shishalove-merchant-beta/?app=android&build=merchant-preview-4',
     'Merchant beta route'
 )
-t = t.replace('ShishaLoveMerchant/1.1.43', 'ShishaLoveMerchant/1.1.43-BetaPreview3')
+t = t.replace('ShishaLoveMerchant/1.1.43', 'ShishaLoveMerchant/1.1.43-BetaPreview4')
 
 # Faster first paint/reload: the HTML shell may paint from cache immediately;
 # Merchant REST calls still bypass cache in the staged Bridge.
@@ -59,36 +59,67 @@ t = once(
 # Never expose a blank white reload. If no in-memory snapshot exists yet, keep a
 # lightweight native ShishaLove placeholder until the WebView is genuinely ready.
 t = replace_method(t, '    private void showLastSnapshot()', r'''    private void showLastSnapshot() {
+        snapshotOverlay.animate().cancel();
         snapshotOverlay.setBackgroundColor(Color.WHITE);
         snapshotOverlay.setAlpha(1f);
         if (lastSnapshot != null && !lastSnapshot.isRecycled()) {
             snapshotOverlay.setScaleType(ImageView.ScaleType.FIT_XY);
             snapshotOverlay.setImageBitmap(lastSnapshot);
+            snapshotOverlay.setPadding(0, 0, 0, 0);
         } else {
             snapshotOverlay.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
             snapshotOverlay.setImageResource(R.drawable.ic_shishalove);
             snapshotOverlay.setPadding(120, 120, 120, 120);
         }
         snapshotOverlay.setVisibility(View.VISIBLE);
+
+        // Hard fail-safe: startup/reload must never be trapped behind the overlay.
+        snapshotOverlay.removeCallbacks(hideSnapshotFailsafe);
+        snapshotOverlay.postDelayed(hideSnapshotFailsafe, 1400);
     }''')
+
+# Insert a reusable hard timeout runnable before hideLastSnapshot().
+t = t.replace(
+    '    private void hideLastSnapshot() {',
+    '''    private final Runnable hideSnapshotFailsafe = () -> {
+        if (snapshotOverlay != null && snapshotOverlay.getVisibility() == View.VISIBLE) {
+            hideLastSnapshot();
+        }
+    };
+
+    private void hideLastSnapshot() {'''
+)
 
 # Do not hide the previous frame at first visual commit; Bridge data/layout may
 # still be hydrating. Hide only after onPageFinished and a short paint window.
+t = replace_method(t, '            public void onPageStarted(WebView view, String url, Bitmap favicon)', r'''            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                super.onPageStarted(view, url, favicon);
+                showLastSnapshot();
+                applyRuntimeJs(view, url);
+                view.postDelayed(() -> applyRuntimeJs(view, url), 60);
+                view.postDelayed(() -> applyRuntimeJs(view, url), 180);
+            }''')
+
 t = replace_method(t, '            public void onPageCommitVisible(WebView view, String url)', r'''            public void onPageCommitVisible(WebView view, String url) {
                 super.onPageCommitVisible(view, url);
                 applyRuntimeJs(view, url);
                 progressBar.setVisibility(View.GONE);
+                view.postDelayed(() -> {
+                    applyRuntimeJs(view, url);
+                    hideLastSnapshot();
+                }, 120);
             }''')
 
 t = replace_method(t, '            public void onPageFinished(WebView view, String url)', r'''            public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 applyRuntimeJs(view, url);
                 progressBar.setVisibility(View.GONE);
+                snapshotOverlay.removeCallbacks(hideSnapshotFailsafe);
+                hideLastSnapshot();
                 view.postDelayed(() -> {
                     applyRuntimeJs(view, url);
-                    hideLastSnapshot();
                     captureSnapshot();
-                }, 220);
+                }, 180);
             }''')
 main.write_text(t, encoding='utf-8')
 
@@ -100,14 +131,14 @@ main.write_text(t, encoding='utf-8')
 # ---------------------------------------------------------------------------
 polish = ROOT / 'merchant/src/main/assets/merchant_phone_polish.js'
 pt = polish.read_text(encoding='utf-8')
-preview3 = r'''
+preview4 = r'''
 ;(function(){
   function installPreview3(){
     if(!document.head)return;
-    var s=document.getElementById('slm-preview3-first-paint');
+    var s=document.getElementById('slm-preview4-first-paint');
     if(!s){
       s=document.createElement('style');
-      s.id='slm-preview3-first-paint';
+      s.id='slm-preview4-first-paint';
       s.textContent='body.slb-merchant{--safe-bottom:0px!important}body.slb-merchant .slm-app{height:auto!important;min-height:100vh!important;overflow:visible!important;padding-bottom:92px!important}body.slb-merchant .slm-page{height:auto!important;max-height:none!important;overflow:visible!important;padding-bottom:118px!important}body.slb-merchant .slm-bottom{position:fixed!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;height:72px!important;min-height:72px!important;padding:0!important;margin:0!important;transform:none!important;background:#fff!important;z-index:9999!important}body.slb-merchant .slm-bottom button{font-size:11px!important;line-height:1.1!important;padding:0 2px!important}body.slb-merchant .slm-bottom button i{font-size:22px!important}.slm-panel .slm-form-actions{position:static!important;bottom:auto!important;margin:12px 0 6px!important;padding:0!important;background:#fff!important}';
       document.head.appendChild(s);
     }
@@ -130,8 +161,8 @@ preview3 = r'''
   }
 })();
 '''
-if 'slm-preview3-first-paint' not in pt:
-    pt += preview3
+if 'slm-preview4-first-paint' not in pt:
+    pt += preview4
 polish.write_text(pt, encoding='utf-8')
 
 # ---------------------------------------------------------------------------
@@ -162,8 +193,8 @@ t = replace_method(t, '    private void applyWebFix()', r'''    private void app
                 + "d.style.setProperty('height','auto','important');d.style.setProperty('min-height','100%','important');d.style.setProperty('overflow-x','hidden','important');d.style.setProperty('overflow-y','auto','important');d.style.setProperty('touch-action','pan-y','important');"
                 + "b.style.setProperty('position','static','important');b.style.setProperty('height','auto','important');b.style.setProperty('min-height','100%','important');b.style.setProperty('overflow-x','hidden','important');b.style.setProperty('overflow-y','auto','important');b.style.setProperty('touch-action','pan-y','important');b.style.setProperty('-webkit-overflow-scrolling','touch','important');b.style.setProperty('overscroll-behavior-y','auto','important');"
                 + "if(r){r.style.setProperty('position','static','important');r.style.setProperty('height','auto','important');r.style.setProperty('min-height','100%','important');r.style.setProperty('overflow','visible','important');r.style.setProperty('touch-action','pan-y','important');}"
-                + "['slm-native-layout-141','slm-native-layout-142','slm-native-layout-beta2','slm-native-layout-beta3'].forEach(function(id){var x=document.getElementById(id);if(x)x.remove();});"
-                + "var s=document.createElement('style');s.id='slm-native-layout-beta3';"
+                + "['slm-native-layout-141','slm-native-layout-142','slm-native-layout-beta2','slm-native-layout-beta4'].forEach(function(id){var x=document.getElementById(id);if(x)x.remove();});"
+                + "var s=document.createElement('style');s.id='slm-native-layout-beta4';"
                 + "s.textContent='body.slb-merchant{--safe-bottom:0px!important}body.slb-merchant .slm-app{position:relative!important;height:auto!important;min-height:100vh!important;display:block!important;overflow:visible!important;padding-bottom:92px!important}body.slb-merchant .slm-top{position:sticky!important;top:0!important;z-index:80!important}body.slb-merchant .slm-page{position:relative!important;height:auto!important;min-height:calc(100vh - 160px)!important;max-height:none!important;overflow:visible!important;touch-action:pan-y!important;padding-bottom:118px!important}body.slb-merchant .slm-bottom{position:fixed!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;width:100%!important;height:72px!important;min-height:72px!important;padding:0!important;margin:0!important;transform:none!important;box-sizing:border-box!important;background:#fff!important;z-index:9999!important}body.slb-merchant .slm-bottom button{font-size:11px!important;line-height:1.1!important;padding:0 2px!important;min-width:0!important}body.slb-merchant .slm-bottom button i{font-size:22px!important;line-height:1!important}body.slb-merchant .slm-product-row,body.slb-merchant .slm-order{touch-action:pan-y!important}.slm-panel .slm-form-actions{position:static!important;bottom:auto!important;margin:12px 0 6px!important;padding:0!important}';"
                 + "document.head.appendChild(s);"
                 + "var panel=document.getElementById('slm-panel'),stock=panel&&panel.querySelector('.slm-stock-management'),actions=panel&&panel.querySelector('.slm-form-actions');if(stock&&actions&&stock.nextElementSibling!==actions)stock.insertAdjacentElement('afterend',actions);"
@@ -174,8 +205,8 @@ activity.write_text(t, encoding='utf-8')
 
 gradle = ROOT / 'merchant/build.gradle'
 t = gradle.read_text(encoding='utf-8')
-t = once(t, 'versionCode 143', 'versionCode 14303', 'Merchant beta versionCode')
-t = once(t, "versionName '1.1.43'", "versionName '1.1.43-preview3'", 'Merchant beta versionName')
+t = once(t, 'versionCode 143', 'versionCode 14304', 'Merchant beta versionCode')
+t = once(t, "versionName '1.1.43'", "versionName '1.1.43-preview4'", 'Merchant beta versionName')
 gradle.write_text(t, encoding='utf-8')
 
 manifest = ROOT / 'merchant/src/main/AndroidManifest.xml'
@@ -190,17 +221,20 @@ final_manifest = manifest.read_text(encoding='utf-8')
 final_polish = polish.read_text(encoding='utf-8')
 
 assert '/shishalove-merchant-beta/' in final_main
-assert 'merchant-preview-3' in final_main
+assert 'merchant-preview-4' in final_main
 assert 'WebSettings.LOAD_CACHE_ELSE_NETWORK' in final_main
+assert 'hideSnapshotFailsafe' in final_main
+assert 'postDelayed(hideSnapshotFailsafe, 1400)' in final_main
+assert 'snapshotOverlay.removeCallbacks(hideSnapshotFailsafe)' in final_main
 assert 'view.postDelayed(() -> {' in final_main
-assert 'versionCode 14303' in final_gradle
-assert "versionName '1.1.43-preview3'" in final_gradle
+assert 'versionCode 14304' in final_gradle
+assert "versionName '1.1.43-preview4'" in final_gradle
 assert 'ShishaLove Merchant Beta' in final_manifest
 assert 'POST_NOTIFICATIONS' in final_manifest
-assert 'slm-native-layout-beta3' in final_activity
+assert 'slm-native-layout-beta4' in final_activity
 assert "padding-bottom:118px!important" in final_activity
 assert "height:72px!important" in final_activity
-assert "slm-preview3-first-paint" in final_polish
+assert "slm-preview4-first-paint" in final_polish
 assert "stock.insertAdjacentElement('afterend',actions)" in final_polish
 assert ".slm-panel .slm-form-actions{position:static!important" in final_polish
-print('Merchant Beta Preview 3: cold-open nav + instant reload + editor actions MASTER FIX prepared')
+print('Merchant Beta Preview 4: startup overlay fail-safe + cold-open nav + instant reload + editor actions MASTER FIX prepared')
