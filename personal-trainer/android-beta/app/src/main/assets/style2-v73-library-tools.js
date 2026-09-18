@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const VERSION='3.0.2-exercise-equipment-swipe';
+const VERSION='3.0.3-exercise-equipment-swipe';
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -281,7 +281,7 @@ function injectMoreShortcut(){
 }
 function repair(){
  addTrainTools();filterTrainLibrary();injectMoreShortcut();bindSwipeGestures();
- const label=$('#topLabel');if(label)label.textContent='ILIA COACH · ALL-IN-ONE · V7 · 3.0.2';
+ const label=$('#topLabel');if(label)label.textContent='KINETIQ';
 }
 function init(){
  if(!window.PT29||!window.ILIA_V7||!window.PT29Admin||!window.S){setTimeout(init,120);return}
