@@ -1,0 +1,82 @@
+name: ShishaLove Merchant Beta Preview APK
+
+on:
+  push:
+    branches: [shishalove-staging]
+    paths:
+      - 'shishalove-staging/patch-merchant-beta-preview.py'
+      - '.github/workflows/shishalove-merchant-beta-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Apply side-by-side Merchant beta patch
+        run: |
+          set -euo pipefail
+          python3 shishalove-staging/patch-merchant-beta-preview.py
+          G='shishalove-mobile/merchant/build.gradle'
+          M='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+          X='shishalove-mobile/merchant/src/main/AndroidManifest.xml'
+          grep -Fq 'versionCode 14301' "$G"
+          grep -Fq "versionName '1.1.43-preview1'" "$G"
+          grep -Fq '/shishalove-merchant-beta/' "$M"
+          grep -Fq 'ShishaLove Merchant Beta' "$X"
+          grep -Fq 'android.permission.POST_NOTIFICATIONS' "$X"
+
+      - name: Build beta APK
+        working-directory: shishalove-mobile
+        run: gradle :merchant:assembleDebug --stacktrace
+
+      - name: Verify side-by-side identity
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APK='shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk'
+          "$AAPT" dump badging "$APK" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='14301'"
+          mkdir -p dist
+          cp "$APK" dist/ShishaLove-Merchant-BETA-PREVIEW-1.apk
+          sha256sum dist/ShishaLove-Merchant-BETA-PREVIEW-1.apk > dist/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-merchant-beta-preview-1
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish beta preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-merchant-beta-preview-1'
+          NOTES='Side-by-side test APK only. Package eu.shishalove.merchant.dev, so it does not replace the production Merchant app. Loads /shishalove-merchant-beta/ to test the exact Merchant UI, live partial Products/Stock search, fresh order synchronization and native Android order notifications before MASTER UPDATE.'
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/ShishaLove-Merchant-BETA-PREVIEW-1.apk dist/SHA256SUMS.txt --clobber
+            gh release edit "$TAG" --title 'ShishaLove Merchant — Beta Preview 1' --notes "$NOTES" --target shishalove-staging
+          else
+            gh release create "$TAG" dist/ShishaLove-Merchant-BETA-PREVIEW-1.apk dist/SHA256SUMS.txt --title 'ShishaLove Merchant — Beta Preview 1' --notes "$NOTES" --target shishalove-staging
+          fi
