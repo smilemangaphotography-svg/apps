@@ -74,31 +74,13 @@ t = replace_method(t, '    private void showLastSnapshot()', r'''    private voi
 
 # Do not hide the previous frame at first visual commit; Bridge data/layout may
 # still be hydrating. Hide only after onPageFinished and a short paint window.
-old_commit = '''            @Override
-            public void onPageCommitVisible(WebView view, String url) {
+t = replace_method(t, '            public void onPageCommitVisible(WebView view, String url)', r'''            public void onPageCommitVisible(WebView view, String url) {
                 super.onPageCommitVisible(view, url);
                 applyRuntimeJs(view);
                 progressBar.setVisibility(View.GONE);
-                hideLastSnapshot();
-            }'''
-new_commit = '''            @Override
-            public void onPageCommitVisible(WebView view, String url) {
-                super.onPageCommitVisible(view, url);
-                applyRuntimeJs(view);
-                progressBar.setVisibility(View.GONE);
-            }'''
-t = once(t, old_commit, new_commit, 'keep snapshot through commit')
+            }''')
 
-old_finished = '''            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                applyRuntimeJs(view);
-                progressBar.setVisibility(View.GONE);
-                hideLastSnapshot();
-                captureSnapshot();
-            }'''
-new_finished = '''            @Override
-            public void onPageFinished(WebView view, String url) {
+t = replace_method(t, '            public void onPageFinished(WebView view, String url)', r'''            public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 applyRuntimeJs(view);
                 progressBar.setVisibility(View.GONE);
@@ -107,8 +89,7 @@ new_finished = '''            @Override
                     hideLastSnapshot();
                     captureSnapshot();
                 }, 220);
-            }'''
-t = once(t, old_finished, new_finished, 'delay snapshot hide until hydrated paint')
+            }''')
 main.write_text(t, encoding='utf-8')
 
 # ---------------------------------------------------------------------------
