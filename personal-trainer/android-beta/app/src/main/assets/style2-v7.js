@@ -160,7 +160,11 @@ function dateStrip(){
   </button>`}).join('')}</div><div class="v7-swipe">← swipe real calendar days → · tap any date</div>`;
 }
 function centerDate(){
- const a=$v('.v7-day.active');if(a)setTimeout(()=>a.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'}),20);
+ const a=$v('.v7-day.active'),strip=$v('.v7-days');
+ if(a&&strip){
+  const left=Math.max(0,a.offsetLeft-(strip.clientWidth-a.offsetWidth)/2);
+  strip.scrollLeft=left;
+ }
 }
 function tabs(){
  return `<div class="v7-tabs">
