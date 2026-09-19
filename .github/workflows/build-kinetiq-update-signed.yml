@@ -137,11 +137,14 @@ jobs:
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
           grep -q "versionCode 47" personal-trainer/android-beta/app/build.gradle
           grep -q "versionName '3.0.7'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'android:icon="@mipmap/kinetiq_launcher_final"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'android:roundIcon="@mipmap/kinetiq_launcher_final"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q 'android:icon="@mipmap/kinetiq_launcher_v307"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@mipmap/kinetiq_launcher_v307_round"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_final.webp
           test -s personal-trainer/android-beta/app/src/main/res/mipmap-xxxhdpi/kinetiq_launcher_final.webp
-          test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_final.xml
+          test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307.xml
+          test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307_round.xml
+          grep -q '@drawable/kinetiq_launcher_foreground_final' personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307.xml
+          grep -q '@drawable/kinetiq_launcher_background_final' personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307.xml
           test -s "$A/kinetiq-cover-locked.webp"
           python3 - <<'PY'
           from PIL import Image
