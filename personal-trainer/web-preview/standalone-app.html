@@ -465,9 +465,10 @@ body{min-height:100dvh}
  };
 })();
 </script>
+<style>#mainApp:not(.hidden){display:grid!important}</style>
 </head>
 <body>
-<section id="style2Cover" class="cover-screen hidden" aria-hidden="true"></section>
+<section id="style2Cover" class="cover-screen hidden" aria-hidden="true"><button id="coverEnter" type="button" aria-hidden="true" tabindex="-1" style="display:none"></button><button id="coverSettings" type="button" aria-hidden="true" tabindex="-1" style="display:none"></button></section>
 <div id="app">
  <section id="builder" class="builder hidden">
   <div class="builder-progress" id="builderProgress"></div>
