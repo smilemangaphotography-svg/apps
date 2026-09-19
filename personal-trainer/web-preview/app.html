@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#090909">
+<title>KINETIQ 3.0.5 — Hosted App</title>
+<base href="https://cdn.jsdelivr.net/gh/smilemangaphotography-svg/apps@cc12c9a79c5f79e25dc9c8865d3904250db33d26/personal-trainer/android-beta/app/src/main/assets/">
+<link rel="stylesheet" href="app-v2.css">
+<link rel="stylesheet" href="style2-v29.css">
+<link rel="stylesheet" href="style2-v29-focus.css">
+<link rel="stylesheet" href="style2-v29-master-mockup.css">
+<link rel="stylesheet" href="style2-v29-master-fix.css">
+<link rel="stylesheet" href="style2-v7.css">
+<link rel="stylesheet" href="style2-v7-final-fix.css">
+<link rel="stylesheet" href="style2-v73-library-tools.css">
+<style>
+html,body{margin:0;width:100%;min-height:100%;background:#08090a;overscroll-behavior:none}
+body{min-height:100dvh}
+.cover-screen.kinetiq-cover-locked{
+ position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;
+ overflow:hidden!important;z-index:500!important;background:#08090a!important;display:grid!important;place-items:center!important;
+ padding:0!important;margin:0!important
+}
+.kinetiq-cover-frame{position:relative!important;width:100vw!important;height:100dvh!important;max-width:100vw!important;max-height:100dvh!important;overflow:hidden!important}
+.kinetiq-cover-locked-art{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;display:block!important;pointer-events:none!important;user-select:none!important;-webkit-user-drag:none!important}
+.kinetiq-cover-locked-enter{
+ position:absolute!important;left:50.4%!important;top:80.6%!important;width:24%!important;aspect-ratio:1/1!important;height:auto!important;
+ transform:translate(-50%,-50%)!important;border:0!important;border-radius:50%!important;background:transparent!important;color:transparent!important;
+ box-shadow:none!important;padding:0!important;margin:0!important;z-index:5!important;cursor:pointer!important;touch-action:manipulation!important;
+ -webkit-tap-highlight-color:transparent!important
+}
+.kinetiq-cover-locked-enter:focus-visible{outline:2px solid rgba(255,218,155,.92)!important;outline-offset:4px!important}
+.kinetiq-cover-locked-settings{display:none!important}
+#previewStatus{position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:9999;
+ font:700 11px/1.2 system-ui,sans-serif;letter-spacing:.4px;color:#fff;background:rgba(0,0,0,.75);padding:8px 11px;border-radius:999px;
+ opacity:0;pointer-events:none;transition:opacity .2s}
+#previewStatus.show{opacity:1}
+</style>
+<script>
+(function(){
+ if(window.PTNative)return;
+ let watchId=null;
+ function status(msg){try{window.PT25&&window.PT25.onGpsStatus&&window.PT25.onGpsStatus(msg)}catch(e){}}
+ window.PTNative={
+  startLocation:function(){
+   if(!navigator.geolocation){status('GPS unavailable in this browser');return}
+   if(watchId!==null)return;
+   status('Starting GPS...');
+   watchId=navigator.geolocation.watchPosition(function(p){
+    const c=p.coords||{},speed=Number.isFinite(c.speed)?c.speed:0,accuracy=Number.isFinite(c.accuracy)?c.accuracy:0;
+    try{window.PT25&&window.PT25.onLocation&&window.PT25.onLocation(c.latitude,c.longitude,speed,accuracy,Date.now());status('GPS tracking started')}catch(e){}
+   },function(err){status(err&&err.message?err.message:'Location permission denied')},{enableHighAccuracy:true,maximumAge:1000,timeout:15000});
+  },
+  stopLocation:function(){if(watchId!==null&&navigator.geolocation)navigator.geolocation.clearWatch(watchId);watchId=null;status('GPS stopped')},
+  speak:function(text){try{if(!text||!('speechSynthesis'in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text));u.rate=1;u.pitch=1;speechSynthesis.speak(u)}catch(e){}},
+  hasLocationPermission:function(){return true}
+ };
+})();
+</script>
+</head>
+<body>
+<section id="style2Cover" class="cover-screen hidden" aria-hidden="true"></section>
+<div id="app">
+ <section id="builder" class="builder hidden">
+  <div class="builder-progress" id="builderProgress"></div>
+  <div id="builderBody"></div>
+  <div class="builder-footer"><button id="builderBack" class="btn ghost">← BACK</button><button id="builderNext" class="btn lime">CONTINUE <span>→</span></button></div>
+ </section>
+ <main id="mainApp" class="main-app hidden">
+  <header class="app-topbar"><div><div class="tiny-label" id="topLabel">ILIA COACH · ALL-IN-ONE · V7 · 3.0.2</div><div class="top-title" id="topTitle">Home</div></div><button id="topProfile" class="icon-btn" aria-label="Settings">⚙</button></header>
+  <section id="pageHome" class="page active" data-page="home"></section>
+  <section id="pagePlan" class="page" data-page="plan"></section>
+  <section id="pageTrain" class="page" data-page="train"></section>
+  <section id="pageFuel" class="page" data-page="fuel"></section>
+  <section id="pageMore" class="page" data-page="more"></section>
+  <nav class="bottom-nav">
+   <button class="nav-btn active" data-nav="home"><span class="nav-icon">⌂</span><small>HOME</small></button>
+   <button class="nav-btn" data-nav="plan"><span class="nav-icon">▦</span><small>PLAN</small></button>
+   <button class="nav-btn" data-nav="train"><span class="nav-icon">▣</span><small>TRAIN</small></button>
+   <button class="nav-btn" data-nav="fuel"><span class="nav-icon">◔</span><small>FUEL</small></button>
+   <button class="nav-btn" data-nav="more"><span class="nav-icon">•••</span><small>MORE</small></button>
+  </nav>
+ </main>
+ <section id="exerciseDetail" class="overlay hidden"></section>
+ <section id="workoutOverlay" class="overlay workout hidden"></section>
+ <section id="restOverlay" class="overlay rest hidden"></section>
+ <section id="runOverlay" class="overlay hidden"></section>
+ <section id="sheet" class="sheet hidden"><div id="sheetCard" class="sheet-card"></div></section>
+ <div id="toast" class="toast"></div>
+ <button id="driveButton" class="hidden" type="button" aria-hidden="true" tabindex="-1"></button>
+ <input id="audioPicker" class="hidden" type="file" accept="audio/*" multiple>
+ <audio id="audioPlayer"></audio>
+ <input id="activityPicker" class="hidden" type="file" accept=".gpx,.tcx,.csv,text/*">
+ <input id="exerciseFilePicker" class="hidden" type="file" accept="video/mp4,video/*,image/*">
+ <input id="galleryFilePicker" class="hidden" type="file" accept="image/*">
+</div>
+
+<script src="style2-v29-runtime-preflight.js"></script>
+<script src="app-v2.js"></script>
+<script src="pt-v25-core.js"></script>
+<script src="style2-v29.js"></script>
+<script src="style2-v29-admin.js"></script>
+<script src="style2-v29-focus.js"></script>
+<script src="style2-v29-priority-engine.js"></script>
+<script src="style2-v29-master-mockup.js"></script>
+<script src="style2-v29-master-fix.js"></script>
+<script src="style2-v7.js"></script>
+<script src="style2-v7-final-fix.js"></script>
+<script>try{window.S=S}catch(e){}</script>
+<script src="style2-v73-library-tools.js"></script>
+<script src="style2-v73-refresh.js"></script>
+<script>
+(function(){
+ const s=document.getElementById('previewStatus'),q=document.getElementById('coverEnter');
+ function msg(t){s.textContent=t;s.classList.add('show');setTimeout(()=>s.classList.remove('show'),2200)}
+ q.addEventListener('click',function(){
+  setTimeout(function(){
+   if(!document.getElementById('style2Cover').classList.contains('hidden') && !window.PT29) msg('App scripts are still loading — tap Q again in a moment');
+  },500)
+ },{passive:true});
+ window.addEventListener('error',function(e){if(String(e.message||'').includes('Script'))msg('A preview script failed to load')});
+})();
+</script>
+<script>
+(function(){
+  function diagnostic(){
+    var missing=[];
+    if(!window.PT29) missing.push('core');
+    if(!window.ILIA_V7) missing.push('V7');
+    if(!window.ILIA_V73) missing.push('library');
+    if(missing.length){
+      var s=document.getElementById('previewStatus');
+      if(s){s.textContent='Preview load error: '+missing.join(', ')+' — refresh once';s.classList.add('show');}
+    }
+  }
+  setTimeout(diagnostic,3500);
+})();
+</script>
+
+<script>
+(function enterHostedApp(){
+  var tries=0;
+  function go(){
+    tries++;
+    try{
+      var cover=document.getElementById('style2Cover');
+      if(cover) cover.classList.add('hidden');
+      if(window.PT29 && typeof window.PT29.showMain==='function'){
+        window.PT29.showMain('home');
+        return;
+      }
+      if(typeof window.showMain==='function'){
+        window.showMain('home');
+        return;
+      }
+    }catch(e){}
+    if(tries<80) setTimeout(go,100);
+    else {
+      document.body.insertAdjacentHTML('beforeend',
+        '<div style="position:fixed;left:14px;right:14px;bottom:20px;z-index:9999;background:#7d1f1f;color:#fff;padding:12px 14px;border-radius:14px;font:700 12px system-ui">KINETIQ runtime did not initialize. Refresh this page once.</div>');
+    }
+  }
+  window.addEventListener('load',function(){setTimeout(go,100)});
+})();
+</script>
+</body>
+</html>
