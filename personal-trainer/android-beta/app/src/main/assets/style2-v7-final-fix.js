@@ -43,8 +43,11 @@ function makeCardsAccessible(){
 }
 
 function keepSelectedDateReadable(){
-  const active=$('.v7-day.active');
-  if(active) setTimeout(()=>active.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'}),35);
+  const active=$('.v7-day.active'),strip=$('.v7-days');
+  if(active&&strip){
+    const left=Math.max(0,active.offsetLeft-(strip.clientWidth-active.offsetWidth)/2);
+    strip.scrollLeft=left;
+  }
 }
 
 function repair(){
