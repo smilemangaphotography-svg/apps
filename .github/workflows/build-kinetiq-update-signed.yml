@@ -1,0 +1,160 @@
+name: Build KINETIQ 3.0.5 In-Place Update
+
+on:
+  push:
+    branches: [ personal-trainer-main ]
+    paths:
+      - '.github/workflows/build-kinetiq-update-signed.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout canonical branch
+        uses: actions/checkout@v4
+        with:
+          ref: personal-trainer-main
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.10.2
+
+      - name: Install Android SDK packages and ffmpeg
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(command -v sdkmanager)"; fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+      - name: Import proven anatomy motion library
+        shell: bash
+        run: |
+          set -euo pipefail
+          A=personal-trainer/android-beta/app/src/main/assets
+          mkdir -p "$A/media/adaptive" /tmp/ilia110
+          git fetch --depth=1 origin rebuild/ilias-coach-v2
+          git show FETCH_HEAD:ILIA-SAFE-SOURCE.bin > /tmp/ilia110/source.zip
+          unzip -q /tmp/ilia110/source.zip -d /tmp/ilia110/source
+          SRC=/tmp/ilia110/source/Ilias-Coach/app/src/main/assets/media/anatomy
+          test -d "$SRC"
+          cp -a "$SRC"/. "$A/media/adaptive/"
+          test -s "$A/media/adaptive/leg-press.mp4"
+          test -s "$A/media/adaptive/supported-bulgarian-split-squat.mp4"
+
+      - name: Validate KINETIQ update source
+        shell: bash
+        run: |
+          set -euo pipefail
+          A=personal-trainer/android-beta/app/src/main/assets
+          node --check "$A/app-v2.js"
+          node --check "$A/style2-v29.js"
+          node --check "$A/style2-v7.js"
+          node --check "$A/style2-v7-final-fix.js"
+          node --check "$A/style2-v73-library-tools.js"
+          node --check "$A/style2-v305-master-fix.js"
+          grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionCode 45" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.5'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'android:icon="@drawable/kinetiq_launcher_k"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q 'style2-v305-master-fix.js' "$A/index29.html"
+          grep -q 'COMPLETED WORKOUT' "$A/style2-v305-master-fix.js"
+
+      - name: Build unsigned release APK
+        run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleRelease
+
+      - name: Sign with preserved owner update key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          UNSIGNED=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
+          ALIGNED=release/KINETIQ-3.0.5-UPDATE-aligned.apk
+          SIGNED=release/KINETIQ-3.0.5-UPDATE.apk
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+
+          test -s "$UNSIGNED"
+          "$BT/zipalign" -f -p 4 "$UNSIGNED" "$ALIGNED"
+
+          python3 - <<'PY'
+          import os, re, subprocess, zipfile
+          archive='ILIA-SAFE-SOURCE.bin'
+          gradle_path='Ilias-Coach/app/build.gradle'
+          key_path='Ilias-Coach/owner-debug.jks'
+          with zipfile.ZipFile(archive) as z:
+              gradle=z.read(gradle_path).decode('utf-8')
+              key=z.read(key_path)
+
+          def grab(name):
+              m=re.search(r"\b"+re.escape(name)+r"\s+['\"]([^'\"]+)['\"]", gradle)
+              if not m:
+                  raise SystemExit('Missing signing value: '+name)
+              return m.group(1)
+
+          store_password=grab('storePassword')
+          key_alias=grab('keyAlias')
+          key_password=grab('keyPassword')
+          ks='/tmp/kinetiq-owner-update.jks'
+          with open(ks,'wb') as f:
+              f.write(key)
+
+          bt=os.path.join(os.environ['ANDROID_HOME'],'build-tools','35.0.0')
+          cmd=[
+              os.path.join(bt,'apksigner'),'sign',
+              '--ks',ks,
+              '--ks-key-alias',key_alias,
+              '--ks-pass','pass:'+store_password,
+              '--key-pass','pass:'+key_password,
+              '--out','release/KINETIQ-3.0.5-UPDATE.apk',
+              'release/KINETIQ-3.0.5-UPDATE-aligned.apk'
+          ]
+          subprocess.run(cmd,check=True,stdout=subprocess.DEVNULL)
+          PY
+
+          rm -f "$ALIGNED" /tmp/kinetiq-owner-update.jks
+
+      - name: Verify in-place update APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=release/KINETIQ-3.0.5-UPDATE.apk
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          AAPT="$BT/aapt"
+          test -s "$APK"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='45' versionName='3.0.5'"
+          "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
+          "$BT/apksigner" verify --verbose "$APK"
+          CERT="$("$BT/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1 | tr 'A-F' 'a-f')"
+          test "$CERT" = "4d7cd06f969d9c4b1e3e361440544a27dc187a125851655aa45796453d50c3a8"
+          sha256sum "$APK" | tee release/SHA256SUMS.txt
+          printf '%s\n'             'KINETIQ 3.0.5 IN-PLACE UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 45'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
+
+      - name: Upload signed update
+        uses: actions/upload-artifact@v4
+        with:
+          name: KINETIQ-3.0.5-IN-PLACE-UPDATE
+          path: |
+            release/KINETIQ-3.0.5-UPDATE.apk
+            release/SHA256SUMS.txt
+            release/UPDATE-INSTRUCTIONS.txt
+          if-no-files-found: error
+          retention-days: 30
