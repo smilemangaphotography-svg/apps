@@ -1,0 +1,44 @@
+name: Deploy KINETIQ Web Preview
+
+on:
+  push:
+    branches: [ personal-trainer-main ]
+    paths:
+      - 'personal-trainer/web-preview/**'
+      - '.github/workflows/deploy-kinetiq-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: kinetiq-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: personal-trainer-main
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload KINETIQ preview
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: personal-trainer/web-preview
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
