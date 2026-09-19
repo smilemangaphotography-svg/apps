@@ -15,6 +15,7 @@ import android.net.Uri;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.view.ViewGroup;
+import android.view.MotionEvent;
 import android.view.WindowInsets;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
@@ -106,6 +107,17 @@ public class MainActivity extends Activity {
         });
         webView.addJavascriptInterface(new PTBridge(), "PTNative");
 
+        // KINETIQ 3.0.9: native cover-entry fallback.
+        // The approved cover is a WebView asset with a transparent HTML hit target.
+        // Samsung/WebView touch dispatch can miss that transparent target, so Android
+        // independently confirms whether the cover is visible and performs the same entry.
+        webView.setOnTouchListener((v, event) -> {
+            if (event != null && event.getActionMasked() == MotionEvent.ACTION_UP) {
+                enterCoverFromNative(0);
+            }
+            return false;
+        });
+
         webView.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
@@ -147,6 +159,24 @@ public class MainActivity extends Activity {
         });
 
         webView.loadUrl("file:///android_asset/index29.html");
+    }
+
+    private void enterCoverFromNative(int attempt) {
+        if (webView == null || isFinishing()) return;
+        final String js = "(function(){try{" +
+                "var c=document.getElementById('style2Cover');" +
+                "if(!c||c.classList.contains('hidden')||getComputedStyle(c).display==='none')return 'inactive';" +
+                "var s=(typeof S!=='undefined')?S:(window.S||null);" +
+                "if(s&&s.built&&window.PT29&&typeof window.PT29.showMain==='function'){window.PT29.showMain('home');return 'entered-main';}" +
+                "if(s&&typeof window.showBuilder==='function'){window.showBuilder(Number(s.builderStep)||0);return 'entered-builder';}" +
+                "if(window.PT29&&typeof window.PT29.showMain==='function'){window.PT29.showMain('home');return 'entered-fallback';}" +
+                "return 'not-ready';" +
+                "}catch(e){return 'error';}})()";
+        webView.evaluateJavascript(js, value -> {
+            if ("\"not-ready\"".equals(value) && attempt < 8 && webView != null) {
+                webView.postDelayed(() -> enterCoverFromNative(attempt + 1), 100L);
+            }
+        });
     }
 
     private void verifyRuntimeReady(WebView view, int attempt) {
