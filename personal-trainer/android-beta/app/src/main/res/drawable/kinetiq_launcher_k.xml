@@ -1,16 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
     <path
         android:fillColor="#07120D"
-        android:pathData="M54,4 A50,50 0,1 1,53.9,4 Z" />
+        android:pathData="M0,0H108V108H0Z" />
+
+    <!-- Exact custom K geometry extracted from the approved KINETIQ wordmark.
+         This is intentionally NOT a normal font glyph. -->
     <path
-        android:fillColor="#F3E9D2"
-        android:pathData="M31,24 L42,24 L42,49 L65,24 L79,24 L52,53 L81,84 L66,84 L42,58 L42,84 L31,84 Z" />
-    <path
-        android:fillColor="#CAFF36"
-        android:pathData="M68,24 L79,24 L53,52 L47,46 Z" />
+        android:pathData="M21,25 L22.45,83 L42.75,55.45 L86.25,83 L50,51.1 L84.8,25 L34.05,54 L29.7,26.45 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54"
+                android:startY="25"
+                android:endX="54"
+                android:endY="83"
+                android:startColor="#FFFDF4"
+                android:centerColor="#F1DEB0"
+                android:endColor="#D39A55" />
+        </aapt:attr>
+    </path>
 </vector>
