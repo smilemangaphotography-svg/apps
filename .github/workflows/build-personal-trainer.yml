@@ -1,4 +1,4 @@
-name: Build KINETIQ Cover Fix 3.0.5
+name: Build KINETIQ Master Asset Fix 3.0.7
 
 on:
   workflow_dispatch:
@@ -66,6 +66,18 @@ jobs:
           test -s "$A/media/adaptive/front-plank.mp4"
           test -s "$A/media/adaptive/rope-triceps-pressdown.mp4"
 
+      - name: Install approved KINETIQ visual assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          A=personal-trainer/android-beta/app/src/main/assets
+          R=personal-trainer/android-beta/app/src/main/res/drawable-nodpi
+          mkdir -p "$A" "$R"
+          curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/a8a7750e-58e2-4dc8-9267-18f2e5bf7c8b.png' -o "$A/kinetiq-cover-approved-v307.png"
+          echo '861115ad7c8f0bc6a26f087bc69fbbbb42e7941d6661582b65bc535790a0e087  '"$A"'/kinetiq-cover-approved-v307.png' | sha256sum -c -
+          curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/9d5261e2-b84f-43a2-8ac8-c5888efdd969.png' -o "$R/kinetiq_launcher_foreground_v307.png"
+          echo '67cf5458ceeb594d81e7229853e98ae9ab024568426e90a6f76a27d50b227e16  '"$R"'/kinetiq_launcher_foreground_v307.png' | sha256sum -c -
+
       - name: Validate KINETIQ runtime
         shell: bash
         run: |
@@ -90,9 +102,9 @@ jobs:
           test -s "$A/style2-v73-library-tools.css"
           test -s "$A/style2-v305-master-fix.css"
           grep -q 'class="cover-screen kinetiq-cover-locked"' "$A/index29.html"
-          grep -q 'src="kinetiq-cover-locked.webp"' "$A/index29.html"
-          test -s "$A/kinetiq-cover-locked.webp"
-          echo 'c61fdb6acb60e908fbefce4c910fd764ebf9fa1ed00bc3f6af306910c5a091f6  '"$A"'/kinetiq-cover-locked.webp' | sha256sum -c -
+          grep -q 'src="kinetiq-cover-approved-v307.png"' "$A/index29.html"
+          test -s "$A/kinetiq-cover-approved-v307.png"
+          echo '861115ad7c8f0bc6a26f087bc69fbbbb42e7941d6661582b65bc535790a0e087  '"$A"'/kinetiq-cover-approved-v307.png' | sha256sum -c -
           ! grep -q 'OFFICIAL · V7' "$A/index29.html"
           grep -q 'UPLOAD EXERCISE' "$A/style2-v73-library-tools.js"
           grep -q 'EQUIPMENT / REMOVE' "$A/style2-v73-library-tools.js"
@@ -113,12 +125,12 @@ jobs:
           grep -q 'ILIA COACH 3.0.5 runtime failed to initialize' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           grep -q "querySelectorAll('\[data-swipe-exercise\]')" "$A/style2-v73-library-tools.js"
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.5'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'versionCode 45' personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.7'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'versionCode 47' personal-trainer/android-beta/app/build.gradle
           grep -q 'android:label="@string/app_name"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'android:icon="@drawable/kinetiq_launcher_k"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'android:roundIcon="@drawable/kinetiq_launcher_k"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          test -s personal-trainer/android-beta/app/src/main/res/drawable/kinetiq_launcher_k.xml
+          grep -q 'android:icon="@mipmap/kinetiq_launcher_v307"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@mipmap/kinetiq_launcher_v307_round"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          echo '67cf5458ceeb594d81e7229853e98ae9ab024568426e90a6f76a27d50b227e16  personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_v307.png' | sha256sum -c -
           grep -q 'style2-v305-master-fix.js' "$A/index29.html"
           grep -q 'style2-v305-master-fix.css' "$A/index29.html"
           grep -q 'COMPLETED WORKOUT' "$A/style2-v305-master-fix.js"
@@ -155,7 +167,7 @@ jobs:
           APK=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='45' versionName='3.0.5'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='47' versionName='3.0.7'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
           unzip -l "$APK" > /tmp/kinetiq-apk-list.txt
           grep -q 'assets/index29.html' /tmp/kinetiq-apk-list.txt
@@ -176,19 +188,19 @@ jobs:
           mkdir -p release/signing-tools/lib
           APK=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
-          "$BT/zipalign" -f -p 4 "$APK" release/KINETIQ-3.0.5-UNSIGNED.apk
-          "$BT/zipalign" -c -v 4 release/KINETIQ-3.0.5-UNSIGNED.apk
+          "$BT/zipalign" -f -p 4 "$APK" release/KINETIQ-3.0.7-UNSIGNED.apk
+          "$BT/zipalign" -c -v 4 release/KINETIQ-3.0.7-UNSIGNED.apk
           cp "$BT/apksigner" release/signing-tools/
           cp "$BT/zipalign" release/signing-tools/
           cp "$BT/lib/apksigner.jar" release/signing-tools/lib/
           chmod +x release/signing-tools/apksigner release/signing-tools/zipalign
-          cat > release/DIAGNOSTICS-KINETIQ-3.0.5.txt <<'REPORT'
-          KINETIQ 3.0.5 — COVER/ICON-ONLY PRODUCTION SOURCE
+          cat > release/DIAGNOSTICS-KINETIQ-3.0.7.txt <<'REPORT'
+          KINETIQ 3.0.7 — MASTER COVER + ADAPTIVE ICON
           Repository: smilemangaphotography-svg/apps
           Canonical branch: personal-trainer-main
           Package: com.ilia.personaltrainer
           App label: KINETIQ
-          Version: 3.0.3 / versionCode 45
+          Version: 3.0.7 / versionCode 47
           V7 real calendar + My Plan / Recommended / AI Recommended: PASS
           AI Coach approval workflow: PASS
           Better Option replacement + Add Exercise: PASS
@@ -203,12 +215,12 @@ jobs:
           WebView debugging disabled: PASS
           Signing status: UNSIGNED release artifact; sign with permanent owner key before installation/distribution.
           REPORT
-          sha256sum release/KINETIQ-3.0.5-UNSIGNED.apk > release/SHA256SUMS.txt
+          sha256sum release/KINETIQ-3.0.7-UNSIGNED.apk > release/SHA256SUMS.txt
 
       - name: Upload KINETIQ unsigned release
         uses: actions/upload-artifact@v4
         with:
-          name: KINETIQ-3.0.5-UNSIGNED
+          name: KINETIQ-3.0.7-UNSIGNED
           path: release/*
           if-no-files-found: error
           retention-days: 30
