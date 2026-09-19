@@ -1,0 +1,33 @@
+/* KINETIQ 3.0.5 — completion/current-day master fixes */
+.v305-progress-summary{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  margin:0 0 14px;padding:12px 14px;border:1px solid rgba(202,255,54,.28);
+  border-radius:16px;background:#0b1710;color:#f5f0e5;
+}
+.v305-progress-summary b{font-size:13px;letter-spacing:.2px}
+.v305-progress-summary span{font-size:11px;color:#9aa39b;font-weight:800}
+.v305-all-done{
+  margin:12px 0 4px;padding:22px 16px;border-radius:18px;
+  background:#142419;border:1px solid rgba(202,255,54,.42);
+  color:#caff36;text-align:center;font-weight:950;letter-spacing:.4px;
+}
+.v305-all-done small{display:block;margin-top:6px;color:#9ca69e;font-size:11px;font-weight:750;letter-spacing:0}
+.v305-completed-section{
+  margin-top:18px;padding:16px;border-radius:20px;
+  border:1px solid #26372c;background:#0b1510;
+}
+.v305-completed-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px}
+.v305-completed-head b{font-size:12px;color:#caff36;letter-spacing:1.5px}
+.v305-completed-head span{font-size:10px;color:#8d978f;font-weight:900}
+.v305-completed-row{
+  display:grid;grid-template-columns:32px 1fr;gap:10px;align-items:center;
+  padding:10px 0;border-top:1px solid #223027;
+}
+.v305-completed-row:first-of-type{border-top:0}
+.v305-completed-check{
+  width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
+  background:#caff36;color:#071009;font-weight:950;font-size:14px;
+}
+.v305-completed-row b{font-size:13px;color:#e8ece8}
+.v305-completed-row small{display:block;margin-top:3px;color:#7f8b82;font-size:10px}
+.v7-days{scroll-behavior:auto!important}
