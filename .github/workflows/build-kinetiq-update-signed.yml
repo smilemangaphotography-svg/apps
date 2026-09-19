@@ -123,6 +123,18 @@ jobs:
           test -s "$A/media/adaptive/leg-press.mp4"
           test -s "$A/media/adaptive/supported-bulgarian-split-squat.mp4"
 
+      - name: Install approved KINETIQ visual assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          A=personal-trainer/android-beta/app/src/main/assets
+          R=personal-trainer/android-beta/app/src/main/res/drawable-nodpi
+          mkdir -p "$A" "$R"
+          curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/a8a7750e-58e2-4dc8-9267-18f2e5bf7c8b.png' -o "$A/kinetiq-cover-approved-v307.png"
+          echo '861115ad7c8f0bc6a26f087bc69fbbbb42e7941d6661582b65bc535790a0e087  '"$A"'/kinetiq-cover-approved-v307.png' | sha256sum -c -
+          curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/9d5261e2-b84f-43a2-8ac8-c5888efdd969.png' -o "$R/kinetiq_launcher_foreground_v307.png"
+          echo '67cf5458ceeb594d81e7229853e98ae9ab024568426e90a6f76a27d50b227e16  '"$R"'/kinetiq_launcher_foreground_v307.png' | sha256sum -c -
+
       - name: Validate KINETIQ update source
         shell: bash
         run: |
