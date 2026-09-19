@@ -4,15 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#090909">
-<title>KINETIQ 3.0.5 — Full App WebView</title>
-<link rel="stylesheet" href="../android-beta/app/src/main/assets/app-v2.css">
-<link rel="stylesheet" href="../android-beta/app/src/main/assets/style2-v29.css">
-<link rel="stylesheet" href="../android-beta/app/src/main/assets/style2-v29-focus.css">
-<link rel="stylesheet" href="../android-beta/app/src/main/assets/style2-v29-master-mockup.css">
-<link rel="stylesheet" href="../android-beta/app/src/main/assets/style2-v29-master-fix.css">
-<link rel="stylesheet" href="../android-beta/app/src/main/assets/style2-v7.css">
-<link rel="stylesheet" href="../android-beta/app/src/main/assets/style2-v7-final-fix.css">
-<link rel="stylesheet" href="../android-beta/app/src/main/assets/style2-v73-library-tools.css">
+<title>KINETIQ 3.0.5 — Full App WebView FIX 2</title>
+<base href="https://cdn.jsdelivr.net/gh/smilemangaphotography-svg/apps@cc12c9a79c5f79e25dc9c8865d3904250db33d26/personal-trainer/android-beta/app/src/main/assets/">
+<link rel="stylesheet" href="app-v2.css">
+<link rel="stylesheet" href="style2-v29.css">
+<link rel="stylesheet" href="style2-v29-focus.css">
+<link rel="stylesheet" href="style2-v29-master-mockup.css">
+<link rel="stylesheet" href="style2-v29-master-fix.css">
+<link rel="stylesheet" href="style2-v7.css">
+<link rel="stylesheet" href="style2-v7-final-fix.css">
+<link rel="stylesheet" href="style2-v73-library-tools.css">
 <style>
 html,body{margin:0;width:100%;min-height:100%;background:#08090a;overscroll-behavior:none}
 body{min-height:100dvh}
@@ -21,7 +22,7 @@ body{min-height:100dvh}
  overflow:hidden!important;z-index:500!important;background:#08090a!important;display:grid!important;place-items:center!important;
  padding:0!important;margin:0!important
 }
-.kinetiq-cover-frame{position:relative!important;width:min(100vw,calc(100dvh * .5627990431))!important;aspect-ratio:941/1672!important;max-height:100dvh!important}
+.kinetiq-cover-frame{position:relative!important;width:100vw!important;height:100dvh!important;max-width:100vw!important;max-height:100dvh!important;overflow:hidden!important}
 .kinetiq-cover-locked-art{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important;object-position:center!important;display:block!important;pointer-events:none!important;user-select:none!important;-webkit-user-drag:none!important}
 .kinetiq-cover-locked-enter{
  position:absolute!important;left:50.4%!important;top:80.6%!important;width:24%!important;aspect-ratio:1/1!important;height:auto!important;
@@ -61,7 +62,7 @@ body{min-height:100dvh}
 <body>
 <section id="style2Cover" class="cover-screen kinetiq-cover-locked">
  <div class="kinetiq-cover-frame">
-  <img class="kinetiq-cover-locked-art" src="cover-final.jpg" alt="KINETIQ">
+  <img class="kinetiq-cover-locked-art" src="https://cdn.jsdelivr.net/gh/smilemangaphotography-svg/apps@cc12c9a79c5f79e25dc9c8865d3904250db33d26/personal-trainer/web-preview/cover-final.jpg" alt="KINETIQ">
   <button id="coverEnter" class="kinetiq-cover-locked-enter" aria-label="Enter KINETIQ"></button>
  </div>
  <button id="coverSettings" class="kinetiq-cover-locked-settings" aria-label="Settings"></button>
@@ -101,20 +102,20 @@ body{min-height:100dvh}
  <input id="galleryFilePicker" class="hidden" type="file" accept="image/*">
 </div>
 <div id="previewStatus"></div>
-<script src="../android-beta/app/src/main/assets/style2-v29-runtime-preflight.js"></script>
-<script src="../android-beta/app/src/main/assets/app-v2.js"></script>
-<script src="../android-beta/app/src/main/assets/pt-v25-core.js"></script>
-<script src="../android-beta/app/src/main/assets/style2-v29.js"></script>
-<script src="../android-beta/app/src/main/assets/style2-v29-admin.js"></script>
-<script src="../android-beta/app/src/main/assets/style2-v29-focus.js"></script>
-<script src="../android-beta/app/src/main/assets/style2-v29-priority-engine.js"></script>
-<script src="../android-beta/app/src/main/assets/style2-v29-master-mockup.js"></script>
-<script src="../android-beta/app/src/main/assets/style2-v29-master-fix.js"></script>
-<script src="../android-beta/app/src/main/assets/style2-v7.js"></script>
-<script src="../android-beta/app/src/main/assets/style2-v7-final-fix.js"></script>
+<script src="style2-v29-runtime-preflight.js"></script>
+<script src="app-v2.js"></script>
+<script src="pt-v25-core.js"></script>
+<script src="style2-v29.js"></script>
+<script src="style2-v29-admin.js"></script>
+<script src="style2-v29-focus.js"></script>
+<script src="style2-v29-priority-engine.js"></script>
+<script src="style2-v29-master-mockup.js"></script>
+<script src="style2-v29-master-fix.js"></script>
+<script src="style2-v7.js"></script>
+<script src="style2-v7-final-fix.js"></script>
 <script>try{window.S=S}catch(e){}</script>
-<script src="../android-beta/app/src/main/assets/style2-v73-library-tools.js"></script>
-<script src="../android-beta/app/src/main/assets/style2-v73-refresh.js"></script>
+<script src="style2-v73-library-tools.js"></script>
+<script src="style2-v73-refresh.js"></script>
 <script>
 (function(){
  const s=document.getElementById('previewStatus'),q=document.getElementById('coverEnter');
