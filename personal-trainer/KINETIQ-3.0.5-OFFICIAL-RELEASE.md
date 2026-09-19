@@ -1,6 +1,6 @@
 # KINETIQ 3.0.5 — OFFICIAL RELEASE LOCK
 
-Status: OFFICIAL IN-PLACE UPDATE CANDIDATE
+Status: OFFICIAL IN-PLACE UPDATE BUILD
 Release date: 2026-09-19
 Canonical repository: smilemangaphotography-svg/apps
 Canonical branch: personal-trainer-main
@@ -33,3 +33,16 @@ This release is intended to update the user's existing installed KINETIQ app in 
 
 ## In-place update gate
 The package identity is already preserved as com.ilia.personaltrainer and the new build uses versionCode 45. Android will accept it as an update only when it is signed with the same signing certificate as the currently installed KINETIQ build. If the existing signing certificate is different or unavailable, Android will reject the update and require uninstall/reinstall, which is explicitly not the intended path.
+
+
+## Signed update build
+- GitHub Actions run: 35457481499
+- Artifact: KINETIQ-3.0.5-IN-PLACE-UPDATE
+- APK filename: KINETIQ-3.0.5-UPDATE.apk
+- APK SHA-256: d5b872d43462099c7d7ce102a3a1f63970fea927e330d4f65deabcc10659d8f5
+- Package: com.ilia.personaltrainer
+- Version code: 45
+- Version name: 3.0.5
+- Signing certificate SHA-256: 4D:7C:D0:6F:96:9D:9C:4B:1E:3E:36:14:40:54:4A:27:DC:18:7A:12:58:51:65:5A:A4:57:96:45:3D:50:C3:A8
+- CI verification: PASS
+- Installation intent: install directly over the existing app; do not uninstall first.
