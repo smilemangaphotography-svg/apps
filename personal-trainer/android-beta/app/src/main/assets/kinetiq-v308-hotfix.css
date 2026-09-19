@@ -1,0 +1,11 @@
+/* KINETIQ 3.0.8 — launcher/tap hotfix. Approved cover artwork remains unchanged. */
+#style2Cover.kinetiq-cover-locked{pointer-events:auto!important}
+#style2Cover.kinetiq-cover-locked .kinetiq-cover-frame{pointer-events:auto!important}
+#style2Cover.kinetiq-cover-locked .kinetiq-cover-locked-art{pointer-events:none!important}
+#style2Cover.kinetiq-cover-locked .kinetiq-cover-locked-enter{
+  position:absolute!important;left:50.4%!important;top:80.6%!important;
+  width:36%!important;min-width:150px!important;max-width:250px!important;height:auto!important;
+  aspect-ratio:1/1!important;transform:translate(-50%,-50%)!important;
+  z-index:2147483000!important;pointer-events:auto!important;touch-action:manipulation!important;
+  user-select:none!important;-webkit-user-select:none!important;-webkit-tap-highlight-color:transparent!important
+}

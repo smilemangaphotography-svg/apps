@@ -1,4 +1,4 @@
-name: Build KINETIQ 3.0.7 In-Place Update
+name: Build KINETIQ 3.0.8 In-Place Update
 
 on:
   push:
@@ -134,6 +134,25 @@ jobs:
           echo '861115ad7c8f0bc6a26f087bc69fbbbb42e7941d6661582b65bc535790a0e087  '"$A"'/kinetiq-cover-approved-v307.png' | sha256sum -c -
           curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/9d5261e2-b84f-43a2-8ac8-c5888efdd969.png' -o "$R/kinetiq_launcher_foreground_v307.png"
           echo 'f6dba6ccdcfb362cdb5eea835bf0cf8b067faeec1c0a14f30bd59e18a6a82cd2  '"$R"'/kinetiq_launcher_foreground_v307.png' | sha256sum -c -
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          r=Path('personal-trainer/android-beta/app/src/main/res/drawable-nodpi')
+          src=Image.open(r/'kinetiq_launcher_foreground_v307.png').convert('RGBA')
+          bbox=src.getchannel('A').getbbox()
+          assert bbox is not None
+          glyph=src.crop(bbox)
+          scale=0.76
+          size=(max(1,round(glyph.width*scale)),max(1,round(glyph.height*scale)))
+          glyph=glyph.resize(size,Image.Resampling.LANCZOS)
+          out=Image.new('RGBA',src.size,(0,0,0,0))
+          out.alpha_composite(glyph,((src.width-glyph.width)//2,(src.height-glyph.height)//2))
+          out.save(r/'kinetiq_launcher_foreground_v308.png','PNG',optimize=True)
+          b=out.getchannel('A').getbbox()
+          assert b is not None
+          assert (b[2]-b[0]) <= src.width*0.80
+          assert (b[3]-b[1]) <= src.height*0.80
+          PY
 
       - name: Validate KINETIQ update source
         shell: bash
@@ -146,17 +165,18 @@ jobs:
           node --check "$A/style2-v7-final-fix.js"
           node --check "$A/style2-v73-library-tools.js"
           node --check "$A/style2-v305-master-fix.js"
+          node --check "$A/kinetiq-v308-hotfix.js"
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionCode 47" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.7'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'android:icon="@mipmap/kinetiq_launcher_v307"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'android:roundIcon="@mipmap/kinetiq_launcher_v307_round"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q "versionCode 48" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.8'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'android:icon="@mipmap/kinetiq_launcher_v308"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@mipmap/kinetiq_launcher_v308_round"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_final.webp
           test -s personal-trainer/android-beta/app/src/main/res/mipmap-xxxhdpi/kinetiq_launcher_final.webp
-          test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307.xml
-          test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307_round.xml
-          grep -q '@drawable/kinetiq_launcher_foreground_v307' personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307.xml
-          grep -q '@color/ic_launcher_background' personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307.xml
+          test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v308.xml
+          test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v308_round.xml
+          grep -q '@drawable/kinetiq_launcher_foreground_v308' personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v308.xml
+          grep -q '@color/ic_launcher_background' personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v308.xml
           test -s "$A/kinetiq-cover-locked.webp"
           python3 - <<'PY'
           from PIL import Image
@@ -168,6 +188,9 @@ jobs:
           assert icon.size == (512,512)
           PY
           grep -q 'style2-v305-master-fix.js' "$A/index29.html"
+          grep -q 'kinetiq-v308-hotfix.js' "$A/index29.html"
+          grep -q 'kinetiq-v308-hotfix.css' "$A/index29.html"
+          test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_v308.png
           grep -q 'COMPLETED WORKOUT' "$A/style2-v305-master-fix.js"
 
       - name: Build unsigned release APK
@@ -179,8 +202,8 @@ jobs:
           set -euo pipefail
           mkdir -p release
           UNSIGNED=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
-          ALIGNED=release/KINETIQ-3.0.7-UPDATE-aligned.apk
-          SIGNED=release/KINETIQ-3.0.7-UPDATE.apk
+          ALIGNED=release/KINETIQ-3.0.8-UPDATE-aligned.apk
+          SIGNED=release/KINETIQ-3.0.8-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
 
           test -s "$UNSIGNED"
@@ -215,8 +238,8 @@ jobs:
               '--ks-key-alias',key_alias,
               '--ks-pass','pass:'+store_password,
               '--key-pass','pass:'+key_password,
-              '--out','release/KINETIQ-3.0.7-UPDATE.apk',
-              'release/KINETIQ-3.0.7-UPDATE-aligned.apk'
+              '--out','release/KINETIQ-3.0.8-UPDATE.apk',
+              'release/KINETIQ-3.0.8-UPDATE-aligned.apk'
           ]
           subprocess.run(cmd,check=True,stdout=subprocess.DEVNULL)
           PY
@@ -227,24 +250,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK=release/KINETIQ-3.0.7-UPDATE.apk
+          APK=release/KINETIQ-3.0.8-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
           AAPT="$BT/aapt"
           test -s "$APK"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='47' versionName='3.0.7'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='48' versionName='3.0.8'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
           "$BT/apksigner" verify --verbose "$APK"
           CERT="$("$BT/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1 | tr 'A-F' 'a-f')"
           test "$CERT" = "4d7cd06f969d9c4b1e3e361440544a27dc187a125851655aa45796453d50c3a8"
           sha256sum "$APK" | tee release/SHA256SUMS.txt
-          printf '%s\n'             'KINETIQ 3.0.7 IN-PLACE UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 47'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
+          printf '%s\n'             'KINETIQ 3.0.8 IN-PLACE UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 48'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
 
       - name: Upload signed update
         uses: actions/upload-artifact@v4
         with:
-          name: KINETIQ-3.0.7-IN-PLACE-UPDATE
+          name: KINETIQ-3.0.8-IN-PLACE-UPDATE
           path: |
-            release/KINETIQ-3.0.7-UPDATE.apk
+            release/KINETIQ-3.0.8-UPDATE.apk
             release/SHA256SUMS.txt
             release/UPDATE-INSTRUCTIONS.txt
           if-no-files-found: error
