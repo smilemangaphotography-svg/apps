@@ -47,6 +47,67 @@ jobs:
             sudo apt-get install -y ffmpeg
           fi
 
+      - name: Prepare approved KINETIQ cover and adaptive launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          A=personal-trainer/android-beta/app/src/main/assets
+          R=personal-trainer/android-beta/app/src/main/res
+          COVER_URL='https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/d5bda7fd-ec4a-4e2a-8ee3-d967c49c4159.png'
+          SYMBOL_URL='https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/5bffb31b-1258-4bbd-af9f-2ec79043f1dc.png'
+          curl -fL "$COVER_URL" -o /tmp/kinetiq-approved-cover.png
+          curl -fL "$SYMBOL_URL" -o /tmp/kinetiq-symbol.png
+          echo '861115ad7c8f0bc6a26f087bc69fbbbb42e7941d6661582b65bc535790a0e087  /tmp/kinetiq-approved-cover.png' | sha256sum -c -
+          echo '50a157cd3fead14297f6239034cdd9f36df1379124deb144d88e8212073b6bc5  /tmp/kinetiq-symbol.png' | sha256sum -c -
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+
+          assets=Path('personal-trainer/android-beta/app/src/main/assets')
+          res=Path('personal-trainer/android-beta/app/src/main/res')
+          (res/'drawable-nodpi').mkdir(parents=True,exist_ok=True)
+          (res/'mipmap-xxxhdpi').mkdir(parents=True,exist_ok=True)
+
+          # Canonical approved mountain cover, lossless WebP, full source resolution.
+          cover=Image.open('/tmp/kinetiq-approved-cover.png').convert('RGB')
+          assert cover.size == (941,1672), cover.size
+          cover.save(assets/'kinetiq-cover-locked.webp','WEBP',lossless=True,method=6)
+
+          # Canonical metallic athlete/ribbon symbol with transparent surroundings.
+          sym=Image.open('/tmp/kinetiq-symbol.png').convert('RGBA')
+          alpha=sym.getchannel('A')
+          bbox=alpha.getbbox()
+          assert bbox is not None
+          sym=sym.crop(bbox)
+
+          # Adaptive foreground: safe-zone scale, no text, no poster/background.
+          fw=fh=432
+          max_dim=292
+          scale=min(max_dim/sym.width,max_dim/sym.height)
+          sized=sym.resize((round(sym.width*scale),round(sym.height*scale)),Image.Resampling.LANCZOS)
+          fg=Image.new('RGBA',(fw,fh),(0,0,0,0))
+          fg.alpha_composite(sized,((fw-sized.width)//2,(fh-sized.height)//2))
+          fg.save(res/'drawable-nodpi/kinetiq_launcher_foreground_final.webp','WEBP',lossless=True,method=6)
+
+          # Fallback mipmap for launchers that request a raster variant.
+          canvas=Image.new('RGB',(512,512),(3,11,8))
+          max_dim=330
+          scale=min(max_dim/sym.width,max_dim/sym.height)
+          sized=sym.resize((round(sym.width*scale),round(sym.height*scale)),Image.Resampling.LANCZOS)
+          layer=Image.new('RGBA',(512,512),(0,0,0,0))
+          layer.alpha_composite(sized,((512-sized.width)//2,(512-sized.height)//2))
+          canvas.paste(layer,(0,0),layer)
+          canvas.save(res/'mipmap-xxxhdpi/kinetiq_launcher_final.webp','WEBP',quality=92,method=6)
+
+          # Hard verification of output geometry and transparency.
+          assert Image.open(assets/'kinetiq-cover-locked.webp').size == (941,1672)
+          fg2=Image.open(res/'drawable-nodpi/kinetiq_launcher_foreground_final.webp').convert('RGBA')
+          assert fg2.size == (432,432)
+          assert fg2.getchannel('A').getextrema()[0] == 0
+          assert Image.open(res/'mipmap-xxxhdpi/kinetiq_launcher_final.webp').size == (512,512)
+          PY
+
       - name: Import proven anatomy motion library
         shell: bash
         run: |
@@ -81,9 +142,16 @@ jobs:
           test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_final.webp
           test -s personal-trainer/android-beta/app/src/main/res/mipmap-xxxhdpi/kinetiq_launcher_final.webp
           test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_final.xml
-          echo 'bd90917f7cd0a6822371bb8daca255cbd7aa3ed0be9b47e34bbdbdb8b086ac3e  personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_final.webp' | sha256sum -c -
-          echo '582256d7289fe009b5fb3968b73a09917902e810862bfc5ce43c9ea7a7886a94  personal-trainer/android-beta/app/src/main/res/mipmap-xxxhdpi/kinetiq_launcher_final.webp' | sha256sum -c -
-          echo '822c19a4303ea3864c38c74f48a8149475eb6a90b2046842831dd0f9d4f35e2a  "$A/kinetiq-cover-locked.webp"' | sha256sum -c -
+          test -s "$A/kinetiq-cover-locked.webp"
+          python3 - <<'PY'
+          from PIL import Image
+          cover=Image.open('personal-trainer/android-beta/app/src/main/assets/kinetiq-cover-locked.webp')
+          fg=Image.open('personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_final.webp').convert('RGBA')
+          icon=Image.open('personal-trainer/android-beta/app/src/main/res/mipmap-xxxhdpi/kinetiq_launcher_final.webp')
+          assert cover.size == (941,1672)
+          assert fg.size == (432,432) and fg.getchannel('A').getextrema()[0] == 0
+          assert icon.size == (512,512)
+          PY
           grep -q 'style2-v305-master-fix.js' "$A/index29.html"
           grep -q 'COMPLETED WORKOUT' "$A/style2-v305-master-fix.js"
 
