@@ -765,6 +765,9 @@ setTimeout(init,520);
 })();
 
 
+
+try{window.S=S}catch(e){}
+
 /* style2-v73-library-tools.js */
 (()=>{'use strict';
 const VERSION='3.0.5-exercise-equipment-swipe';
