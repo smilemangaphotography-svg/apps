@@ -1,4 +1,4 @@
-name: Build KINETIQ 3.0.5 In-Place Update
+name: Build KINETIQ 3.0.6 In-Place Update
 
 on:
   push:
@@ -74,8 +74,8 @@ jobs:
           node --check "$A/style2-v73-library-tools.js"
           node --check "$A/style2-v305-master-fix.js"
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionCode 45" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.5'" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionCode 46" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.6'" personal-trainer/android-beta/app/build.gradle
           grep -q 'android:icon="@drawable/kinetiq_launcher_symbol"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q 'android:roundIcon="@drawable/kinetiq_launcher_symbol"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_symbol.webp
@@ -92,8 +92,8 @@ jobs:
           set -euo pipefail
           mkdir -p release
           UNSIGNED=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
-          ALIGNED=release/KINETIQ-3.0.5-UPDATE-aligned.apk
-          SIGNED=release/KINETIQ-3.0.5-UPDATE.apk
+          ALIGNED=release/KINETIQ-3.0.6-UPDATE-aligned.apk
+          SIGNED=release/KINETIQ-3.0.6-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
 
           test -s "$UNSIGNED"
@@ -128,8 +128,8 @@ jobs:
               '--ks-key-alias',key_alias,
               '--ks-pass','pass:'+store_password,
               '--key-pass','pass:'+key_password,
-              '--out','release/KINETIQ-3.0.5-UPDATE.apk',
-              'release/KINETIQ-3.0.5-UPDATE-aligned.apk'
+              '--out','release/KINETIQ-3.0.6-UPDATE.apk',
+              'release/KINETIQ-3.0.6-UPDATE-aligned.apk'
           ]
           subprocess.run(cmd,check=True,stdout=subprocess.DEVNULL)
           PY
@@ -140,24 +140,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK=release/KINETIQ-3.0.5-UPDATE.apk
+          APK=release/KINETIQ-3.0.6-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
           AAPT="$BT/aapt"
           test -s "$APK"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='45' versionName='3.0.5'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='46' versionName='3.0.6'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
           "$BT/apksigner" verify --verbose "$APK"
           CERT="$("$BT/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1 | tr 'A-F' 'a-f')"
           test "$CERT" = "4d7cd06f969d9c4b1e3e361440544a27dc187a125851655aa45796453d50c3a8"
           sha256sum "$APK" | tee release/SHA256SUMS.txt
-          printf '%s\n'             'KINETIQ 3.0.5 IN-PLACE UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 45'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
+          printf '%s\n'             'KINETIQ 3.0.6 IN-PLACE UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 46'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
 
       - name: Upload signed update
         uses: actions/upload-artifact@v4
         with:
-          name: KINETIQ-3.0.5-IN-PLACE-UPDATE
+          name: KINETIQ-3.0.6-IN-PLACE-UPDATE
           path: |
-            release/KINETIQ-3.0.5-UPDATE.apk
+            release/KINETIQ-3.0.6-UPDATE.apk
             release/SHA256SUMS.txt
             release/UPDATE-INSTRUCTIONS.txt
           if-no-files-found: error
