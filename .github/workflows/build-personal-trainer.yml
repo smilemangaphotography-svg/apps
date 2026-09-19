@@ -84,9 +84,11 @@ jobs:
           node --check "$A/style2-v7-final-fix.js"
           node --check "$A/style2-v73-library-tools.js"
           node --check "$A/style2-v73-refresh.js"
+          node --check "$A/style2-v305-master-fix.js"
           test -s "$A/style2-v7.css"
           test -s "$A/style2-v7-final-fix.css"
           test -s "$A/style2-v73-library-tools.css"
+          test -s "$A/style2-v305-master-fix.css"
           grep -q 'class="cover-screen kinetiq-cover-locked"' "$A/index29.html"
           grep -q 'src="kinetiq-cover-locked.webp"' "$A/index29.html"
           test -s "$A/kinetiq-cover-locked.webp"
@@ -114,10 +116,13 @@ jobs:
           grep -q "versionName '3.0.5'" personal-trainer/android-beta/app/build.gradle
           grep -q 'versionCode 45' personal-trainer/android-beta/app/build.gradle
           grep -q 'android:label="@string/app_name"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'android:icon="@drawable/kinetiq_launcher_locked"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'android:roundIcon="@drawable/kinetiq_launcher_locked"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_locked.webp
-          echo '9c2e945be4af67075400f68213525ea4d724877d3bc7c334335c5daf56d89ff3  personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_locked.webp' | sha256sum -c -
+          grep -q 'android:icon="@drawable/kinetiq_launcher_k"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@drawable/kinetiq_launcher_k"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          test -s personal-trainer/android-beta/app/src/main/res/drawable/kinetiq_launcher_k.xml
+          grep -q 'style2-v305-master-fix.js' "$A/index29.html"
+          grep -q 'style2-v305-master-fix.css' "$A/index29.html"
+          grep -q 'COMPLETED WORKOUT' "$A/style2-v305-master-fix.js"
+          grep -q 'selectedDate=k' "$A/style2-v305-master-fix.js"
           grep -q '<string name="app_name">KINETIQ</string>' personal-trainer/android-beta/app/src/main/res/values/strings.xml
           grep -q 'WebView.setWebContentsDebuggingEnabled(false)' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           node - <<'NODE'
