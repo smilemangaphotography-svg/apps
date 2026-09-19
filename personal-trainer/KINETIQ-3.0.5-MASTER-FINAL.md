@@ -26,3 +26,18 @@ Preserve existing working workout logic, exercise library, anatomy media, traini
 
 ## Release note
 This lock finalizes the browser/WebView review build. It does not claim that a new Android APK has been compiled or signed.
+
+
+## Master Fix — 2026-09-19
+Validated fixes:
+- Completed exercises are tracked per real calendar date.
+- Completed exercises are removed from the active My Plan list so only work left to do remains.
+- A separate COMPLETED WORKOUT section shows exercises already finished.
+- Current-day Plan selection is restored automatically on a fresh app launch.
+- Calendar/date strip positioning is immediate; smooth/spinning motion was removed.
+- Android launcher icon is now the KINETIQ K mark via @drawable/kinetiq_launcher_k.
+- Existing Home / Plan / Train / Run / More navigation and mobile vertical scrolling remain intact.
+- Browser regression: current date = 2026-09-19, no runtime errors; Monday strength test changed 5 active exercises to 4 active + 1 completed after marking 45° Leg Press complete.
+- Android CI build run 35456229691 completed successfully, including runtime validation, anatomy-pack validation, APK build, APK identity/content validation, packaging, and artifact upload.
+
+Do-not-touch rule remains active for unrelated working functionality.
