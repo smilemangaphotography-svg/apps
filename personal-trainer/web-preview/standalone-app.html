@@ -466,6 +466,54 @@ body{min-height:100dvh}
 })();
 </script>
 <style>#mainApp:not(.hidden){display:grid!important}</style>
+<style id="kinetiq-mobile-scroll-fix">
+/* MASTER MOBILE SCROLL FIX — explicit app viewport scroller */
+html,body{height:100%!important;min-height:100%!important;overflow:hidden!important}
+body{max-width:none!important}
+#app{height:100dvh!important;min-height:0!important;overflow:hidden!important}
+#mainApp:not(.hidden){
+  display:grid!important;
+  grid-template-rows:auto minmax(0,1fr) auto!important;
+  width:100%!important;
+  height:100dvh!important;
+  min-height:0!important;
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+}
+#mainApp>.app-topbar{
+  position:relative!important;
+  top:auto!important;
+  grid-row:1!important;
+}
+#mainApp>.page{
+  grid-row:2!important;
+  min-height:0!important;
+  height:100%!important;
+  max-height:100%!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  -webkit-overflow-scrolling:touch!important;
+  overscroll-behavior-y:contain!important;
+  touch-action:pan-y pinch-zoom!important;
+  padding-bottom:140px!important;
+  scrollbar-width:none!important;
+}
+#mainApp>.page::-webkit-scrollbar{display:none!important}
+#mainApp>.bottom-nav{
+  grid-row:3!important;
+  position:relative!important;
+  bottom:auto!important;
+  left:auto!important;
+  transform:none!important;
+  width:auto!important;
+  margin:0 12px calc(10px + env(safe-area-inset-bottom))!important;
+}
+.overlay,.sheet-card{
+  -webkit-overflow-scrolling:touch!important;
+  touch-action:pan-y pinch-zoom!important;
+  overscroll-behavior-y:contain!important;
+}
+</style>
 </head>
 <body>
 <section id="style2Cover" class="cover-screen hidden" aria-hidden="true"><button id="coverEnter" type="button" aria-hidden="true" tabindex="-1" style="display:none"></button><button id="coverSettings" type="button" aria-hidden="true" tabindex="-1" style="display:none"></button></section>
@@ -2329,6 +2377,16 @@ setTimeout(init,900);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
 })();
+</script>
+<script id="kinetiq-scroll-reset">
+document.addEventListener('click',function(ev){
+  var b=ev.target&&ev.target.closest?ev.target.closest('.nav-btn'):null;
+  if(!b)return;
+  setTimeout(function(){
+    var p=document.querySelector('#mainApp>.page.active');
+    if(p) p.scrollTop=0;
+  },0);
+},true);
 </script>
 </body>
 </html>
