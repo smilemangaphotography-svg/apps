@@ -73,41 +73,26 @@ button.v7-badge{appearance:none}.v7-good{color:var(--v7-green);border-color:rgba
 
 
 
-/* KINETIQ 3.0.5 — EXACT COVER ONLY. Internal 3.0.2 UI remains frozen. */
+/* KINETIQ 3.0.7 — APPROVED MOUNTAIN COVER LOCK. */
 .cover-screen.kinetiq-cover-locked{
-  position:fixed!important;
-  inset:0!important;
-  width:100%!important;
-  height:100%!important;
-  min-height:100%!important;
-  margin:0!important;
-  padding:0!important;
-  overflow:hidden!important;
-  background:#06100b!important;
-  z-index:500!important;
+  position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;min-height:100dvh!important;
+  margin:0!important;padding:0!important;overflow:hidden!important;background:#08090a!important;z-index:500!important;
+  display:grid!important;place-items:center!important;
+}
+.kinetiq-cover-frame{
+  position:relative!important;width:min(100vw,calc(100dvh * 0.5627990431))!important;
+  aspect-ratio:941/1672!important;max-height:100dvh!important;flex:none!important;
 }
 .kinetiq-cover-locked-art{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  object-position:center center;
-  display:block;
-  user-select:none;
-  -webkit-user-drag:none;
-  pointer-events:none;
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  object-fit:contain!important;object-position:center center!important;display:block!important;
+  user-select:none!important;-webkit-user-drag:none!important;pointer-events:none!important;
 }
 .kinetiq-cover-locked-enter{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  border:0!important;
-  background:transparent!important;
-  color:transparent!important;
-  padding:0!important;
-  margin:0!important;
-  z-index:2;
+  position:absolute!important;left:50.4%!important;top:80.6%!important;width:29%!important;
+  aspect-ratio:1/1!important;height:auto!important;transform:translate(-50%,-50%)!important;
+  border:0!important;border-radius:50%!important;background:transparent!important;color:transparent!important;
+  padding:0!important;margin:0!important;box-shadow:none!important;z-index:5!important;cursor:pointer!important;
+  touch-action:manipulation!important;-webkit-tap-highlight-color:transparent!important;
 }
 .kinetiq-cover-locked-settings{display:none!important}
