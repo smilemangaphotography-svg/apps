@@ -1,6 +1,6 @@
 # KINETIQ 3.0.5 — OFFICIAL RELEASE LOCK
 
-Status: OFFICIAL RELEASE CANDIDATE
+Status: OFFICIAL IN-PLACE UPDATE CANDIDATE
 Release date: 2026-09-19
 Canonical repository: smilemangaphotography-svg/apps
 Canonical branch: personal-trainer-main
@@ -28,5 +28,8 @@ Version code: 45
 - CI artifact: KINETIQ-3.0.5-UNSIGNED
 - Artifact digest: sha256:d9720961638cedffc10d7cead6c1063c576d91a804e278c7d984ea9362edbaa9
 
-## Distribution gate
-The code and build are release-ready. Public Android distribution requires a permanent release signing key. The first official signed release establishes the signing identity that must be preserved for future in-place updates.
+## Update target
+This release is intended to update the user's existing installed KINETIQ app in place, not for public app-store distribution.
+
+## In-place update gate
+The package identity is already preserved as com.ilia.personaltrainer and the new build uses versionCode 45. Android will accept it as an update only when it is signed with the same signing certificate as the currently installed KINETIQ build. If the existing signing certificate is different or unavailable, Android will reject the update and require uninstall/reinstall, which is explicitly not the intended path.
