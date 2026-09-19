@@ -155,8 +155,8 @@ jobs:
           test -s personal-trainer/android-beta/app/src/main/res/mipmap-xxxhdpi/kinetiq_launcher_final.webp
           test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307.xml
           test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307_round.xml
-          grep -q '@drawable/kinetiq_launcher_foreground_final' personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307.xml
-          grep -q '@drawable/kinetiq_launcher_background_final' personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307.xml
+          grep -q '@drawable/kinetiq_launcher_foreground_v307' personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307.xml
+          grep -q '@color/ic_launcher_background' personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v307.xml
           test -s "$A/kinetiq-cover-locked.webp"
           python3 - <<'PY'
           from PIL import Image
