@@ -76,8 +76,10 @@ jobs:
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
           grep -q "versionCode 45" personal-trainer/android-beta/app/build.gradle
           grep -q "versionName '3.0.5'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'android:icon="@drawable/kinetiq_launcher_k"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'M21,25 L22.45,83 L42.75,55.45 L86.25,83' personal-trainer/android-beta/app/src/main/res/drawable/kinetiq_launcher_k.xml
+          grep -q 'android:icon="@drawable/kinetiq_launcher_symbol"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@drawable/kinetiq_launcher_symbol"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_symbol.webp
+          echo 'd2e493e590e8464bb3d6b6ba6e3429b09a584a8ca7871776da9674e7d2fef8a9  personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_symbol.webp' | sha256sum -c -
           grep -q 'style2-v305-master-fix.js' "$A/index29.html"
           grep -q 'COMPLETED WORKOUT' "$A/style2-v305-master-fix.js"
 
