@@ -46,3 +46,12 @@ The package identity is already preserved as com.ilia.personaltrainer and the ne
 - Signing certificate SHA-256: 4D:7C:D0:6F:96:9D:9C:4B:1E:3E:36:14:40:54:4A:27:DC:18:7A:12:58:51:65:5A:A4:57:96:45:3D:50:C3:A8
 - CI verification: PASS
 - Installation intent: install directly over the existing app; do not uninstall first.
+
+
+## Launcher identity correction — 2026-09-19
+- Removed the K-letter launcher mark.
+- Launcher now uses the approved metallic athlete/ribbon symbol extracted directly from the canonical KINETIQ cover artwork.
+- Manifest icon + roundIcon both point to @drawable/kinetiq_launcher_symbol.
+- Exact launcher asset SHA-256: d2e493e590e8464bb3d6b6ba6e3429b09a584a8ca7871776da9674e7d2fef8a9.
+- Signed in-place update CI run 35460952611: PASS.
+- Final corrected APK SHA-256: 70932de6b7fec0b39972ff63804e09fbfb2d530c1627a50ae14dbf413ec84c85.
