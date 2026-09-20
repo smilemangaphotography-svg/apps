@@ -7,6 +7,8 @@ import android.os.Build;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Insets;
 import android.location.Location;
 import android.location.LocationListener;
@@ -20,6 +22,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
@@ -29,10 +32,12 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import org.json.JSONObject;
 import java.util.Locale;
+import java.io.InputStream;
 
 public class MainActivity extends Activity {
     private WebView webView;
@@ -47,6 +52,8 @@ public class MainActivity extends Activity {
     private TextToSpeech tts;
     private boolean ttsReady = false;
     private View coverTapView;
+    private FrameLayout nativeCover;
+    private ImageView nativeCoverImage;
     private boolean coverVisible = true;
     private int lastInsetTop = 0;
     private int lastInsetBottom = 0;
@@ -71,22 +78,35 @@ public class MainActivity extends Activity {
         webView.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
         root.addView(webView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // Native Q hit target: sits above the WebView only while the cover is visible.
-        coverTapView = new View(this);
-        coverTapView.setBackgroundColor(Color.TRANSPARENT);
-        coverTapView.setClickable(true);
-        coverTapView.setFocusable(true);
-        coverTapView.setOnTouchListener((v, event) -> {
-            if (event != null && event.getActionMasked() == MotionEvent.ACTION_UP) {
-                enterCoverFromNative(0);
-            }
-            return true;
-        });
-        root.addView(coverTapView, new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            Gravity.TOP | Gravity.START
+        // KINETIQ 3.0.12: native A54 cover above WebView.
+        // This removes all dependency on transparent HTML/WebView hit testing.
+        nativeCover = new FrameLayout(this);
+        nativeCover.setBackgroundColor(Color.rgb(8, 9, 10));
+        nativeCover.setClickable(false);
+        nativeCover.setFocusable(false);
+
+        nativeCoverImage = new ImageView(this);
+        nativeCoverImage.setBackgroundColor(Color.rgb(8, 9, 10));
+        nativeCoverImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        try (InputStream in = getAssets().open("kinetiq-cover-a54-v312.png")) {
+            Bitmap coverBitmap = BitmapFactory.decodeStream(in);
+            nativeCoverImage.setImageBitmap(coverBitmap);
+        } catch (Exception ignored) {
+            nativeCoverImage.setBackgroundColor(Color.rgb(8, 9, 10));
+        }
+        nativeCover.addView(nativeCoverImage, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
         ));
+        root.addView(nativeCover, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+
+        // Retain the field only for source/binary continuity; it stays inert in 3.0.12.
+        coverTapView = new View(this);
+        coverTapView.setVisibility(View.GONE);
+        root.addView(coverTapView, new FrameLayout.LayoutParams(1, 1));
 
         setContentView(root);
 
@@ -131,17 +151,6 @@ public class MainActivity extends Activity {
             }
         });
         webView.addJavascriptInterface(new PTBridge(), "PTNative");
-
-        // KINETIQ 3.0.9: native cover-entry fallback.
-        // The approved cover is a WebView asset with a transparent HTML hit target.
-        // Samsung/WebView touch dispatch can miss that transparent target, so Android
-        // independently confirms whether the cover is visible and performs the same entry.
-        webView.setOnTouchListener((v, event) -> {
-            if (event != null && event.getActionMasked() == MotionEvent.ACTION_UP) {
-                enterCoverFromNative(0);
-            }
-            return false;
-        });
 
         webView.setWebViewClient(new WebViewClient() {
             @Override public void onPageFinished(WebView view, String url) {
@@ -189,18 +198,92 @@ public class MainActivity extends Activity {
     private void enterCoverFromNative(int attempt) {
         if (webView == null || isFinishing()) return;
         final String js = "(function(){try{" +
-                "if(typeof window.KINETIQ_ENTER==='function')return window.KINETIQ_ENTER();" +
+                "var c=document.getElementById('style2Cover');" +
+                "if(c&&c.classList.contains('hidden'))return 'entered';" +
+                "var s=window.S||((typeof S!=='undefined')?S:null);" +
+                "if(!s)return 'not-ready';" +
+                "if(s.built){" +
+                    "if(window.PT29&&typeof window.PT29.showMain==='function'){window.PT29.showMain('home');return 'entered';}" +
+                    "if(typeof window.showMain==='function'){window.showMain('home');return 'entered';}" +
+                "}else{" +
+                    "if(typeof window.showBuilder==='function'){window.showBuilder(Number(s.builderStep)||0);return 'entered';}" +
+                "}" +
                 "return 'not-ready';" +
-                "}catch(e){return 'error:'+String(e&&e.message||e);}})()";
+                "}catch(e){return 'error';}})()";
+
         webView.evaluateJavascript(js, value -> {
-            if (value != null && value.startsWith("\"entered")) {
+            if ("\"entered\"".equals(value)) {
                 setCoverMode(false);
                 return;
             }
-            if ("\"not-ready\"".equals(value) && attempt < 12 && webView != null) {
+            if (attempt < 30 && webView != null) {
                 webView.postDelayed(() -> enterCoverFromNative(attempt + 1), 100L);
             }
         });
+    }
+
+    private boolean isCoverQTouch(MotionEvent event) {
+        if (!coverVisible || root == null || event == null) return false;
+        int w = root.getWidth();
+        int h = root.getHeight();
+        if (w <= 0 || h <= 0) return false;
+
+        // Q position in the 941x2039 A54 master cover.
+        float cx = w * 0.504f;
+        float cy = h * 0.751f;
+        float radius = w * 0.155f;
+        float dx = event.getX() - cx;
+        float dy = event.getY() - cy;
+        return (dx * dx + dy * dy) <= (radius * radius);
+    }
+
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        if (coverVisible && event != null && isCoverQTouch(event)) {
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_UP) enterCoverFromNative(0);
+            return true;
+        }
+        return super.dispatchTouchEvent(event);
+    }
+
+    private void applyImmersiveCover() {
+        if (!coverVisible || root == null) return;
+
+        root.setPadding(0, 0, 0, 0);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+
+        if (Build.VERSION.SDK_INT >= 29) {
+            getWindow().setStatusBarContrastEnforced(false);
+            getWindow().setNavigationBarContrastEnforced(false);
+        }
+
+        int legacyFlags =
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+                View.SYSTEM_UI_FLAG_FULLSCREEN |
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+        getWindow().getDecorView().setSystemUiVisibility(legacyFlags);
+
+        if (Build.VERSION.SDK_INT >= 30) {
+            getWindow().setDecorFitsSystemWindows(false);
+            WindowInsetsController controller = getWindow().getInsetsController();
+            if (controller != null) {
+                controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+            }
+        }
+    }
+
+    private void scheduleImmersiveCover() {
+        if (root == null) return;
+        root.post(this::applyImmersiveCover);
+        root.postDelayed(this::applyImmersiveCover, 120L);
+        root.postDelayed(this::applyImmersiveCover, 420L);
+        root.postDelayed(this::applyImmersiveCover, 1000L);
     }
 
     private void setCoverMode(boolean visible) {
@@ -208,57 +291,31 @@ public class MainActivity extends Activity {
         if (root == null) return;
 
         if (visible) {
-            root.setPadding(0, 0, 0, 0);
-            getWindow().setStatusBarColor(Color.TRANSPARENT);
-            getWindow().setNavigationBarColor(Color.TRANSPARENT);
-
-            if (Build.VERSION.SDK_INT >= 30) {
-                WindowInsetsController controller = getWindow().getInsetsController();
-                if (controller != null) {
-                    controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-                    controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
-                }
-            } else {
-                getWindow().getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
-                    View.SYSTEM_UI_FLAG_FULLSCREEN |
-                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                );
+            if (nativeCover != null) {
+                nativeCover.setVisibility(View.VISIBLE);
+                nativeCover.bringToFront();
             }
-
-            if (coverTapView != null) {
-                coverTapView.setVisibility(View.VISIBLE);
-                root.post(this::positionCoverTap);
-                root.postDelayed(this::positionCoverTap, 160L);
-            }
+            if (coverTapView != null) coverTapView.setVisibility(View.GONE);
+            scheduleImmersiveCover();
         } else {
+            if (nativeCover != null) nativeCover.setVisibility(View.GONE);
+            if (coverTapView != null) coverTapView.setVisibility(View.GONE);
+
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
             if (Build.VERSION.SDK_INT >= 30) {
                 WindowInsetsController controller = getWindow().getInsetsController();
                 if (controller != null) controller.show(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
-            } else {
-                getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
             }
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
             getWindow().setStatusBarColor(Color.BLACK);
             getWindow().setNavigationBarColor(Color.BLACK);
             root.setPadding(0, lastInsetTop, 0, lastInsetBottom);
-            if (coverTapView != null) coverTapView.setVisibility(View.GONE);
             root.requestApplyInsets();
         }
     }
 
     private void positionCoverTap() {
-        if (!coverVisible || root == null || coverTapView == null) return;
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            Gravity.TOP | Gravity.START
-        );
-        coverTapView.setLayoutParams(lp);
-        coverTapView.setVisibility(View.VISIBLE);
-        coverTapView.bringToFront();
+        // 3.0.12 uses Activity.dispatchTouchEvent() against the Q region.
     }
 
     private void verifyRuntimeReady(WebView view, int attempt) {
@@ -372,7 +429,17 @@ public class MainActivity extends Activity {
 
     @Override public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus && coverVisible) setCoverMode(true);
+        if (hasFocus && coverVisible) scheduleImmersiveCover();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (coverVisible) scheduleImmersiveCover();
+    }
+
+    @Override protected void onPostResume() {
+        super.onPostResume();
+        if (coverVisible) scheduleImmersiveCover();
     }
 
     @Override protected void onPause() {

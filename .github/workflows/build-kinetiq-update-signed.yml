@@ -1,4 +1,4 @@
-name: Build KINETIQ 3.0.11 In-Place Update
+name: Build KINETIQ 3.0.12 In-Place Update
 
 on:
   push:
@@ -132,6 +132,36 @@ jobs:
           mkdir -p "$A" "$R"
           curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/a8a7750e-58e2-4dc8-9267-18f2e5bf7c8b.png' -o "$A/kinetiq-cover-approved-v307.png"
           echo '861115ad7c8f0bc6a26f087bc69fbbbb42e7941d6661582b65bc535790a0e087  '"$A"'/kinetiq-cover-approved-v307.png' | sha256sum -c -
+          python3 - <<'PY'
+          from PIL import Image, ImageFilter, ImageEnhance
+          from pathlib import Path
+          a=Path('personal-trainer/android-beta/app/src/main/assets')
+          src=Image.open(a/'kinetiq-cover-approved-v307.png').convert('RGB')
+          assert src.size==(941,1672)
+          W,H=941,2039
+          top=(H-src.height)//2
+          bottom=H-src.height-top
+          out=Image.new('RGB',(W,H),(8,9,10))
+
+          # Extend only atmospheric edge content; keep the approved 941x1672 artwork
+          # pixel-for-pixel unchanged in the center.
+          top_src=src.crop((0,0,W,180))
+          top_ext=top_src.resize((W,max(1,top+100)),Image.Resampling.BICUBIC)
+          top_ext=top_ext.filter(ImageFilter.GaussianBlur(34))
+          top_ext=ImageEnhance.Brightness(top_ext).enhance(0.48)
+          out.paste(top_ext.crop((0,0,W,top)),(0,0))
+
+          bottom_src=src.crop((0,src.height-110,W,src.height))
+          bottom_ext=bottom_src.resize((W,max(1,bottom+100)),Image.Resampling.BICUBIC)
+          bottom_ext=bottom_ext.filter(ImageFilter.GaussianBlur(42))
+          bottom_ext=ImageEnhance.Brightness(bottom_ext).enhance(0.38)
+          out.paste(bottom_ext.crop((0,0,W,bottom)),(0,top+src.height))
+
+          out.paste(src,(0,top))
+          out.save(a/'kinetiq-cover-a54-v312.png','PNG',optimize=True)
+          check=Image.open(a/'kinetiq-cover-a54-v312.png')
+          assert check.size==(941,2039)
+          PY
           curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/9d5261e2-b84f-43a2-8ac8-c5888efdd969.png' -o "$R/kinetiq_launcher_foreground_v307.png"
           echo 'f6dba6ccdcfb362cdb5eea835bf0cf8b067faeec1c0a14f30bd59e18a6a82cd2  '"$R"'/kinetiq_launcher_foreground_v307.png' | sha256sum -c -
           python3 - <<'PY'
@@ -168,8 +198,8 @@ jobs:
           node --check "$A/kinetiq-v308-hotfix.js"
           node --check "$A/kinetiq-v311-entry.js"
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionCode 51" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.11'" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionCode 52" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.12'" personal-trainer/android-beta/app/build.gradle
           grep -q 'android:icon="@mipmap/kinetiq_launcher_v308"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q 'android:roundIcon="@mipmap/kinetiq_launcher_v308_round"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_final.webp
@@ -204,6 +234,16 @@ jobs:
           grep -q 'window.KINETIQ_ENTER' "$A/kinetiq-v311-entry.js"
           grep -q 'ViewGroup.LayoutParams.MATCH_PARENT' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           grep -q 'onWindowFocusChanged(boolean hasFocus)' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'dispatchTouchEvent(MotionEvent event)' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'kinetiq-cover-a54-v312.png' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'private void applyImmersiveCover' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'WindowManager.LayoutParams.FLAG_FULLSCREEN' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          test -s "$A/kinetiq-cover-a54-v312.png"
+          python3 - <<'PY'
+          from PIL import Image
+          im=Image.open('personal-trainer/android-beta/app/src/main/assets/kinetiq-cover-a54-v312.png')
+          assert im.size==(941,2039)
+          PY
 
       - name: Build unsigned release APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleRelease
@@ -214,8 +254,8 @@ jobs:
           set -euo pipefail
           mkdir -p release
           UNSIGNED=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
-          ALIGNED=release/KINETIQ-3.0.11-UPDATE-aligned.apk
-          SIGNED=release/KINETIQ-3.0.11-UPDATE.apk
+          ALIGNED=release/KINETIQ-3.0.12-UPDATE-aligned.apk
+          SIGNED=release/KINETIQ-3.0.12-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
 
           test -s "$UNSIGNED"
@@ -250,8 +290,8 @@ jobs:
               '--ks-key-alias',key_alias,
               '--ks-pass','pass:'+store_password,
               '--key-pass','pass:'+key_password,
-              '--out','release/KINETIQ-3.0.11-UPDATE.apk',
-              'release/KINETIQ-3.0.11-UPDATE-aligned.apk'
+              '--out','release/KINETIQ-3.0.12-UPDATE.apk',
+              'release/KINETIQ-3.0.12-UPDATE-aligned.apk'
           ]
           subprocess.run(cmd,check=True,stdout=subprocess.DEVNULL)
           PY
@@ -262,24 +302,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK=release/KINETIQ-3.0.11-UPDATE.apk
+          APK=release/KINETIQ-3.0.12-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
           AAPT="$BT/aapt"
           test -s "$APK"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='51' versionName='3.0.11'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='52' versionName='3.0.12'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
           "$BT/apksigner" verify --verbose "$APK"
           CERT="$("$BT/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1 | tr 'A-F' 'a-f')"
           test "$CERT" = "4d7cd06f969d9c4b1e3e361440544a27dc187a125851655aa45796453d50c3a8"
           sha256sum "$APK" | tee release/SHA256SUMS.txt
-          printf '%s\n'             'KINETIQ 3.0.11 IN-PLACE UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 51'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
+          printf '%s\n'             'KINETIQ 3.0.12 IN-PLACE UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 52'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
 
       - name: Upload signed update
         uses: actions/upload-artifact@v4
         with:
-          name: KINETIQ-3.0.11-IN-PLACE-UPDATE
+          name: KINETIQ-3.0.12-IN-PLACE-UPDATE
           path: |
-            release/KINETIQ-3.0.11-UPDATE.apk
+            release/KINETIQ-3.0.12-UPDATE.apk
             release/SHA256SUMS.txt
             release/UPDATE-INSTRUCTIONS.txt
           if-no-files-found: error
