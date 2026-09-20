@@ -55,6 +55,7 @@ public class MainActivity extends Activity {
     private FrameLayout nativeCover;
     private ImageView nativeCoverImage;
     private boolean coverVisible = true;
+    private boolean nativeEntryCommitted = false;
     private int lastInsetTop = 0;
     private int lastInsetBottom = 0;
 
@@ -87,7 +88,7 @@ public class MainActivity extends Activity {
 
         nativeCoverImage = new ImageView(this);
         nativeCoverImage.setBackgroundColor(Color.rgb(8, 9, 10));
-        nativeCoverImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        nativeCoverImage.setScaleType(ImageView.ScaleType.FIT_XY);
         try (InputStream in = getAssets().open("kinetiq-cover-a54-v312.png")) {
             Bitmap coverBitmap = BitmapFactory.decodeStream(in);
             nativeCoverImage.setImageBitmap(coverBitmap);
@@ -109,6 +110,12 @@ public class MainActivity extends Activity {
         root.addView(coverTapView, new FrameLayout.LayoutParams(1, 1));
 
         setContentView(root);
+
+        getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(visibility -> {
+            if (nativeCover != null && nativeCover.getVisibility() == View.VISIBLE) {
+                scheduleImmersiveCover();
+            }
+        });
 
         root.setOnApplyWindowInsetsListener((v, windowInsets) -> {
             if (Build.VERSION.SDK_INT >= 30) {
@@ -213,6 +220,7 @@ public class MainActivity extends Activity {
 
         webView.evaluateJavascript(js, value -> {
             if ("\"entered\"".equals(value)) {
+                nativeEntryCommitted = true;
                 setCoverMode(false);
                 return;
             }
@@ -223,7 +231,7 @@ public class MainActivity extends Activity {
     }
 
     private boolean isCoverQTouch(MotionEvent event) {
-        if (!coverVisible || root == null || event == null) return false;
+        if (root == null || event == null || nativeCover == null || nativeCover.getVisibility() != View.VISIBLE) return false;
         int w = root.getWidth();
         int h = root.getHeight();
         if (w <= 0 || h <= 0) return false;
@@ -238,7 +246,9 @@ public class MainActivity extends Activity {
     }
 
     @Override public boolean dispatchTouchEvent(MotionEvent event) {
-        if (coverVisible && event != null && isCoverQTouch(event)) {
+        boolean nativeCoverActive =
+                nativeCover != null && nativeCover.getVisibility() == View.VISIBLE;
+        if (nativeCoverActive && event != null && isCoverQTouch(event)) {
             int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_UP) enterCoverFromNative(0);
             return true;
@@ -273,7 +283,7 @@ public class MainActivity extends Activity {
             WindowInsetsController controller = getWindow().getInsetsController();
             if (controller != null) {
                 controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-                controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                controller.hide(WindowInsets.Type.systemBars());
             }
         }
     }
@@ -293,6 +303,7 @@ public class MainActivity extends Activity {
         if (visible) {
             if (nativeCover != null) {
                 nativeCover.setVisibility(View.VISIBLE);
+                nativeCover.setClickable(false);
                 nativeCover.bringToFront();
             }
             if (coverTapView != null) coverTapView.setVisibility(View.GONE);
@@ -304,7 +315,7 @@ public class MainActivity extends Activity {
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
             if (Build.VERSION.SDK_INT >= 30) {
                 WindowInsetsController controller = getWindow().getInsetsController();
-                if (controller != null) controller.show(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                if (controller != null) controller.show(WindowInsets.Type.systemBars());
             }
             getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
             getWindow().setStatusBarColor(Color.BLACK);
@@ -340,7 +351,14 @@ public class MainActivity extends Activity {
 
     private class PTBridge {
         @JavascriptInterface public void setCoverVisible(boolean visible) {
-            runOnUiThread(() -> setCoverMode(visible));
+            runOnUiThread(() -> {
+                if (visible) {
+                    nativeEntryCommitted = false;
+                    setCoverMode(true);
+                } else if (nativeEntryCommitted) {
+                    setCoverMode(false);
+                }
+            });
         }
         @JavascriptInterface public void startLocation() { runOnUiThread(() -> beginLocation()); }
         @JavascriptInterface public void stopLocation() { runOnUiThread(() -> endLocation()); }
@@ -429,12 +447,12 @@ public class MainActivity extends Activity {
 
     @Override public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus && coverVisible) scheduleImmersiveCover();
+        if (hasFocus && nativeCover != null && nativeCover.getVisibility() == View.VISIBLE) scheduleImmersiveCover();
     }
 
     @Override protected void onResume() {
         super.onResume();
-        if (coverVisible) scheduleImmersiveCover();
+        if (nativeCover != null && nativeCover.getVisibility() == View.VISIBLE) scheduleImmersiveCover();
     }
 
     @Override protected void onPostResume() {
