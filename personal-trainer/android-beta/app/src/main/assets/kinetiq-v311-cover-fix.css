@@ -1,0 +1,36 @@
+/* KINETIQ 3.0.11 — clean full-screen cover + no duplicate artwork. */
+.cover-screen.kinetiq-cover-locked{
+  background:#08090a!important;
+  width:100vw!important;height:100dvh!important;min-height:100dvh!important;
+  inset:0!important;overflow:hidden!important;
+}
+.cover-screen.kinetiq-cover-locked::before{
+  content:"";
+  position:absolute;
+  inset:-8%;
+  z-index:0;
+  background:url('kinetiq-cover-approved-v307.png') center center / cover no-repeat;
+  filter:blur(28px) brightness(.62) saturate(.82);
+  transform:scale(1.08);
+  opacity:.72;
+  pointer-events:none;
+}
+.cover-screen.kinetiq-cover-locked::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  background:linear-gradient(180deg,rgba(4,6,8,.18),rgba(4,6,8,.04) 35%,rgba(4,6,8,.18) 74%,rgba(2,2,2,.46));
+  pointer-events:none;
+}
+.cover-screen.kinetiq-cover-locked .kinetiq-cover-frame{
+  position:relative!important;
+  z-index:1!important;
+  width:min(100vw,calc(100dvh * 0.5627990431))!important;
+  aspect-ratio:941/1672!important;
+  max-height:100dvh!important;
+}
+.cover-screen.kinetiq-cover-locked .kinetiq-cover-locked-art{
+  object-fit:contain!important;
+  object-position:center center!important;
+}

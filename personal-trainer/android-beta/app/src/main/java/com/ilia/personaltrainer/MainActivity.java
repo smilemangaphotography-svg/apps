@@ -76,8 +76,17 @@ public class MainActivity extends Activity {
         coverTapView.setBackgroundColor(Color.TRANSPARENT);
         coverTapView.setClickable(true);
         coverTapView.setFocusable(true);
-        coverTapView.setOnClickListener(v -> enterCoverFromNative(0));
-        root.addView(coverTapView, new FrameLayout.LayoutParams(1, 1, Gravity.TOP | Gravity.START));
+        coverTapView.setOnTouchListener((v, event) -> {
+            if (event != null && event.getActionMasked() == MotionEvent.ACTION_UP) {
+                enterCoverFromNative(0);
+            }
+            return true;
+        });
+        root.addView(coverTapView, new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            Gravity.TOP | Gravity.START
+        ));
 
         setContentView(root);
 
@@ -180,20 +189,15 @@ public class MainActivity extends Activity {
     private void enterCoverFromNative(int attempt) {
         if (webView == null || isFinishing()) return;
         final String js = "(function(){try{" +
-                "var c=document.getElementById('style2Cover');" +
-                "if(!c||c.classList.contains('hidden')||getComputedStyle(c).display==='none')return 'inactive';" +
-                "var s=(typeof S!=='undefined')?S:(window.S||null);" +
-                "if(s&&s.built&&window.PT29&&typeof window.PT29.showMain==='function'){window.PT29.showMain('home');return 'entered-main';}" +
-                "if(s&&typeof window.showBuilder==='function'){window.showBuilder(Number(s.builderStep)||0);return 'entered-builder';}" +
-                "if(window.PT29&&typeof window.PT29.showMain==='function'){window.PT29.showMain('home');return 'entered-fallback';}" +
+                "if(typeof window.KINETIQ_ENTER==='function')return window.KINETIQ_ENTER();" +
                 "return 'not-ready';" +
-                "}catch(e){return 'error';}})()";
+                "}catch(e){return 'error:'+String(e&&e.message||e);}})()";
         webView.evaluateJavascript(js, value -> {
             if (value != null && value.startsWith("\"entered")) {
                 setCoverMode(false);
                 return;
             }
-            if ("\"not-ready\"".equals(value) && attempt < 8 && webView != null) {
+            if ("\"not-ready\"".equals(value) && attempt < 12 && webView != null) {
                 webView.postDelayed(() -> enterCoverFromNative(attempt + 1), 100L);
             }
         });
@@ -247,27 +251,13 @@ public class MainActivity extends Activity {
 
     private void positionCoverTap() {
         if (!coverVisible || root == null || coverTapView == null) return;
-        int w = root.getWidth();
-        int h = root.getHeight();
-        if (w <= 0 || h <= 0) {
-            root.postDelayed(this::positionCoverTap, 80L);
-            return;
-        }
-
-        final float aspect = 941f / 1672f;
-        float frameW = Math.min((float) w, h * aspect);
-        float frameH = frameW / aspect;
-        float frameLeft = (w - frameW) / 2f;
-        float frameTop = (h - frameH) / 2f;
-
-        float qCenterX = frameLeft + frameW * 0.504f;
-        float qCenterY = frameTop + frameH * 0.806f;
-        int size = Math.max(120, Math.round(frameW * 0.36f));
-
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(size, size, Gravity.TOP | Gravity.START);
-        lp.leftMargin = Math.round(qCenterX - size / 2f);
-        lp.topMargin = Math.round(qCenterY - size / 2f);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            Gravity.TOP | Gravity.START
+        );
         coverTapView.setLayoutParams(lp);
+        coverTapView.setVisibility(View.VISIBLE);
         coverTapView.bringToFront();
     }
 
@@ -378,6 +368,11 @@ public class MainActivity extends Activity {
             fileCallback.onReceiveValue(out);
             fileCallback = null;
         }
+    }
+
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && coverVisible) setCoverMode(true);
     }
 
     @Override protected void onPause() {
