@@ -1,0 +1,17 @@
+/* KINETIQ 3.0.10 — true immersive cover while preserving the approved artwork. */
+.cover-screen.kinetiq-cover-locked{
+  background:#08090a url('kinetiq-cover-approved-v307.png') center center / cover no-repeat!important;
+  width:100vw!important;height:100dvh!important;min-height:100dvh!important;
+  inset:0!important;
+}
+.cover-screen.kinetiq-cover-locked::before{
+  content:"";position:absolute;inset:0;z-index:0;
+  background:linear-gradient(180deg,rgba(8,9,10,.35),rgba(8,9,10,.12) 35%,rgba(8,9,10,.28));
+  pointer-events:none;
+}
+.cover-screen.kinetiq-cover-locked .kinetiq-cover-frame{
+  z-index:1!important;
+}
+.cover-screen.kinetiq-cover-locked .kinetiq-cover-locked-art{
+  object-fit:contain!important;
+}

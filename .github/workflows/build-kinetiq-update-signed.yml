@@ -1,4 +1,4 @@
-name: Build KINETIQ 3.0.9 In-Place Update
+name: Build KINETIQ 3.0.10 In-Place Update
 
 on:
   push:
@@ -167,8 +167,8 @@ jobs:
           node --check "$A/style2-v305-master-fix.js"
           node --check "$A/kinetiq-v308-hotfix.js"
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionCode 49" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.9'" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionCode 50" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.10'" personal-trainer/android-beta/app/build.gradle
           grep -q 'android:icon="@mipmap/kinetiq_launcher_v308"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q 'android:roundIcon="@mipmap/kinetiq_launcher_v308_round"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_final.webp
@@ -194,6 +194,10 @@ jobs:
           grep -q 'COMPLETED WORKOUT' "$A/style2-v305-master-fix.js"
           grep -q 'private void enterCoverFromNative' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           grep -q 'MotionEvent.ACTION_UP' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'setCoverVisible(boolean visible)' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'private void positionCoverTap' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'kinetiq-v310-cover-fix.css' "$A/index29.html"
 
       - name: Build unsigned release APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleRelease
@@ -204,8 +208,8 @@ jobs:
           set -euo pipefail
           mkdir -p release
           UNSIGNED=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
-          ALIGNED=release/KINETIQ-3.0.9-UPDATE-aligned.apk
-          SIGNED=release/KINETIQ-3.0.9-UPDATE.apk
+          ALIGNED=release/KINETIQ-3.0.10-UPDATE-aligned.apk
+          SIGNED=release/KINETIQ-3.0.10-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
 
           test -s "$UNSIGNED"
@@ -240,8 +244,8 @@ jobs:
               '--ks-key-alias',key_alias,
               '--ks-pass','pass:'+store_password,
               '--key-pass','pass:'+key_password,
-              '--out','release/KINETIQ-3.0.9-UPDATE.apk',
-              'release/KINETIQ-3.0.9-UPDATE-aligned.apk'
+              '--out','release/KINETIQ-3.0.10-UPDATE.apk',
+              'release/KINETIQ-3.0.10-UPDATE-aligned.apk'
           ]
           subprocess.run(cmd,check=True,stdout=subprocess.DEVNULL)
           PY
@@ -252,24 +256,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK=release/KINETIQ-3.0.9-UPDATE.apk
+          APK=release/KINETIQ-3.0.10-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
           AAPT="$BT/aapt"
           test -s "$APK"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='49' versionName='3.0.9'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='50' versionName='3.0.10'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
           "$BT/apksigner" verify --verbose "$APK"
           CERT="$("$BT/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1 | tr 'A-F' 'a-f')"
           test "$CERT" = "4d7cd06f969d9c4b1e3e361440544a27dc187a125851655aa45796453d50c3a8"
           sha256sum "$APK" | tee release/SHA256SUMS.txt
-          printf '%s\n'             'KINETIQ 3.0.9 IN-PLACE UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 49'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
+          printf '%s\n'             'KINETIQ 3.0.10 IN-PLACE UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 50'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
 
       - name: Upload signed update
         uses: actions/upload-artifact@v4
         with:
-          name: KINETIQ-3.0.9-IN-PLACE-UPDATE
+          name: KINETIQ-3.0.10-IN-PLACE-UPDATE
           path: |
-            release/KINETIQ-3.0.9-UPDATE.apk
+            release/KINETIQ-3.0.10-UPDATE.apk
             release/SHA256SUMS.txt
             release/UPDATE-INSTRUCTIONS.txt
           if-no-files-found: error

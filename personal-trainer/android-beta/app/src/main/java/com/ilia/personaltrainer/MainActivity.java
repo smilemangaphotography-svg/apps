@@ -15,8 +15,11 @@ import android.net.Uri;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.view.ViewGroup;
+import android.view.View;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
@@ -43,6 +46,10 @@ public class MainActivity extends Activity {
     private boolean locationRunning = false;
     private TextToSpeech tts;
     private boolean ttsReady = false;
+    private View coverTapView;
+    private boolean coverVisible = true;
+    private int lastInsetTop = 0;
+    private int lastInsetBottom = 0;
 
     private final LocationListener locationListener = new LocationListener() {
         @Override public void onLocationChanged(Location location) { sendLocation(location); }
@@ -63,23 +70,32 @@ public class MainActivity extends Activity {
         webView.setBackgroundColor(Color.rgb(6,16,11));
         webView.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
         root.addView(webView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // Native Q hit target: sits above the WebView only while the cover is visible.
+        coverTapView = new View(this);
+        coverTapView.setBackgroundColor(Color.TRANSPARENT);
+        coverTapView.setClickable(true);
+        coverTapView.setFocusable(true);
+        coverTapView.setOnClickListener(v -> enterCoverFromNative(0));
+        root.addView(coverTapView, new FrameLayout.LayoutParams(1, 1, Gravity.TOP | Gravity.START));
+
         setContentView(root);
 
         root.setOnApplyWindowInsetsListener((v, windowInsets) -> {
-            int top;
-            int bottom;
             if (Build.VERSION.SDK_INT >= 30) {
                 Insets bars = windowInsets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
-                top = bars.top;
-                bottom = bars.bottom;
+                lastInsetTop = bars.top;
+                lastInsetBottom = bars.bottom;
             } else {
-                top = windowInsets.getSystemWindowInsetTop();
-                bottom = windowInsets.getSystemWindowInsetBottom();
+                lastInsetTop = windowInsets.getSystemWindowInsetTop();
+                lastInsetBottom = windowInsets.getSystemWindowInsetBottom();
             }
-            v.setPadding(0, top, 0, bottom);
+            if (coverVisible) v.setPadding(0, 0, 0, 0);
+            else v.setPadding(0, lastInsetTop, 0, lastInsetBottom);
             return windowInsets;
         });
         root.requestApplyInsets();
+        root.post(() -> setCoverMode(true));
 
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
@@ -173,10 +189,86 @@ public class MainActivity extends Activity {
                 "return 'not-ready';" +
                 "}catch(e){return 'error';}})()";
         webView.evaluateJavascript(js, value -> {
+            if (value != null && value.startsWith("\"entered")) {
+                setCoverMode(false);
+                return;
+            }
             if ("\"not-ready\"".equals(value) && attempt < 8 && webView != null) {
                 webView.postDelayed(() -> enterCoverFromNative(attempt + 1), 100L);
             }
         });
+    }
+
+    private void setCoverMode(boolean visible) {
+        coverVisible = visible;
+        if (root == null) return;
+
+        if (visible) {
+            root.setPadding(0, 0, 0, 0);
+            getWindow().setStatusBarColor(Color.TRANSPARENT);
+            getWindow().setNavigationBarColor(Color.TRANSPARENT);
+
+            if (Build.VERSION.SDK_INT >= 30) {
+                WindowInsetsController controller = getWindow().getInsetsController();
+                if (controller != null) {
+                    controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                    controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                }
+            } else {
+                getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+                    View.SYSTEM_UI_FLAG_FULLSCREEN |
+                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                );
+            }
+
+            if (coverTapView != null) {
+                coverTapView.setVisibility(View.VISIBLE);
+                root.post(this::positionCoverTap);
+                root.postDelayed(this::positionCoverTap, 160L);
+            }
+        } else {
+            if (Build.VERSION.SDK_INT >= 30) {
+                WindowInsetsController controller = getWindow().getInsetsController();
+                if (controller != null) controller.show(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+            } else {
+                getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+            }
+            getWindow().setStatusBarColor(Color.BLACK);
+            getWindow().setNavigationBarColor(Color.BLACK);
+            root.setPadding(0, lastInsetTop, 0, lastInsetBottom);
+            if (coverTapView != null) coverTapView.setVisibility(View.GONE);
+            root.requestApplyInsets();
+        }
+    }
+
+    private void positionCoverTap() {
+        if (!coverVisible || root == null || coverTapView == null) return;
+        int w = root.getWidth();
+        int h = root.getHeight();
+        if (w <= 0 || h <= 0) {
+            root.postDelayed(this::positionCoverTap, 80L);
+            return;
+        }
+
+        final float aspect = 941f / 1672f;
+        float frameW = Math.min((float) w, h * aspect);
+        float frameH = frameW / aspect;
+        float frameLeft = (w - frameW) / 2f;
+        float frameTop = (h - frameH) / 2f;
+
+        float qCenterX = frameLeft + frameW * 0.504f;
+        float qCenterY = frameTop + frameH * 0.806f;
+        int size = Math.max(120, Math.round(frameW * 0.36f));
+
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(size, size, Gravity.TOP | Gravity.START);
+        lp.leftMargin = Math.round(qCenterX - size / 2f);
+        lp.topMargin = Math.round(qCenterY - size / 2f);
+        coverTapView.setLayoutParams(lp);
+        coverTapView.bringToFront();
     }
 
     private void verifyRuntimeReady(WebView view, int attempt) {
@@ -200,6 +292,9 @@ public class MainActivity extends Activity {
     }
 
     private class PTBridge {
+        @JavascriptInterface public void setCoverVisible(boolean visible) {
+            runOnUiThread(() -> setCoverMode(visible));
+        }
         @JavascriptInterface public void startLocation() { runOnUiThread(() -> beginLocation()); }
         @JavascriptInterface public void stopLocation() { runOnUiThread(() -> endLocation()); }
         @JavascriptInterface public void speak(String text) {
