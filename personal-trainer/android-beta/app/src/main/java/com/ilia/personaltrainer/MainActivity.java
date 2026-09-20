@@ -113,9 +113,7 @@ public class MainActivity extends Activity {
         setContentView(root);
 
         getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(visibility -> {
-            if (nativeCover != null && nativeCover.getVisibility() == View.VISIBLE) {
-                scheduleImmersiveCover();
-            }
+            if (coverVisible) scheduleImmersiveCover();
         });
 
         root.setOnApplyWindowInsetsListener((v, windowInsets) -> {
@@ -262,7 +260,7 @@ public class MainActivity extends Activity {
     @Override public boolean dispatchTouchEvent(MotionEvent event) {
         boolean nativeCoverActive =
                 nativeCover != null && nativeCover.getVisibility() == View.VISIBLE;
-        if (nativeCoverActive && event != null && isCoverQTouch(event)) {
+        if (false && nativeCoverActive && event != null && isCoverQTouch(event)) {
             int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_DOWN && nativeCoverImage != null) {
                 nativeCoverImage.animate().alpha(0.94f).setDuration(70L).start();
@@ -327,11 +325,7 @@ public class MainActivity extends Activity {
         if (root == null) return;
 
         if (visible) {
-            if (nativeCover != null) {
-                nativeCover.setVisibility(View.VISIBLE);
-                nativeCover.setClickable(false);
-                nativeCover.bringToFront();
-            }
+            if (nativeCover != null) nativeCover.setVisibility(View.GONE);
             if (coverTapView != null) coverTapView.setVisibility(View.GONE);
             scheduleImmersiveCover();
         } else {
@@ -377,14 +371,7 @@ public class MainActivity extends Activity {
 
     private class PTBridge {
         @JavascriptInterface public void setCoverVisible(boolean visible) {
-            runOnUiThread(() -> {
-                if (visible) {
-                    nativeEntryCommitted = false;
-                    setCoverMode(true);
-                } else if (nativeEntryCommitted) {
-                    setCoverMode(false);
-                }
-            });
+            runOnUiThread(() -> setCoverMode(visible));
         }
         @JavascriptInterface public void startLocation() { runOnUiThread(() -> beginLocation()); }
         @JavascriptInterface public void stopLocation() { runOnUiThread(() -> endLocation()); }
@@ -473,12 +460,12 @@ public class MainActivity extends Activity {
 
     @Override public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (hasFocus && nativeCover != null && nativeCover.getVisibility() == View.VISIBLE) scheduleImmersiveCover();
+        if (hasFocus && coverVisible) scheduleImmersiveCover();
     }
 
     @Override protected void onResume() {
         super.onResume();
-        if (nativeCover != null && nativeCover.getVisibility() == View.VISIBLE) scheduleImmersiveCover();
+        if (coverVisible) scheduleImmersiveCover();
     }
 
     @Override protected void onPostResume() {
