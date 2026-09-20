@@ -1,0 +1,108 @@
+/* KINETIQ WEB PREVIEW — canonical cover override.
+   Loaded last. One cover layout only; all earlier cover CSS is superseded. */
+html,body{
+  margin:0!important;
+  width:100%!important;
+  height:100%!important;
+  min-height:100%!important;
+  background:#08090a!important;
+  overflow:hidden!important;
+  overscroll-behavior:none!important;
+}
+#style2Cover.kinetiq-cover-locked{
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100vh!important;
+  height:100dvh!important;
+  min-height:100vh!important;
+  min-height:100dvh!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  display:block!important;
+  background:#08090a!important;
+  z-index:2147480000!important;
+  isolation:isolate!important;
+}
+/* Atmospheric extension fills tall displays without a second readable poster. */
+#style2Cover.kinetiq-cover-locked::before{
+  content:""!important;
+  position:absolute!important;
+  inset:-10%!important;
+  z-index:0!important;
+  background-image:url('kinetiq-cover-approved-v307.png')!important;
+  background-repeat:no-repeat!important;
+  background-position:center center!important;
+  background-size:cover!important;
+  filter:blur(36px) brightness(.72) saturate(.88)!important;
+  transform:scale(1.12)!important;
+  opacity:.92!important;
+  pointer-events:none!important;
+}
+#style2Cover.kinetiq-cover-locked::after{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:1!important;
+  background:
+    linear-gradient(180deg,rgba(7,9,11,.30) 0%,rgba(7,9,11,.02) 18%,rgba(7,9,11,0) 70%,rgba(4,4,5,.26) 100%)!important;
+  pointer-events:none!important;
+}
+#style2Cover.kinetiq-cover-locked .kinetiq-cover-frame{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  transform:translate(-50%,-50%)!important;
+  width:min(104vw,calc(100dvh * 0.5627990431))!important;
+  height:auto!important;
+  aspect-ratio:941/1672!important;
+  max-width:none!important;
+  max-height:100dvh!important;
+  margin:0!important;
+  padding:0!important;
+  z-index:2!important;
+  pointer-events:auto!important;
+}
+#style2Cover.kinetiq-cover-locked .kinetiq-cover-locked-art{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+  object-position:center center!important;
+  display:block!important;
+  user-select:none!important;
+  -webkit-user-drag:none!important;
+  pointer-events:none!important;
+}
+#style2Cover.kinetiq-cover-locked .kinetiq-cover-locked-enter{
+  position:absolute!important;
+  left:50.4%!important;
+  top:80.6%!important;
+  width:36%!important;
+  min-width:132px!important;
+  max-width:246px!important;
+  height:auto!important;
+  aspect-ratio:1/1!important;
+  transform:translate(-50%,-50%)!important;
+  border:0!important;
+  border-radius:50%!important;
+  padding:0!important;
+  margin:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  opacity:1!important;
+  z-index:2147483640!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+  -webkit-tap-highlight-color:transparent!important;
+  cursor:pointer!important;
+}
+#style2Cover.kinetiq-cover-locked .kinetiq-cover-locked-enter:active{
+  transform:translate(-50%,-50%) scale(.965)!important;
+  background:rgba(255,245,220,.045)!important;
+}
+#style2Cover.kinetiq-cover-locked .kinetiq-cover-locked-settings{
+  display:none!important;
+}
