@@ -18,6 +18,21 @@
 <link rel="stylesheet" href="kinetiq-v310-cover-fix.css">
 <link rel="stylesheet" href="kinetiq-v311-cover-fix.css">
 <link rel="stylesheet" href="kinetiq-web-preview-root-fix.css">
+<script>
+(function(){
+  try{
+    if(new URLSearchParams(location.search).get('enter')==='1'){
+      document.documentElement.classList.add('kinetiq-preview-enter');
+    }
+  }catch(e){}
+})();
+</script>
+<style>
+html.kinetiq-preview-enter #style2Cover{
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+</style>
 </head>
 <body>
 <section id="style2Cover" class="cover-screen kinetiq-cover-locked">
@@ -81,5 +96,39 @@
 <script src="kinetiq-v308-hotfix.js"></script>
 <script src="kinetiq-v311-entry.js"></script>
 <script src="kinetiq-web-preview-root-fix.js"></script>
+<script>
+(function(){
+  'use strict';
+  if(new URLSearchParams(location.search).get('enter')!=='1') return;
+  let tries=0;
+  function go(){
+    tries++;
+    try{
+      const s=(typeof S!=='undefined')?S:(window.S||null);
+      const runtime=window.__PT_STYLE29__==='locked-all-in-one-2.9' &&
+                    window.PT29 && typeof window.PT29.showMain==='function';
+      if(s && runtime){
+        if(s.built){
+          window.PT29.showMain('home');
+        }else if(typeof window.showBuilder==='function'){
+          window.showBuilder(Number(s.builderStep)||0);
+        }
+        const cover=document.getElementById('style2Cover');
+        const main=document.getElementById('mainApp');
+        const builder=document.getElementById('builder');
+        const ok=cover && cover.classList.contains('hidden') &&
+          (s.built ? (main && !main.classList.contains('hidden'))
+                   : (builder && !builder.classList.contains('hidden')));
+        if(ok){
+          document.documentElement.classList.remove('kinetiq-preview-enter');
+          return;
+        }
+      }
+    }catch(e){}
+    if(tries<160) setTimeout(go,50);
+  }
+  go();
+})();
+</script>
 </body>
 </html>
