@@ -85,6 +85,7 @@ public class MainActivity extends Activity {
         nativeCover.setBackgroundColor(Color.rgb(8, 9, 10));
         nativeCover.setClickable(false);
         nativeCover.setFocusable(false);
+        nativeCover.setHapticFeedbackEnabled(true);
 
         nativeCoverImage = new ImageView(this);
         nativeCoverImage.setBackgroundColor(Color.rgb(8, 9, 10));
@@ -204,27 +205,40 @@ public class MainActivity extends Activity {
 
     private void enterCoverFromNative(int attempt) {
         if (webView == null || isFinishing()) return;
+
         final String js = "(function(){try{" +
-                "var c=document.getElementById('style2Cover');" +
-                "if(c&&c.classList.contains('hidden'))return 'entered';" +
+                "var cover=document.getElementById('style2Cover');" +
+                "var main=document.getElementById('mainApp');" +
+                "var builder=document.getElementById('builder');" +
+                "var runtime=(window.__PT_STYLE29__==='locked-all-in-one-2.9'&&" +
+                    "window.PT29&&typeof window.PT29.showMain==='function'&&" +
+                    "typeof window.showBuilder==='function');" +
+                "if(!runtime)return 'not-ready';" +
                 "var s=window.S||((typeof S!=='undefined')?S:null);" +
                 "if(!s)return 'not-ready';" +
                 "if(s.built){" +
-                    "if(window.PT29&&typeof window.PT29.showMain==='function'){window.PT29.showMain('home');return 'entered';}" +
-                    "if(typeof window.showMain==='function'){window.showMain('home');return 'entered';}" +
+                    "window.PT29.showMain('home');" +
                 "}else{" +
-                    "if(typeof window.showBuilder==='function'){window.showBuilder(Number(s.builderStep)||0);return 'entered';}" +
+                    "window.showBuilder(Number(s.builderStep)||0);" +
                 "}" +
-                "return 'not-ready';" +
+                "var coverHidden=!!cover&&cover.classList.contains('hidden');" +
+                "var destinationVisible=s.built?" +
+                    "(!!main&&!main.classList.contains('hidden')):" +
+                    "(!!builder&&!builder.classList.contains('hidden'));" +
+                "return (coverHidden&&destinationVisible)?'entered':'not-ready';" +
                 "}catch(e){return 'error';}})()";
 
         webView.evaluateJavascript(js, value -> {
             if ("\"entered\"".equals(value)) {
+                // Only commit after the final runtime has actually hidden the cover
+                // and made the destination page visible.
                 nativeEntryCommitted = true;
                 setCoverMode(false);
                 return;
             }
-            if (attempt < 30 && webView != null) {
+
+            // Keep the native cover authoritative while the WebView finishes booting.
+            if (attempt < 60 && webView != null) {
                 webView.postDelayed(() -> enterCoverFromNative(attempt + 1), 100L);
             }
         });
@@ -250,7 +264,19 @@ public class MainActivity extends Activity {
                 nativeCover != null && nativeCover.getVisibility() == View.VISIBLE;
         if (nativeCoverActive && event != null && isCoverQTouch(event)) {
             int action = event.getActionMasked();
-            if (action == MotionEvent.ACTION_UP) enterCoverFromNative(0);
+            if (action == MotionEvent.ACTION_DOWN && nativeCoverImage != null) {
+                nativeCoverImage.animate().alpha(0.94f).setDuration(70L).start();
+            }
+            if (action == MotionEvent.ACTION_UP) {
+                if (nativeCoverImage != null) {
+                    nativeCoverImage.animate().alpha(1f).setDuration(110L).start();
+                }
+                if (nativeCover != null) nativeCover.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);
+                enterCoverFromNative(0);
+            }
+            if (action == MotionEvent.ACTION_CANCEL && nativeCoverImage != null) {
+                nativeCoverImage.animate().alpha(1f).setDuration(80L).start();
+            }
             return true;
         }
         return super.dispatchTouchEvent(event);
