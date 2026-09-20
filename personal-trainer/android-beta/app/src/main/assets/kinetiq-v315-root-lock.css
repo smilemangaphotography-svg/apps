@@ -1,0 +1,50 @@
+/* KINETIQ 3.0.15 — V7 LOCK. Q mechanism, full-screen cover, and app scrolling. */
+#kinetiqCleanGate{
+  position:fixed!important;inset:0!important;width:100vw!important;
+  height:100vh!important;height:100dvh!important;z-index:2147483647!important;
+  background:#08090a!important;overflow:hidden!important;touch-action:manipulation!important;
+}
+#kinetiqCleanGate.hidden{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+#kinetiqCleanGate img{
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  object-fit:cover!important;object-position:center center!important;display:block!important;
+  pointer-events:none!important;user-select:none!important;-webkit-user-drag:none!important;
+}
+#kinetiqCleanGateQ{
+  position:absolute!important;left:50.4%!important;top:80.6%!important;width:36%!important;
+  min-width:132px!important;max-width:246px!important;aspect-ratio:1/1!important;
+  transform:translate(-50%,-50%)!important;border:0!important;border-radius:50%!important;
+  background:transparent!important;z-index:5!important;touch-action:manipulation!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+#kinetiqCleanGateQ:active{
+  transform:translate(-50%,-50%) scale(.95)!important;background:rgba(255,245,220,.06)!important;
+}
+#style2Cover.kinetiq-cover-locked.hidden{
+  display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;
+}
+html.kinetiq-app-open,body.kinetiq-app-open{
+  width:100%!important;max-width:none!important;height:100vh!important;height:100dvh!important;
+  min-height:0!important;overflow:hidden!important;
+}
+html.kinetiq-app-open #app{
+  position:relative!important;width:100%!important;max-width:none!important;
+  height:100vh!important;height:100dvh!important;min-height:0!important;overflow:hidden!important;
+}
+html.kinetiq-app-open #builder:not(.hidden),
+html.kinetiq-app-open #mainApp:not(.hidden){
+  position:relative!important;width:100%!important;height:100vh!important;height:100dvh!important;
+  min-height:0!important;max-height:100dvh!important;overflow-x:hidden!important;overflow-y:auto!important;
+  overscroll-behavior-y:contain!important;touch-action:pan-y!important;
+  -webkit-overflow-scrolling:touch!important;scroll-behavior:auto!important;
+}
+html.kinetiq-app-open #builder:not(.hidden){padding-bottom:calc(170px + env(safe-area-inset-bottom))!important}
+html.kinetiq-app-open #mainApp:not(.hidden){padding-bottom:calc(116px + env(safe-area-inset-bottom))!important}
+html.kinetiq-app-open #builderBody,
+html.kinetiq-app-open .page,
+html.kinetiq-app-open .v7-page{
+  height:auto!important;min-height:0!important;max-height:none!important;
+  overflow:visible!important;touch-action:pan-y!important;
+}
+html.kinetiq-app-open .builder-footer,
+html.kinetiq-app-open .bottom-nav{position:fixed!important;z-index:500!important}
