@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const VERSION='3.1.1-permanent-entry';
+const VERSION='3.1.2-master-fidelity';
 let entering=false,entryCommitted=false;
 
 function byId(id){return document.getElementById(id)}
