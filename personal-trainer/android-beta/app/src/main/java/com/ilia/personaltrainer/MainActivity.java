@@ -248,7 +248,7 @@ public class MainActivity extends Activity {
 
         // Q position in the 941x2039 A54 master cover.
         float cx = w * 0.504f;
-        float cy = h * 0.751f;
+        float cy = h * 0.806f;
         float radius = w * 0.155f;
         float dx = event.getX() - cx;
         float dy = event.getY() - cy;
