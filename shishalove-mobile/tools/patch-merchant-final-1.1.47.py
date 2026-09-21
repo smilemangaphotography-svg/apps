@@ -344,14 +344,14 @@ t = replace_method(t, '            public void onPageStarted(WebView view, Strin
                 super.onPageStarted(view, url, favicon);
                 merchantPageReady = false;
                 showLastSnapshot();
-                applyRuntimeJs(view);
-                view.postDelayed(() -> applyRuntimeJs(view), 60);
-                view.postDelayed(() -> applyRuntimeJs(view), 180);
+                applyRuntimeJs(view, url);
+                view.postDelayed(() -> applyRuntimeJs(view, url), 60);
+                view.postDelayed(() -> applyRuntimeJs(view, url), 180);
             }''')
 
 t = replace_method(t, '            public void onPageCommitVisible(WebView view, String url)', r'''            public void onPageCommitVisible(WebView view, String url) {
                 super.onPageCommitVisible(view, url);
-                applyRuntimeJs(view);
+                applyRuntimeJs(view, url);
                 progressBar.setVisibility(View.GONE);
                 merchantPageReady = true;
                 if (enterButton != null) {
@@ -362,14 +362,14 @@ t = replace_method(t, '            public void onPageCommitVisible(WebView view,
                 view.postDelayed(() -> MainActivity.this.tryOpenPendingOrder(), 90);
                 view.postDelayed(() -> registerBackgroundOrderChannel(view, url), 350);
                 view.postDelayed(() -> {
-                    applyRuntimeJs(view);
+                    applyRuntimeJs(view, url);
                     hideLastSnapshot();
                 }, 120);
             }''')
 
 t = replace_method(t, '            public void onPageFinished(WebView view, String url)', r'''            public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                applyRuntimeJs(view);
+                applyRuntimeJs(view, url);
                 progressBar.setVisibility(View.GONE);
                 merchantPageReady = true;
                 if (enterButton != null) {
@@ -382,7 +382,7 @@ t = replace_method(t, '            public void onPageFinished(WebView view, Stri
                 tryOpenPendingOrder();
                 registerBackgroundOrderChannel(view, url);
                 view.postDelayed(() -> {
-                    applyRuntimeJs(view);
+                    applyRuntimeJs(view, url);
                     registerBackgroundOrderChannel(view, url);
                     captureSnapshot();
                 }, 600);
