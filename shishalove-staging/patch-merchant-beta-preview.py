@@ -48,7 +48,7 @@ def replace_method(text, signature, replacement):
     return text[:start] + replacement.rstrip() + text[end:]
 
 # ---------------------------------------------------------------------------
-# SIDE-BY-SIDE BETA IDENTITY — Preview 6
+# SIDE-BY-SIDE BETA IDENTITY — Preview 7
 # ---------------------------------------------------------------------------
 main = ROOT / 'merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
 t = main.read_text(encoding='utf-8')
@@ -61,7 +61,7 @@ t = once(t, 'import android.widget.ImageView;\n', 'import android.widget.ImageVi
 t = once(
     t,
     '    private ImageView snapshotOverlay;\n',
-    '    private ImageView snapshotOverlay;\n    private FrameLayout launchOverlay;\n    private Button enterButton;\n    private boolean merchantPageReady = false;\n    private boolean enterRequested = false;\n',
+    '    private ImageView snapshotOverlay;\n    private FrameLayout launchOverlay;\n    private Button enterButton;\n    private boolean merchantPageReady = false;\n    private boolean enterRequested = false;\n    private static final String EXTRA_OPEN_ORDER_ID = "shishalove_open_order_id";\n    private long pendingOpenOrderId = 0L;\n',
     'splash fields'
 )
 
@@ -89,7 +89,8 @@ t = once(
 t = once(
     t,
     '        if (savedInstanceState == null) webView.loadUrl(START_URL);\n        else webView.restoreState(savedInstanceState);',
-    '''        if (savedInstanceState == null) {
+    '''        captureOrderIntent(getIntent());
+        if (savedInstanceState == null) {
             webView.loadUrl(START_URL);
         } else {
             launchOverlay.setVisibility(View.GONE);
@@ -196,11 +197,16 @@ t = once(
         }''',
     '''        @JavascriptInterface
         public void notifyOrder(String number, String customer, String total) {
+            runOnUiThread(() -> showOrderNotification(0L, number, customer, total));
+        }
+
+        @JavascriptInterface
+        public void notifyOrderWithId(String idText, String number, String customer, String total) {
             long id = 0L;
-            try { id = Long.parseLong(number == null ? "" : number.replaceAll("[^0-9]", "")); } catch (Exception ignored) {}
+            try { id = Long.parseLong(idText == null ? "0" : idText); } catch (Exception ignored) {}
             final long orderId = id;
             if (orderId > 0 && !OrderPollReceiver.claimNotification(MainActivity.this, orderId)) return;
-            runOnUiThread(() -> showOrderNotification(number, customer, total));
+            runOnUiThread(() -> showOrderNotification(orderId, number, customer, total));
         }
 
         @JavascriptInterface
@@ -216,6 +222,47 @@ t = once(
         }''',
     'background notification bridge'
 )
+
+# Notification taps must reuse the permanent Merchant shell and open the exact order.
+t = replace_method(t, '    private void showOrderNotification(String number, String customer, String total)', r'''    private void showOrderNotification(long orderId, String number, String customer, String total) {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+
+        Intent openIntent = new Intent(this, MerchantActivityV121.class);
+        openIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        if (orderId > 0L) {
+            openIntent.putExtra(EXTRA_OPEN_ORDER_ID, orderId);
+            openIntent.setData(Uri.parse("shishalove://merchant/order/" + orderId));
+        }
+        int pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) pendingFlags |= PendingIntent.FLAG_IMMUTABLE;
+        int requestCode = orderId > 0L ? (int) (orderId & 0x7fffffff) : 0;
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, requestCode, openIntent, pendingFlags);
+
+        String safeNumber = number == null || number.trim().isEmpty() ? "" : " #" + number.trim();
+        String safeCustomer = customer == null || customer.trim().isEmpty() ? "Customer" : customer.trim();
+        String safeTotal = total == null ? "" : total.trim();
+        String text = safeCustomer + (safeTotal.isEmpty() ? "" : " · " + safeTotal);
+
+        Notification.Builder builder;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder = new Notification.Builder(this, ORDER_CHANNEL_ID);
+        } else {
+            builder = new Notification.Builder(this);
+            builder.setPriority(Notification.PRIORITY_HIGH);
+        }
+        builder.setSmallIcon(R.drawable.ic_shishalove)
+                .setContentTitle("New ShishaLove order" + safeNumber)
+                .setContentText(text)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent);
+
+        int notificationId = orderId > 0L ? (int) (orderId & 0x7fffffff) : (int) (System.currentTimeMillis() & 0x7fffffff);
+        manager.notify(notificationId, builder.build());
+    }''')
 
 background_register_method = r'''    private void registerBackgroundOrderChannel(WebView view, String url) {
         if (view == null || url == null || !url.contains("shishalove-merchant")) return;
@@ -234,15 +281,42 @@ background_register_method = r'''    private void registerBackgroundOrderChannel
     }
 
 '''
-t = once(t, '    private String readAsset(String name) {', background_register_method + '    private String readAsset(String name) {', 'background registration method')
+t = once(t, '    private String readAsset(String name) {', background_register_method + r'''    private void captureOrderIntent(Intent intent) {
+        if (intent == null) return;
+        long id = intent.getLongExtra(EXTRA_OPEN_ORDER_ID, 0L);
+        if (id <= 0L && intent.getData() != null) {
+            try {
+                java.util.List<String> segments = intent.getData().getPathSegments();
+                if (segments != null && !segments.isEmpty()) id = Long.parseLong(segments.get(segments.size() - 1));
+            } catch (Exception ignored) {}
+        }
+        if (id > 0L) {
+            pendingOpenOrderId = id;
+            enterRequested = true;
+        }
+    }
+
+    private void tryOpenPendingOrder() {
+        if (webView == null || pendingOpenOrderId <= 0L) return;
+        final long id = pendingOpenOrderId;
+        String js = "(function(){if(typeof window.SLM_OPEN_ORDER==='function'){window.SLM_OPEN_ORDER(" + id + ");return true;}return false;})();";
+        webView.evaluateJavascript(js, value -> {
+            if ("true".equals(value)) {
+                pendingOpenOrderId = 0L;
+                hideLaunchOverlay();
+            }
+        });
+    }
+
+''' + '    private String readAsset(String name) {', 'background registration + order deep link methods')
 
 t = once(
     t,
     'https://shishalove.eu/shishalove-merchant/?app=android&build=143',
-    'https://shishalove.eu/shishalove-merchant-beta/?app=android&build=merchant-preview-6',
+    'https://shishalove.eu/shishalove-merchant-beta/?app=android&build=merchant-preview-7',
     'Merchant beta route'
 )
-t = t.replace('ShishaLoveMerchant/1.1.43', 'ShishaLoveMerchant/1.1.43-BetaPreview6')
+t = t.replace('ShishaLoveMerchant/1.1.43', 'ShishaLoveMerchant/1.1.43-BetaPreview7')
 
 # Faster first paint/reload: the HTML shell may paint from cache immediately;
 # Merchant REST calls still bypass cache in the staged Bridge.
@@ -301,7 +375,8 @@ t = replace_method(t, '            public void onPageCommitVisible(WebView view,
                     enterButton.setEnabled(true);
                     enterButton.setText("ENTER");
                 }
-                if (enterRequested) hideLaunchOverlay();
+                if (enterRequested && pendingOpenOrderId <= 0L) hideLaunchOverlay();
+                view.postDelayed(this::tryOpenPendingOrder, 90);
                 view.postDelayed(() -> registerBackgroundOrderChannel(view, url), 350);
                 view.postDelayed(() -> {
                     applyRuntimeJs(view, url);
@@ -320,7 +395,8 @@ t = replace_method(t, '            public void onPageFinished(WebView view, Stri
                 }
                 snapshotOverlay.removeCallbacks(hideSnapshotFailsafe);
                 hideLastSnapshot();
-                if (enterRequested) hideLaunchOverlay();
+                if (enterRequested && pendingOpenOrderId <= 0L) hideLaunchOverlay();
+                tryOpenPendingOrder();
                 registerBackgroundOrderChannel(view, url);
                 view.postDelayed(() -> {
                     applyRuntimeJs(view, url);
@@ -328,6 +404,24 @@ t = replace_method(t, '            public void onPageFinished(WebView view, Stri
                     captureSnapshot();
                 }, 600);
             }''')
+# Notification tap behavior: reuse current Activity/WebView and deep-link immediately.
+t = once(
+    t,
+    '''    @Override
+    protected void onResume() {''',
+    '''    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        captureOrderIntent(intent);
+        if (webView != null) webView.post(this::tryOpenPendingOrder);
+    }
+
+    @Override
+    protected void onResume() {''',
+    'notification onNewIntent'
+)
+
 # Ensure background polling is alive whenever Merchant returns to foreground.
 t = once(
     t,
@@ -514,6 +608,7 @@ public class OrderPollReceiver extends BroadcastReceiver {
             if (id <= 0L || !claimNotification(context, id)) continue;
             showNotification(
                     context,
+                    id,
                     String.valueOf(o.opt("number")),
                     o.optString("customer", "Customer"),
                     o.optString("total", "")
@@ -521,7 +616,7 @@ public class OrderPollReceiver extends BroadcastReceiver {
         }
     }
 
-    private static void showNotification(Context context, String number, String customer, String total) {
+    private static void showNotification(Context context, long orderId, String number, String customer, String total) {
         if (Build.VERSION.SDK_INT >= 33 &&
                 context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             return;
@@ -536,11 +631,16 @@ public class OrderPollReceiver extends BroadcastReceiver {
             manager.createNotificationChannel(channel);
         }
 
-        Intent open = new Intent(context, MainActivity.class);
+        Intent open = new Intent(context, MerchantActivityV121.class);
         open.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        if (orderId > 0L) {
+            open.putExtra("shishalove_open_order_id", orderId);
+            open.setData(android.net.Uri.parse("shishalove://merchant/order/" + orderId));
+        }
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) flags |= PendingIntent.FLAG_IMMUTABLE;
-        PendingIntent pending = PendingIntent.getActivity(context, 0, open, flags);
+        int requestCode = orderId > 0L ? (int) (orderId & 0x7fffffff) : 0;
+        PendingIntent pending = PendingIntent.getActivity(context, requestCode, open, flags);
 
         String safeNumber = number == null || number.trim().isEmpty() ? "" : " #" + number.trim();
         String safeCustomer = customer == null || customer.trim().isEmpty() ? "Customer" : customer.trim();
@@ -588,14 +688,14 @@ public class BootReceiver extends BroadcastReceiver {
 # ---------------------------------------------------------------------------
 polish = ROOT / 'merchant/src/main/assets/merchant_phone_polish.js'
 pt = polish.read_text(encoding='utf-8')
-preview6 = r'''
+preview7 = r'''
 ;(function(){
   function installPreview3(){
     if(!document.head)return;
-    var s=document.getElementById('slm-preview6-first-paint');
+    var s=document.getElementById('slm-preview7-first-paint');
     if(!s){
       s=document.createElement('style');
-      s.id='slm-preview6-first-paint';
+      s.id='slm-preview7-first-paint';
       s.textContent='body.slb-merchant{--safe-bottom:0px!important}body.slb-merchant .slm-app{height:auto!important;min-height:100vh!important;overflow:visible!important;padding-bottom:92px!important}body.slb-merchant .slm-page{height:auto!important;max-height:none!important;overflow:visible!important;padding-bottom:118px!important}body.slb-merchant .slm-bottom{position:fixed!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;height:72px!important;min-height:72px!important;padding:0!important;margin:0!important;transform:none!important;background:#fff!important;z-index:9999!important}body.slb-merchant .slm-bottom button{font-size:11px!important;line-height:1.1!important;padding:0 2px!important}body.slb-merchant .slm-bottom button i{font-size:22px!important}.slm-panel .slm-form-actions{position:static!important;bottom:auto!important;margin:12px 0 6px!important;padding:0!important;background:#fff!important}';
       document.head.appendChild(s);
     }
@@ -618,8 +718,8 @@ preview6 = r'''
   }
 })();
 '''
-if 'slm-preview6-first-paint' not in pt:
-    pt += preview6
+if 'slm-preview7-first-paint' not in pt:
+    pt += preview7
 polish.write_text(pt, encoding='utf-8')
 
 # ---------------------------------------------------------------------------
@@ -650,8 +750,8 @@ t = replace_method(t, '    private void applyWebFix()', r'''    private void app
                 + "d.style.setProperty('height','auto','important');d.style.setProperty('min-height','100%','important');d.style.setProperty('overflow-x','hidden','important');d.style.setProperty('overflow-y','auto','important');d.style.setProperty('touch-action','pan-y','important');"
                 + "b.style.setProperty('position','static','important');b.style.setProperty('height','auto','important');b.style.setProperty('min-height','100%','important');b.style.setProperty('overflow-x','hidden','important');b.style.setProperty('overflow-y','auto','important');b.style.setProperty('touch-action','pan-y','important');b.style.setProperty('-webkit-overflow-scrolling','touch','important');b.style.setProperty('overscroll-behavior-y','auto','important');"
                 + "if(r){r.style.setProperty('position','static','important');r.style.setProperty('height','auto','important');r.style.setProperty('min-height','100%','important');r.style.setProperty('overflow','visible','important');r.style.setProperty('touch-action','pan-y','important');}"
-                + "['slm-native-layout-141','slm-native-layout-142','slm-native-layout-beta2','slm-native-layout-beta6'].forEach(function(id){var x=document.getElementById(id);if(x)x.remove();});"
-                + "var s=document.createElement('style');s.id='slm-native-layout-beta6';"
+                + "['slm-native-layout-141','slm-native-layout-142','slm-native-layout-beta2','slm-native-layout-beta7'].forEach(function(id){var x=document.getElementById(id);if(x)x.remove();});"
+                + "var s=document.createElement('style');s.id='slm-native-layout-beta7';"
                 + "s.textContent='body.slb-merchant{--safe-bottom:0px!important}body.slb-merchant .slm-app{position:relative!important;height:auto!important;min-height:100vh!important;display:block!important;overflow:visible!important;padding-bottom:92px!important}body.slb-merchant .slm-top{position:sticky!important;top:0!important;z-index:80!important}body.slb-merchant .slm-page{position:relative!important;height:auto!important;min-height:calc(100vh - 160px)!important;max-height:none!important;overflow:visible!important;touch-action:pan-y!important;padding-bottom:118px!important}body.slb-merchant .slm-bottom{position:fixed!important;left:0!important;right:0!important;top:auto!important;bottom:0!important;width:100%!important;height:72px!important;min-height:72px!important;padding:0!important;margin:0!important;transform:none!important;box-sizing:border-box!important;background:#fff!important;z-index:9999!important}body.slb-merchant .slm-bottom button{font-size:11px!important;line-height:1.1!important;padding:0 2px!important;min-width:0!important}body.slb-merchant .slm-bottom button i{font-size:22px!important;line-height:1!important}body.slb-merchant .slm-product-row,body.slb-merchant .slm-order{touch-action:pan-y!important}.slm-panel .slm-form-actions{position:static!important;bottom:auto!important;margin:12px 0 6px!important;padding:0!important}';"
                 + "document.head.appendChild(s);"
                 + "var panel=document.getElementById('slm-panel'),stock=panel&&panel.querySelector('.slm-stock-management'),actions=panel&&panel.querySelector('.slm-form-actions');if(stock&&actions&&stock.nextElementSibling!==actions)stock.insertAdjacentElement('afterend',actions);"
@@ -662,8 +762,8 @@ activity.write_text(t, encoding='utf-8')
 
 gradle = ROOT / 'merchant/build.gradle'
 t = gradle.read_text(encoding='utf-8')
-t = once(t, 'versionCode 143', 'versionCode 14306', 'Merchant beta versionCode')
-t = once(t, "versionName '1.1.43'", "versionName '1.1.43-preview6'", 'Merchant beta versionName')
+t = once(t, 'versionCode 143', 'versionCode 14307', 'Merchant beta versionCode')
+t = once(t, "versionName '1.1.43'", "versionName '1.1.43-preview7'", 'Merchant beta versionName')
 gradle.write_text(t, encoding='utf-8')
 
 manifest = ROOT / 'merchant/src/main/AndroidManifest.xml'
@@ -673,7 +773,8 @@ t = once(t, '    <uses-permission android:name="android.permission.POST_NOTIFICA
 t = once(
     t,
     '''        <activity
-            android:name=".MerchantActivityV121"''',
+            android:name=".MerchantActivityV121"
+            android:launchMode="singleTop"''',
     '''        <receiver
             android:name=".OrderPollReceiver"
             android:exported="false" />
@@ -699,7 +800,7 @@ final_manifest = manifest.read_text(encoding='utf-8')
 final_polish = polish.read_text(encoding='utf-8')
 
 assert '/shishalove-merchant-beta/' in final_main
-assert 'merchant-preview-6' in final_main
+assert 'merchant-preview-7' in final_main
 assert 'WebSettings.LOAD_CACHE_ELSE_NETWORK' in final_main
 assert 'hideSnapshotFailsafe' in final_main
 assert 'postDelayed(hideSnapshotFailsafe, 1400)' in final_main
@@ -709,23 +810,29 @@ assert 'merchantBand.setText("MERCHANT")' in final_main
 assert 'enterButton.setText("ENTER")' in final_main
 assert 'createLaunchOverlay()' in final_main
 assert 'view.postDelayed(() -> {' in final_main
-assert 'versionCode 14306' in final_gradle
-assert "versionName '1.1.43-preview6'" in final_gradle
+assert 'versionCode 14307' in final_gradle
+assert "versionName '1.1.43-preview7'" in final_gradle
 assert 'ShishaLove Merchant Beta' in final_manifest
 assert 'POST_NOTIFICATIONS' in final_manifest
 assert 'RECEIVE_BOOT_COMPLETED' in final_manifest
 assert 'WAKE_LOCK' in final_manifest
 assert 'OrderPollReceiver' in final_manifest
 assert 'BootReceiver' in final_manifest
+assert 'android:launchMode="singleTop"' in final_manifest
 assert 'registerBackgroundOrderChannel' in final_main
 assert 'hasBackgroundOrderToken' in final_main
 assert 'registerBackgroundOrders' in final_main
+assert 'notifyOrderWithId' in final_main
+assert 'EXTRA_OPEN_ORDER_ID' in final_main
+assert 'new Intent(this, MerchantActivityV121.class)' in final_main
+assert 'protected void onNewIntent(Intent intent)' in final_main
+assert 'tryOpenPendingOrder' in final_main
 assert (ROOT / 'merchant/src/main/java/eu/shishalove/merchant/OrderPollReceiver.java').exists()
 assert (ROOT / 'merchant/src/main/java/eu/shishalove/merchant/BootReceiver.java').exists()
-assert 'slm-native-layout-beta6' in final_activity
+assert 'slm-native-layout-beta7' in final_activity
 assert "padding-bottom:118px!important" in final_activity
 assert "height:72px!important" in final_activity
-assert "slm-preview6-first-paint" in final_polish
+assert "slm-preview7-first-paint" in final_polish
 assert "stock.insertAdjacentElement('afterend',actions)" in final_polish
 assert ".slm-panel .slm-form-actions{position:static!important" in final_polish
-print('Merchant Beta Preview 6: native background order notifications + branded Merchant splash + approved UI fixes MASTER FIX prepared')
+print('Merchant Beta Preview 7: instant notification deep-link + fast order reload/context + native background notifications + approved UI fixes MASTER FIX prepared')
