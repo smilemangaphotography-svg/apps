@@ -85,6 +85,13 @@ jobs:
           grep -Fq "versionName '1.1.50'" "$G"
           grep -Fq 'build=150' "$M"
           grep -Fq 'ShishaLoveMerchant/1.1.50' "$M"
+          grep -Fq 'WebSettings.LOAD_DEFAULT' "$M"
+          ! grep -Fq 'WebSettings.LOAD_CACHE_ELSE_NETWORK' "$M"
+          grep -Fq 'refreshOfficialRuntimeCache()' "$M"
+          grep -Fq 'webView.clearCache(true)' "$M"
+          grep -Fq 'merchant_web_runtime_build' "$M"
+          grep -Fq 'loadFreshStartUrl()' "$M"
+          grep -Fq 'Cache-Control", "no-cache, no-store, max-age=0' "$M"
           grep -Fq 'OrderPollReceiver' "$X"
           grep -Fq 'android:launchMode="singleTop"' "$X"
           grep -Fq 'slm-native-layout-147' "$A"
@@ -143,7 +150,7 @@ jobs:
         run: |
           set -euo pipefail
           TAG='shishalove-merchant-1.1.50'
-          NOTES='MASTER FIX — root-cause correction. Previous production releases kept patching the canonical Merchant runtime, while the approved working Beta used a different merchant-generated.js runtime and staging WooCommerce Products/Orders implementations. 1.1.50 promotes that exact approved Beta runtime byte-for-byte into production, with only the REST base changed to an isolated production mirror of the same staging-proven Products/Orders code. This directly addresses the dead Dashboard navigation and Orders skeleton regression instead of adding another approximation. Android shell, notifications, exact-order deep links, splash, scrolling, editor, search and stock behavior remain frozen. Customer 1.1.45 remains unchanged. Install Bridge 1.1.50 first, then update Merchant 1.1.50 over the existing app. Do not uninstall.'
+          NOTES='MASTER FIX — root-cause correction. 1.1.50 promotes the exact approved working Beta runtime byte-for-byte into production and mirrors the staging-proven Products/Orders REST code. It also fixes the stale official WebView runtime problem: production now clears the old WebView resource cache once on build 150, uses HTTP-aware LOAD_DEFAULT instead of LOAD_CACHE_ELSE_NETWORK, and loads the production shell with explicit no-cache headers. This prevents an old Merchant shell/JS from surviving Bridge updates and making Dashboard or Orders appear unfixed. Android notifications, exact-order deep links, splash, scrolling, editor, search and stock behavior remain frozen. Customer 1.1.45 remains unchanged. Install Bridge 1.1.50 first, then update Merchant 1.1.50 over the existing app. Do not uninstall.'
           ASSETS=(dist/ShishaLove-Merchant-1.1.50-CURRENT-PHONE-UPDATE.apk dist/shishalove-app-bridge-1.1.50.zip dist/SHA256SUMS.txt)
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${ASSETS[@]}" --clobber
