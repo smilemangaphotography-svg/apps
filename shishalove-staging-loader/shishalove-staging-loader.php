@@ -2,13 +2,13 @@
 /**
  * Plugin Name: ShishaLove Staging Loader
  * Description: Isolated Customer + Merchant beta routes for one-by-one testing. Production Customer/Merchant routes remain untouched.
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: ShishaLove
  */
 
 if (!defined('ABSPATH')) { exit; }
 
-define('SLSL_VERSION', '1.2.0');
+define('SLSL_VERSION', '1.3.0');
 define('SLSL_REMOTE_BASE', 'https://raw.githubusercontent.com/smilemangaphotography-svg/apps/shishalove-staging/shishalove-staging/');
 
 function slsl_request_path() {
@@ -294,6 +294,117 @@ function slsl_merchant_orders($request) {
     );
 }
 
+function slsl_latest_order_id() {
+    if (!function_exists('wc_get_orders')) { return 0; }
+    $orders = wc_get_orders(array(
+        'limit' => 1,
+        'orderby' => 'date',
+        'order' => 'DESC',
+        'return' => 'objects',
+    ));
+    if (!$orders) { return 0; }
+    return (int) $orders[0]->get_id();
+}
+
+function slsl_device_store() {
+    $devices = get_option('slsl_merchant_order_devices_v1', array());
+    return is_array($devices) ? $devices : array();
+}
+
+function slsl_save_device_store($devices) {
+    if (!is_array($devices)) { $devices = array(); }
+    update_option('slsl_merchant_order_devices_v1', $devices, false);
+}
+
+function slsl_register_order_device() {
+    if (!slsl_merchant_permission()) {
+        return new WP_Error('forbidden', 'Merchant permission required', array('status' => 403));
+    }
+
+    $devices = slsl_device_store();
+    $cutoff = time() - (90 * DAY_IN_SECONDS);
+    foreach ($devices as $key => $meta) {
+        $created = isset($meta['created']) ? (int) $meta['created'] : 0;
+        if (!$created || $created < $cutoff) { unset($devices[$key]); }
+    }
+
+    $token = wp_generate_password(64, false, false);
+    $hash = hash('sha256', $token);
+    $devices[$hash] = array(
+        'user_id' => get_current_user_id(),
+        'created' => time(),
+        'last_used' => time(),
+    );
+
+    if (count($devices) > 20) {
+        uasort($devices, function($a, $b) {
+            return (int) ($a['created'] ?? 0) <=> (int) ($b['created'] ?? 0);
+        });
+        while (count($devices) > 20) { array_shift($devices); }
+    }
+
+    slsl_save_device_store($devices);
+
+    return array(
+        'token' => $token,
+        'latest_order_id' => slsl_latest_order_id(),
+        'poll_seconds' => 60,
+        'server_time' => time(),
+    );
+}
+
+function slsl_validate_order_device($request) {
+    $token = trim((string) $request->get_header('x-shishalove-device'));
+    if ($token === '') { return false; }
+    $hash = hash('sha256', $token);
+    $devices = slsl_device_store();
+    if (empty($devices[$hash]) || !is_array($devices[$hash])) { return false; }
+
+    $meta = $devices[$hash];
+    $created = isset($meta['created']) ? (int) $meta['created'] : 0;
+    if (!$created || $created < time() - (90 * DAY_IN_SECONDS)) { return false; }
+
+    $user_id = isset($meta['user_id']) ? (int) $meta['user_id'] : 0;
+    $user = $user_id ? get_user_by('id', $user_id) : false;
+    if (!$user || !(user_can($user, 'manage_woocommerce') || user_can($user, 'edit_products'))) { return false; }
+
+    $devices[$hash]['last_used'] = time();
+    slsl_save_device_store($devices);
+    return true;
+}
+
+function slsl_order_pulse($request) {
+    if (!slsl_validate_order_device($request)) {
+        return new WP_Error('invalid_device', 'Invalid or expired Merchant device token', array('status' => 401));
+    }
+    if (!function_exists('wc_get_orders')) {
+        return new WP_Error('woocommerce_unavailable', 'WooCommerce unavailable', array('status' => 503));
+    }
+
+    $orders = wc_get_orders(array(
+        'limit' => 10,
+        'orderby' => 'date',
+        'order' => 'DESC',
+        'return' => 'objects',
+    ));
+    $items = array();
+    foreach ((array) $orders as $order) {
+        $items[] = array(
+            'id' => (int) $order->get_id(),
+            'number' => (string) $order->get_order_number(),
+            'customer' => trim((string) $order->get_formatted_billing_full_name()) ?: 'Customer',
+            'status' => (string) $order->get_status(),
+            'total' => html_entity_decode(wp_strip_all_tags($order->get_formatted_order_total()), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+            'date' => $order->get_date_created() ? $order->get_date_created()->date_i18n('Y-m-d H:i') : '',
+        );
+    }
+    return array(
+        'items' => $items,
+        'latest_order_id' => $items ? (int) $items[0]['id'] : 0,
+        'server_time' => time(),
+    );
+}
+
 function slsl_no_store_response($response, $server, $request) {
     $route = is_object($request) && method_exists($request, 'get_route') ? (string) $request->get_route() : '';
     if (strpos($route, '/shishalove-staging/v1/') === 0 && is_object($response) && method_exists($response, 'header')) {
@@ -330,6 +441,16 @@ add_action('rest_api_init', function() {
         'methods' => 'GET',
         'permission_callback' => 'slsl_merchant_permission',
         'callback' => 'slsl_merchant_orders',
+    ));
+    register_rest_route('shishalove-staging/v1', '/merchant/device-register', array(
+        'methods' => 'POST',
+        'permission_callback' => 'slsl_merchant_permission',
+        'callback' => function() { return slsl_register_order_device(); },
+    ));
+    register_rest_route('shishalove-staging/v1', '/merchant/order-pulse', array(
+        'methods' => 'GET',
+        'permission_callback' => '__return_true',
+        'callback' => 'slsl_order_pulse',
     ));
 });
 
