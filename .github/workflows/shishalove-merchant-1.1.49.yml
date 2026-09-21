@@ -1,0 +1,146 @@
+name: ShishaLove Merchant 1.1.49 Dashboard Orders Hotfix
+
+on:
+  push:
+    branches: [shishalove-main]
+    paths:
+      - '.github/workflows/shishalove-merchant-1.1.49.yml'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.49.py'
+      - 'shishalove-mobile/tools/patch-merchant-final-1.1.49.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Build Bridge 1.1.49
+        run: |
+          set -euo pipefail
+          rm -rf package dist && mkdir -p package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.49.py package/shishalove-app-bridge
+
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          C='package/shishalove-app-bridge/assets/customer.js'
+          M='package/shishalove-app-bridge/assets/merchant.js'
+          CSS='package/shishalove-app-bridge/assets/bridge.css'
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.49/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.49');/" "$MAIN"
+
+          node --check "$C"
+          node --check "$M"
+          php -l "$MAIN"
+
+          # Customer lock.
+          grep -Fq "var BUILD='1.1.45';" "$C"
+          grep -Fq "CFG.version='1.1.45';" "$C"
+          grep -Fq 'function frontPageMarkup()' "$C"
+          grep -Fq 'slb-front-visual' "$CSS"
+
+          # Dashboard + Orders hotfix locks.
+          grep -Fq "CFG.version='1.1.49';" "$M"
+          grep -Fq "var DATA_CACHE='merchant-v149';" "$M"
+          grep -Fq 'function installMerchantNavDelegation()' "$M"
+          grep -Fq 'window.__SLM_NAV_DELEGATION_INSTALLED' "$M"
+          grep -Fq 'merchant/orders-stable?page=1&per_page=20' "$M"
+          grep -Fq 'merchant/orders-stable?page=1&per_page=1' "$M"
+          grep -Fq 'merchantOrderRequestSeq' "$M"
+          grep -Fq '7000' "$M"
+          grep -Fq 'function slb_orders_stable($request)' "$MAIN"
+          grep -Fq '/merchant/orders-stable' "$MAIN"
+          grep -Fq 'Version: 1.1.49' "$MAIN"
+
+      - name: Apply Merchant Android 1.1.49
+        run: |
+          set -euo pipefail
+          python3 shishalove-mobile/tools/patch-merchant-final-1.1.49.py package/shishalove-app-bridge
+
+          G='shishalove-mobile/merchant/build.gradle'
+          M='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+          X='shishalove-mobile/merchant/src/main/AndroidManifest.xml'
+          A='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java'
+
+          grep -Fq 'versionCode 149' "$G"
+          grep -Fq "versionName '1.1.49'" "$G"
+          grep -Fq 'build=149' "$M"
+          grep -Fq 'ShishaLoveMerchant/1.1.49' "$M"
+          grep -Fq 'OrderPollReceiver' "$X"
+          grep -Fq 'android:launchMode="singleTop"' "$X"
+          grep -Fq 'slm-native-layout-147' "$A"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build production Merchant 1.1.49
+        working-directory: shishalove-mobile
+        run: gradle :merchant:assembleRelease :merchant:assembleDebug --stacktrace
+
+      - name: Verify package and signing continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          RELEASE='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          DEBUG='shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk'
+
+          "$AAPT" dump badging "$RELEASE" | grep -q "package: name='eu.shishalove.merchant' versionCode='149' versionName='1.1.49'"
+          "$AAPT" dump badging "$DEBUG" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='149' versionName='1.1.49-dev'"
+
+          mkdir -p dist/previous
+          gh release download shishalove-merchant-1.1.48 --pattern 'ShishaLove-Merchant-1.1.48-CURRENT-PHONE-UPDATE.apk' --dir dist/previous
+          digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
+          test "$(digest dist/previous/ShishaLove-Merchant-1.1.48-CURRENT-PHONE-UPDATE.apk)" = "$(digest "$RELEASE")"
+
+          cp "$RELEASE" dist/ShishaLove-Merchant-1.1.49-CURRENT-PHONE-UPDATE.apk
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.49.zip shishalove-app-bridge)
+          sha256sum dist/ShishaLove-Merchant-1.1.49-CURRENT-PHONE-UPDATE.apk dist/shishalove-app-bridge-1.1.49.zip > dist/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-merchant-1.1.49-dashboard-orders-hotfix
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish 1.1.49 Hotfix
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-merchant-1.1.49'
+          NOTES='MASTER FIX + MASTER UPDATE — official Merchant hotfix. Fixes dead Dashboard navigation with a permanent delegated root navigation handler and fixes Orders stuck on skeleton by switching to the staging-proven WooCommerce query under a dedicated production stable endpoint. Removes the risky AbortController/Promise.finally Orders flow, uses a simple 7-second fail-safe, preserves stale-cache-first rendering, and makes Dashboard stats use the same stable Orders source. All approved Beta 7/1.1.48 UI, notifications, exact-order deep links, splash, scrolling, editor, search and stock behavior remain unchanged. Customer 1.1.45 remains frozen. Install Bridge 1.1.49 first, then update the production Merchant APK over the existing app. Do not uninstall.'
+          ASSETS=(dist/ShishaLove-Merchant-1.1.49-CURRENT-PHONE-UPDATE.apk dist/shishalove-app-bridge-1.1.49.zip dist/SHA256SUMS.txt)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ASSETS[@]}" --clobber
+            gh release edit "$TAG" --title 'ShishaLove Merchant 1.1.49 — Dashboard + Orders Hotfix' --notes "$NOTES" --target shishalove-main
+          else
+            gh release create "$TAG" "${ASSETS[@]}" --title 'ShishaLove Merchant 1.1.49 — Dashboard + Orders Hotfix' --notes "$NOTES" --target shishalove-main
+          fi
