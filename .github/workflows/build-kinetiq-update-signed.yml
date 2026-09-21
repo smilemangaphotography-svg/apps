@@ -2,7 +2,7 @@ name: Build KINETIQ 3.1.0 Master Mockups Update
 
 on:
   push:
-    branches: [ personal-trainer-main ]
+    branches: [ personal-trainer-main, kinetiq-master-mockups-310 ]
     paths:
       - '.github/workflows/build-kinetiq-update-signed.yml'
       - 'personal-trainer/android-beta/**'
@@ -20,7 +20,7 @@ jobs:
       - name: Checkout canonical branch
         uses: actions/checkout@v4
         with:
-          ref: personal-trainer-main
+          ref: ${{ github.ref_name }}
           fetch-depth: 0
 
       - name: Set up Java 17
