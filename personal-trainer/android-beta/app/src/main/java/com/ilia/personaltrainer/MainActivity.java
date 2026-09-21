@@ -29,6 +29,7 @@ import android.widget.Toast;
 
 import org.json.JSONObject;
 import java.util.Locale;
+import java.util.Set;
 
 public class MainActivity extends Activity {
     private WebView webView;
@@ -42,6 +43,8 @@ public class MainActivity extends Activity {
     private boolean locationRunning = false;
     private TextToSpeech tts;
     private boolean ttsReady = false;
+    private float ttsVolume = 1.0f;
+    private float ttsRate = 1.02f;
 
     private final LocationListener locationListener = new LocationListener() {
         @Override public void onLocationChanged(Location location) { sendLocation(location); }
@@ -101,7 +104,7 @@ public class MainActivity extends Activity {
             if (status == TextToSpeech.SUCCESS) {
                 int result = tts.setLanguage(Locale.UK);
                 ttsReady = result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED;
-                if (ttsReady) tts.setSpeechRate(1.02f);
+                if (ttsReady) tts.setSpeechRate(ttsRate);
             }
         });
         webView.addJavascriptInterface(new PTBridge(), "PTNative");
@@ -157,14 +160,15 @@ public class MainActivity extends Activity {
                 "var m=window.__ILIA_MASTER_MOCKUP__||'missing';" +
                 "var f=window.__ILIA_MASTER_FIX__||'missing';" +
                 "var v=window.__ILIA_V7__||'missing';" +
-                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.3-runtime-ready'&&v==='3.0.3-calendar-ai-ready')?'ready':(p+'|'+s+'|'+m+'|'+f+'|'+v);" +
+                "var b=window.__KINETIQ_BETA303__||'missing';" +
+                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.3-runtime-ready'&&v==='3.0.3-calendar-ai-ready'&&b==='KINETIQ-3.0.3-approved-beta-1')?'ready':(p+'|'+s+'|'+m+'|'+f+'|'+v+'|'+b);" +
                 "}catch(e){return 'error';}})()";
         view.evaluateJavascript(probe, value -> {
             if ("\"ready\"".equals(value)) return;
             if (attempt + 1 < RUNTIME_MAX_ATTEMPTS) {
                 view.postDelayed(() -> verifyRuntimeReady(view, attempt + 1), RUNTIME_RETRY_MS);
             } else {
-                Toast.makeText(MainActivity.this, "KINETIQ 3.0.3 runtime failed to initialize", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "KINETIQ BETA 3.0.3 runtime failed to initialize", Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -175,8 +179,53 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void speak(String text) {
             if (text == null || text.trim().isEmpty()) return;
             runOnUiThread(() -> {
-                if (ttsReady) tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "kinetiq-run");
+                if (ttsReady) {
+                    Bundle params = new Bundle();
+                    params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, ttsVolume);
+                    tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "kinetiq-coach");
+                }
             });
+        }
+        @JavascriptInterface public void setTtsVolume(double value) {
+            ttsVolume = (float)Math.max(0.2d, Math.min(1.0d, value));
+        }
+        @JavascriptInterface public void setTtsRate(double value) {
+            ttsRate = (float)Math.max(0.75d, Math.min(1.25d, value));
+            runOnUiThread(() -> { if (ttsReady) tts.setSpeechRate(ttsRate); });
+        }
+        @JavascriptInterface public String getTtsVoices() {
+            if (!ttsReady || tts == null || Build.VERSION.SDK_INT < 21) return "[]";
+            try {
+                org.json.JSONArray out = new org.json.JSONArray();
+                Set<android.speech.tts.Voice> voices = tts.getVoices();
+                if (voices != null) {
+                    for (android.speech.tts.Voice voice : voices) {
+                        if (voice != null && voice.getLocale() != null && voice.getLocale().getLanguage().equals(Locale.ENGLISH.getLanguage())) {
+                            JSONObject row = new JSONObject();
+                            row.put("name", voice.getName());
+                            row.put("locale", voice.getLocale().toLanguageTag());
+                            out.put(row);
+                        }
+                    }
+                }
+                return out.toString();
+            } catch (Exception ignored) { return "[]"; }
+        }
+        @JavascriptInterface public boolean setTtsVoice(String voiceName) {
+            if (!ttsReady || tts == null || voiceName == null || Build.VERSION.SDK_INT < 21) return false;
+            try {
+                Set<android.speech.tts.Voice> voices = tts.getVoices();
+                if (voices != null) {
+                    for (android.speech.tts.Voice voice : voices) {
+                        if (voice != null && voiceName.equals(voice.getName())) {
+                            final android.speech.tts.Voice selected = voice;
+                            runOnUiThread(() -> tts.setVoice(selected));
+                            return true;
+                        }
+                    }
+                }
+            } catch (Exception ignored) { }
+            return false;
         }
         @JavascriptInterface public boolean hasLocationPermission() {
             return Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
