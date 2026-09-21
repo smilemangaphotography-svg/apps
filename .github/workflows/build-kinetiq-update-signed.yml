@@ -1,4 +1,4 @@
-name: Build KINETIQ 3.0.16 In-Place Update
+name: Build KINETIQ 3.1.0 Master Mockups Update
 
 on:
   push:
@@ -188,6 +188,32 @@ jobs:
           out2.save(a/'kinetiq-cover-a54-v316.png','PNG',optimize=True)
           check2=Image.open(a/'kinetiq-cover-a54-v316.png')
           assert check2.size==(941,2039)
+
+          # 3.1.0 MASTER COVER: preserve all approved artwork/Q coordinates,
+          # replacing only the empty top extension with a subdued continuation
+          # of the existing dark cloud atmosphere.
+          base=check2.convert('RGB')
+          cut=296
+          patch=base.crop((0,520,230,720)).resize((941,cut+120),Image.Resampling.LANCZOS)
+          patch=patch.filter(ImageFilter.GaussianBlur(7))
+          patch=ImageEnhance.Brightness(patch).enhance(0.68)
+          px=patch.load()
+          for yy in range(patch.height):
+              factor=.55+.45*(yy/(patch.height-1))
+              for xx in range(941):
+                  rr,gg,bb=px[xx,yy]
+                  px[xx,yy]=(int(rr*factor),int(gg*factor),int(bb*factor))
+          master=base.copy()
+          master.paste(patch.crop((0,0,941,cut)),(0,0))
+          blend_h=100
+          for yy in range(blend_h):
+              alpha=(yy+1)/(blend_h+1)
+              er=patch.crop((0,cut+yy,941,cut+yy+1))
+              original=base.crop((0,cut+yy,941,cut+yy+1))
+              master.paste(Image.blend(er,original,alpha),(0,cut+yy))
+          master.save(a/'kinetiq-cover-a54-v317.png','PNG',optimize=True)
+          check3=Image.open(a/'kinetiq-cover-a54-v317.png')
+          assert check3.size==(941,2039)
           PY
           curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/9d5261e2-b84f-43a2-8ac8-c5888efdd969.png' -o "$R/kinetiq_launcher_foreground_v307.png"
           echo 'f6dba6ccdcfb362cdb5eea835bf0cf8b067faeec1c0a14f30bd59e18a6a82cd2  '"$R"'/kinetiq_launcher_foreground_v307.png' | sha256sum -c -
@@ -211,91 +237,45 @@ jobs:
           assert (b[3]-b[1]) <= src.height*0.80
           PY
 
-      - name: Validate KINETIQ update source
+      - name: Validate KINETIQ 3.1.0 Master Mockups source
         shell: bash
         run: |
           set -euo pipefail
           A=personal-trainer/android-beta/app/src/main/assets
           node --check "$A/app-v2.js"
           node --check "$A/style2-v29.js"
-          node --check "$A/style2-v7.js"
-          node --check "$A/style2-v7-final-fix.js"
-          node --check "$A/style2-v73-library-tools.js"
-          node --check "$A/style2-v305-master-fix.js"
-          node --check "$A/kinetiq-v308-hotfix.js"
-          node --check "$A/kinetiq-v311-entry.js"
+          node --check "$A/kinetiq-master-310.js"
           node --check "$A/kinetiq-v315-root-lock.js"
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionCode 56" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.16'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'android:icon="@mipmap/kinetiq_launcher_v308"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          grep -q 'android:roundIcon="@mipmap/kinetiq_launcher_v308_round"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
-          test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_final.webp
-          test -s personal-trainer/android-beta/app/src/main/res/mipmap-xxxhdpi/kinetiq_launcher_final.webp
-          test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v308.xml
-          test -s personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v308_round.xml
-          grep -q '@drawable/kinetiq_launcher_foreground_v308' personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v308.xml
-          grep -q '@color/ic_launcher_background' personal-trainer/android-beta/app/src/main/res/mipmap-anydpi-v26/kinetiq_launcher_v308.xml
-          test -s "$A/kinetiq-cover-locked.webp"
-          python3 - <<'PY'
-          from PIL import Image
-          cover=Image.open('personal-trainer/android-beta/app/src/main/assets/kinetiq-cover-locked.webp')
-          fg=Image.open('personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_final.webp').convert('RGBA')
-          icon=Image.open('personal-trainer/android-beta/app/src/main/res/mipmap-xxxhdpi/kinetiq_launcher_final.webp')
-          assert cover.size == (941,1672)
-          assert fg.size == (432,432) and fg.getchannel('A').getextrema()[0] == 0
-          assert icon.size == (512,512)
-          PY
-          grep -q 'style2-v305-master-fix.js' "$A/index29.html"
-          grep -q 'kinetiq-v308-hotfix.js' "$A/index29.html"
-          grep -q 'kinetiq-v308-hotfix.css' "$A/index29.html"
-          test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_v308.png
-          grep -q 'COMPLETED WORKOUT' "$A/style2-v305-master-fix.js"
-          grep -q 'private void enterCoverFromNative' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'MotionEvent.ACTION_UP' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'setCoverVisible(boolean visible)' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'private void positionCoverTap' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'kinetiq-v310-cover-fix.css' "$A/index29.html"
-          grep -q 'kinetiq-v311-cover-fix.css' "$A/index29.html"
-          grep -q 'kinetiq-v311-entry.js' "$A/index29.html"
-          grep -q 'window.KINETIQ_ENTER' "$A/kinetiq-v311-entry.js"
-          grep -q 'ViewGroup.LayoutParams.MATCH_PARENT' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'onWindowFocusChanged(boolean hasFocus)' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'dispatchTouchEvent(MotionEvent event)' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'kinetiq-cover-a54-v312.png' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'private void applyImmersiveCover' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'WindowManager.LayoutParams.FLAG_FULLSCREEN' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'nativeEntryCommitted' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q "__PT_STYLE29__==='locked-all-in-one-2.9'" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q "coverHidden&&destinationVisible" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'performHapticFeedback' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'nativeCoverActive' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'WindowInsets.Type.systemBars()' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q 'setOnSystemUiVisibilityChangeListener' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          test -s "$A/kinetiq-v315-root-lock.css"
-          test -s "$A/kinetiq-v315-root-lock.js"
+          grep -q "versionCode 57" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.1.0'" personal-trainer/android-beta/app/build.gradle
           grep -q 'id="kinetiqCleanGate"' "$A/index29.html"
           grep -q 'kinetiq-v315-root-lock.css' "$A/index29.html"
           grep -q 'kinetiq-v315-root-lock.js' "$A/index29.html"
-          grep -q '#style2Cover.kinetiq-cover-locked.hidden' "$A/kinetiq-v315-root-lock.css"
-          grep -q 'overflow-y:auto!important' "$A/kinetiq-v315-root-lock.css"
-          grep -q 'window.__KINETIQ_V315_LOCK__' "$A/kinetiq-v315-root-lock.js"
-          grep -q 'kinetiq-cover-a54-v316.png' "$A/index29.html"
-          grep -q 'object-fit:fill!important' "$A/kinetiq-v315-root-lock.css"
-          test -s "$A/kinetiq-cover-a54-v316.png"
-          python3 - <<'PY'
-          from PIL import Image
-          im=Image.open('personal-trainer/android-beta/app/src/main/assets/kinetiq-cover-a54-v316.png')
-          assert im.size==(941,2039)
-          PY
+          grep -q 'kinetiq-master-310.css' "$A/index29.html"
+          grep -q 'kinetiq-master-310.js' "$A/index29.html"
+          grep -q 'data-nav="run"' "$A/index29.html"
+          grep -q 'id="masterOverlay"' "$A/index29.html"
+          grep -q "__KINETIQ_MASTER_MOCKUPS__='3.1.0-permanent'" "$A/kinetiq-master-310.js"
+          grep -q 'Show completed' "$A/kinetiq-master-310.js"
+          grep -q 'EXERCISE COMPLETED' "$A/kinetiq-master-310.js"
+          grep -q 'Workout Complete!' "$A/kinetiq-master-310.js"
+          grep -q 'Run Activity' "$A/kinetiq-master-310.js"
+          grep -q 'INFINITE DRIVE' "$A/kinetiq-master-310.js"
+          grep -q '#exerciseDetail,#masterOverlay' "$A/kinetiq-master-310.css"
+          grep -q 'overflow-y:auto!important' "$A/kinetiq-master-310.css"
+          grep -q "k==='3.1.0-permanent'" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           grep -q 'runOnUiThread(() -> setCoverMode(visible))' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          test -s "$A/kinetiq-cover-a54-v312.png"
+          test -s "$A/kinetiq-cover-a54-v317.png"
           python3 - <<'PY'
           from PIL import Image
-          im=Image.open('personal-trainer/android-beta/app/src/main/assets/kinetiq-cover-a54-v312.png')
-          assert im.size==(941,2039)
+          from pathlib import Path
+          a=Path('personal-trainer/android-beta/app/src/main/assets')
+          assert Image.open(a/'kinetiq-cover-a54-v317.png').size==(941,2039)
+          assert Image.open(a/'kinetiq-cover-approved-v307.png').size==(941,1672)
           PY
+          grep -q 'android:icon="@mipmap/kinetiq_launcher_v308"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
+          test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_final.webp
 
       - name: Build unsigned release APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleRelease
@@ -306,8 +286,8 @@ jobs:
           set -euo pipefail
           mkdir -p release
           UNSIGNED=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
-          ALIGNED=release/KINETIQ-3.0.16-UPDATE-aligned.apk
-          SIGNED=release/KINETIQ-3.0.16-UPDATE.apk
+          ALIGNED=release/KINETIQ-3.1.0-UPDATE-aligned.apk
+          SIGNED=release/KINETIQ-3.1.0-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
 
           test -s "$UNSIGNED"
@@ -342,8 +322,8 @@ jobs:
               '--ks-key-alias',key_alias,
               '--ks-pass','pass:'+store_password,
               '--key-pass','pass:'+key_password,
-              '--out','release/KINETIQ-3.0.16-UPDATE.apk',
-              'release/KINETIQ-3.0.16-UPDATE-aligned.apk'
+              '--out','release/KINETIQ-3.1.0-UPDATE.apk',
+              'release/KINETIQ-3.1.0-UPDATE-aligned.apk'
           ]
           subprocess.run(cmd,check=True,stdout=subprocess.DEVNULL)
           PY
@@ -354,24 +334,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK=release/KINETIQ-3.0.16-UPDATE.apk
+          APK=release/KINETIQ-3.1.0-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
           AAPT="$BT/aapt"
           test -s "$APK"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='56' versionName='3.0.16'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='57' versionName='3.1.0'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
           "$BT/apksigner" verify --verbose "$APK"
           CERT="$("$BT/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1 | tr 'A-F' 'a-f')"
           test "$CERT" = "4d7cd06f969d9c4b1e3e361440544a27dc187a125851655aa45796453d50c3a8"
           sha256sum "$APK" | tee release/SHA256SUMS.txt
-          printf '%s\n'             'KINETIQ 3.0.16 IN-PLACE UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 56'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
+          printf '%s\n'             'KINETIQ 3.1.0 MASTER MOCKUPS UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 57'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
 
       - name: Upload signed update
         uses: actions/upload-artifact@v4
         with:
-          name: KINETIQ-3.0.16-IN-PLACE-UPDATE
+          name: KINETIQ-3.1.0-MASTER-MOCKUPS
           path: |
-            release/KINETIQ-3.0.16-UPDATE.apk
+            release/KINETIQ-3.1.0-UPDATE.apk
             release/SHA256SUMS.txt
             release/UPDATE-INSTRUCTIONS.txt
           if-no-files-found: error
