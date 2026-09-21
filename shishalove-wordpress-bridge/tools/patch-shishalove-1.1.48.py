@@ -134,8 +134,7 @@ if marker not in php:
 php = php.replace(marker, live_orders + marker, 1)
 
 route_anchor = "    register_rest_route('shishalove/v1', '/merchant/orders', array('methods' => 'GET', 'permission_callback' => 'slb_merchant_permission', 'callback' => 'slb_orders'));"
-route_replacement = route_anchor + "
-    register_rest_route('shishalove/v1', '/merchant/orders-live', array('methods' => 'GET', 'permission_callback' => 'slb_merchant_permission', 'callback' => 'slb_orders_live'));"
+route_replacement = route_anchor + "\n    register_rest_route('shishalove/v1', '/merchant/orders-live', array('methods' => 'GET', 'permission_callback' => 'slb_merchant_permission', 'callback' => 'slb_orders_live'));"
 php = once(php, route_anchor, route_replacement, 'live orders route')
 
 php_path.write_text(php, encoding='utf-8')
