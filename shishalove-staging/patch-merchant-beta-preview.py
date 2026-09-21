@@ -773,8 +773,7 @@ t = once(t, '    <uses-permission android:name="android.permission.POST_NOTIFICA
 t = once(
     t,
     '''        <activity
-            android:name=".MerchantActivityV121"
-            android:launchMode="singleTop"''',
+            android:name=".MerchantActivityV121"''',
     '''        <receiver
             android:name=".OrderPollReceiver"
             android:exported="false" />
@@ -788,7 +787,8 @@ t = once(
             </intent-filter>
         </receiver>
         <activity
-            android:name=".MerchantActivityV121"''',
+            android:name=".MerchantActivityV121"
+            android:launchMode="singleTop"''',
     'background receivers'
 )
 manifest.write_text(t, encoding='utf-8')
