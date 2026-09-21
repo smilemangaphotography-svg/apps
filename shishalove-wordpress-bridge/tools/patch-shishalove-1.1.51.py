@@ -114,18 +114,30 @@ t = replace_func(t, 'saveProduct', r'''function saveProduct(){
   }).catch(function(){if(btn){btn.disabled=false;btn.textContent=state.editor&&state.editor.id?'UPDATE':'CREATE';}alert('Could not save product.');});
 }''')
 
+# Reduce cold-open contention: Products/Stock/Dashboard paint first; Orders sync
+# starts immediately only on the Orders page, otherwise 1.5s later.
+old_sync_tail = "  loadOrders(true,true);\n}\nfunction loadOrders(force,allowNotify){"
+new_sync_tail = "  if(state.view==='orders')loadOrders(true,true);else setTimeout(function(){loadOrders(true,true);},1500);\n}\nfunction loadOrders(force,allowNotify){"
+t = once(t, old_sync_tail, new_sync_tail, 'defer background order sync off Orders page')
+
 merchant.write_text(t, encoding='utf-8')
 
 php_path = root / 'shishalove-app-bridge.php'
 php = php_path.read_text(encoding='utf-8')
 
-# Change the production mirror Products query from alphabetical to latest-modified.
+# Change only the production Beta-mirror Products query from alphabetical
+# to latest-modified. Do not alter Customer/canonical product ordering.
+prod_start = php.find('function slb_prod_beta_merchant_products($request)')
+prod_end = php.find('function slb_prod_beta_merchant_orders($request)', prod_start)
+if prod_start < 0 or prod_end < 0:
+    raise SystemExit('production Beta product route function missing')
+prod_chunk = php[prod_start:prod_end]
 old_sort = """        'orderby' => 'title',
         'order' => 'ASC',"""
 new_sort = """        'orderby' => 'modified',
         'order' => 'DESC',"""
-# Only replace the first production-beta mirror product query occurrence.
-php = once(php, old_sort, new_sort, 'recent product ordering')
+prod_chunk = once(prod_chunk, old_sort, new_sort, 'recent product ordering')
+php = php[:prod_start] + prod_chunk + php[prod_end:]
 
 # Permanent alias for the already-proven staging Orders URL. If the staging
 # loader still owns it, leave it untouched. If it is removed later, Bridge owns it.
@@ -156,6 +168,7 @@ assert "CFG.version='1.1.51';" in final_js
 assert "MERCHANT_ORDER_REST=location.origin+'/wp-json/shishalove-staging/v1/'" in final_js
 assert "6000" in final_js
 assert "Could not refresh orders." in final_js
+assert "setTimeout(function(){loadOrders(true,true);},1500)" in final_js
 assert "state.page=1;" in final_js
 assert "window.scrollTo(0,0)" in final_js
 assert "'orderby' => 'modified'" in final_php
