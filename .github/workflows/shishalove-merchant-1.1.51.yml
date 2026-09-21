@@ -58,7 +58,7 @@ jobs:
           grep -Fq "window.scrollTo(0,0)" "$M"
 
           # Server route + newest modified ordering.
-          grep -Fq "function slb_prod_beta_merchant_products($request)" "$MAIN"
+          grep -Fq 'function slb_prod_beta_merchant_products($request)' "$MAIN"
           grep -Fq "'orderby' => 'modified'" "$MAIN"
           grep -Fq "'order' => 'DESC'" "$MAIN"
           grep -Fq "/shishalove-staging/v1/merchant/orders" "$MAIN"
