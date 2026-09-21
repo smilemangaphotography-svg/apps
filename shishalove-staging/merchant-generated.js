@@ -119,16 +119,37 @@ function ordersBody(){
 function orderRows(items){if(!items.length)return '<div class="slm-empty">No orders found.</div>';return items.map(function(o){return '<article class="slm-order slm-order-tap" data-order="'+o.id+'"><div class="slm-order-head"><span>#'+esc(o.number)+' · '+esc(o.customer||'Customer')+'</span><span class="slm-badge">'+esc(o.status)+'</span></div><div class="slm-muted" style="margin-top:7px">'+esc(o.date)+' · '+esc(decodeEntities(o.total))+'</div><span class="slm-order-arrow">›</span></article>';}).join('');}
 function addressLines(a,contact){a=a||{};var lines=[];var name=[a.first_name,a.last_name].filter(Boolean).join(' ');if(name)lines.push(name);if(a.company)lines.push(a.company);if(a.address_1)lines.push(a.address_1);if(a.address_2)lines.push(a.address_2);var city=[a.city,a.state,a.postcode].filter(Boolean).join(' ');if(city)lines.push(city);if(a.country)lines.push(a.country);if(contact&&a.email)lines.push('<b>Email:</b> <a href="mailto:'+esc(a.email)+'">'+esc(a.email)+'</a>');if(contact&&a.phone)lines.push('<b>Phone:</b> <a href="tel:'+esc(a.phone)+'">'+esc(a.phone)+'</a>');return lines.map(function(x){return '<div>'+x+'</div>';}).join('');}
 function orderPanel(){var d=state.orderDetail;if(!d)return '<section class="slm-order-panel"></section>';if(d.loading)return '<section class="slm-order-panel open"><div class="slm-order-panel-head"><button data-act="close-order">←</button><h2>Order</h2><span></span></div>'+ghostRows(6)+'</section>';var statuses=(d.statuses||[]).map(function(s){return '<option value="'+esc(s.value)+'"'+(s.value===d.status?' selected':'')+'>'+esc(s.label)+'</option>';}).join('');var items=(d.items||[]).map(function(x){return '<div class="slm-order-line">'+(x.image?'<img src="'+esc(x.image)+'" alt="">':'<span></span>')+'<div><b>'+esc(x.name)+'</b><div class="slm-muted">Qty '+x.quantity+' · '+esc(decodeEntities(x.total))+'</div></div></div>';}).join('');return '<section class="slm-order-panel open"><div class="slm-order-panel-head"><button data-act="close-order">←</button><h2>Order #'+esc(d.number)+'</h2><span></span></div><div class="slm-order-detail"><div class="slm-order-meta">'+(d.payment_method?'<p>'+esc(d.payment_method)+'</p>':'')+'<h3>General</h3><label>Date created</label><div class="slm-readonly">'+esc(d.date)+'</div><label>Status</label><select id="slm-order-status">'+statuses+'</select><label>Customer</label><div class="slm-readonly">'+esc(d.customer_account||((d.billing&&[d.billing.first_name,d.billing.last_name].filter(Boolean).join(' '))||'Guest'))+'</div></div><div class="slm-address-grid"><section><h3>Billing</h3>'+addressLines(d.billing,true)+'</section><section><h3>Shipping</h3>'+addressLines(d.shipping,false)+'</section></div><section class="slm-order-items"><h3>Order items</h3>'+items+'<div class="slm-order-total"><span>Subtotal</span><b>'+esc(decodeEntities(d.subtotal||''))+'</b></div>'+(d.shipping_total?'<div class="slm-order-total"><span>Shipping</span><b>'+esc(decodeEntities(d.shipping_total))+'</b></div>':'')+'<div class="slm-order-total final"><span>Total</span><b>'+esc(decodeEntities(d.total||''))+'</b></div></section>'+(d.customer_note?'<section class="slm-order-note"><h3>Customer note</h3><p>'+esc(d.customer_note)+'</p></section>':'')+'</div></section>';}
-function openOrder(id){state.orderDetail={id:Number(id),loading:true};render();api('merchant/order/'+encodeURIComponent(id)).then(function(d){state.orderDetail=d;render();}).catch(function(){state.orderDetail=null;render();});}
-function saveOrderStatus(status){var d=state.orderDetail;if(!d||!d.id)return;api('merchant/order/'+d.id,{method:'POST',body:JSON.stringify({status:status})}).then(function(next){state.orderDetail=next;cdelPrefix(vkey('slm-orders-'));state.orders=null;render();loadOrders(true);});}
-var ORDER_SEEN_KEY='slm-last-order-id-v1';
-var merchantOrderBusy=false,merchantOrderTimer=0;
+function orderDetailKey(id){return vkey('slm-order-detail-'+String(Number(id)||0));}
+function openOrder(id,force){
+  id=Number(id)||0;if(!id)return;
+  merchantReturnScroll=null;state.menuOpen=false;state.editor=null;state.catSearch='';
+  state.view='orders';state.page=1;hydrateViewFromCache('orders');
+  var key=orderDetailKey(id),cached=cget(key,0);
+  state.orderDetail=cached||{id:id,loading:true};
+  render();
+  api('merchant/order/'+encodeURIComponent(id)+(force?'?_slm_fresh='+Date.now():''),
+      {cache:'no-store'}).then(function(d){
+        state.orderDetail=d;cset(key,d);render();
+      }).catch(function(){
+        if(!cached){state.orderDetail=null;render();}
+      });
+}
+window.SLM_OPEN_ORDER=function(id){openOrder(id,true);return true;};
+function saveOrderStatus(status){
+  var d=state.orderDetail;if(!d||!d.id)return;
+  api('merchant/order/'+d.id,{method:'POST',body:JSON.stringify({status:status})}).then(function(next){
+    state.orderDetail=next;cset(orderDetailKey(next.id||d.id),next);
+    cdelPrefix(vkey('slm-orders-'));state.orders=null;render();loadOrders(true);
+  });
+}
 function lastSeenOrderId(){try{return Number(localStorage.getItem(ORDER_SEEN_KEY)||0)||0;}catch(e){return 0;}}
 function rememberOrderId(id){try{localStorage.setItem(ORDER_SEEN_KEY,String(Number(id)||0));}catch(e){}}
 function notifyNativeOrder(o){
   if(!o)return;
   try{
-    if(window.ShishaLoveNative&&typeof window.ShishaLoveNative.notifyOrder==='function'){
+    if(window.ShishaLoveNative&&typeof window.ShishaLoveNative.notifyOrderWithId==='function'){
+      window.ShishaLoveNative.notifyOrderWithId(String(o.id||0),String(o.number||o.id||''),String(o.customer||'Customer'),String(o.total||''));
+    }else if(window.ShishaLoveNative&&typeof window.ShishaLoveNative.notifyOrder==='function'){
       window.ShishaLoveNative.notifyOrder(String(o.number||o.id||''),String(o.customer||'Customer'),String(o.total||''));
     }
   }catch(e){}
@@ -362,8 +383,26 @@ function trashProduct(){
 function val(id){var e=document.getElementById(id);return e?e.value:'';}
 function render(){if(!CFG.merchantAllowed){root.innerHTML=login();normalizeBrandLockups();return;}if(!state.bootstrap){root.innerHTML='<div class="slm-app">'+top()+'<main class="slm-page">'+ghostRows(6)+'</main>'+bottom()+'</div>';bind();return;}var body=state.view==='dashboard'?dashboardBody():state.view==='orders'?ordersBody():state.view==='stock'?productsBody(true):state.view==='more'?moreBody():state.view==='media-library'?merchantMediaLibraryBody():productsBody(false);root.innerHTML=shell(body);bind();}
 function hydrateViewFromCache(view){if(view==='products'){state.productsByView.products=cget(productCacheKey(false),0)||state.productsByView.products;}else if(view==='stock'){state.productsByView.stock=cget(productCacheKey(true),0)||state.productsByView.stock;}else if(view==='orders'){state.orders=cget(ordersKey(),0)||state.orders;}}
-function navigate(view){merchantReturnScroll=null;state.menuOpen=false;var changed=view!==state.view;if(changed&&(view==='products'||view==='stock')){state.query='';state.categoryId=0;state.stockStatus='all';state.searchPools[view]=null;}state.view=view;state.page=1;hydrateViewFromCache(view);if(view==='media-library'){mediaManager.page=1;mediaManager.search='';hydrateMediaManagerCache();}render();if(view==='products')loadProducts(false,false);if(view==='stock')loadProducts(true,false);if(view==='orders')loadOrders(false);if(view==='media-library')loadMediaManager(false);}
-function refresh(){if(state.view==='media-library'){loadMediaManager(true);return;}if(state.view==='products')loadProducts(false,true);else if(state.view==='stock')loadProducts(true,true);else if(state.view==='orders')loadOrders(true);else bootstrap(true);}
+function navigate(view){
+  merchantReturnScroll=null;state.menuOpen=false;state.orderDetail=null;
+  var changed=view!==state.view;
+  if(changed&&(view==='products'||view==='stock')){state.query='';state.categoryId=0;state.stockStatus='all';state.searchPools[view]=null;}
+  state.view=view;state.page=1;hydrateViewFromCache(view);
+  if(view==='media-library'){mediaManager.page=1;mediaManager.search='';hydrateMediaManagerCache();}
+  render();
+  if(view==='products')loadProducts(false,false);
+  if(view==='stock')loadProducts(true,false);
+  if(view==='orders')loadOrders(false);
+  if(view==='media-library')loadMediaManager(false);
+}
+function refresh(){
+  if(state.orderDetail&&state.orderDetail.id){openOrder(state.orderDetail.id,true);return;}
+  if(state.view==='media-library'){loadMediaManager(true);return;}
+  if(state.view==='products')loadProducts(false,true);
+  else if(state.view==='stock')loadProducts(true,true);
+  else if(state.view==='orders')loadOrders(true);
+  else bootstrap(true);
+}
 function resetProductResults(view){var name=view==='stock'?'stock':'products';state.productsByView[name]=null;state.searchPools[name]=null;}
 function bind(){bindMediaControls();root.querySelectorAll('[data-act="menu"]').forEach(function(e){e.onclick=function(){state.menuOpen=true;render();};});root.querySelectorAll('[data-act="menu-close"]').forEach(function(e){e.onclick=function(){state.menuOpen=false;render();};});root.querySelectorAll('[data-order]').forEach(function(e){e.onclick=function(){openOrder(this.dataset.order);};});root.querySelectorAll('[data-act="close-order"]').forEach(function(e){e.onclick=function(){state.orderDetail=null;render();};});var os=document.getElementById('slm-order-status');if(os)os.onchange=function(){saveOrderStatus(this.value);};root.querySelectorAll('[data-view]').forEach(function(e){e.onclick=function(){navigate(this.dataset.view);};});root.querySelectorAll('[data-edit]').forEach(function(e){e.onclick=function(){openEditor(this.dataset.edit);};});root.querySelectorAll('[data-act="new-product"]').forEach(function(e){e.onclick=function(){openEditor(0);};});root.querySelectorAll('[data-act="close-editor"]').forEach(function(e){e.onclick=function(){state.editor=null;state.catSearch='';render();restoreMerchantScroll(true);};});root.querySelectorAll('[data-cat-toggle]').forEach(function(e){e.onclick=function(){toggleCat(this.dataset.catToggle);};});root.querySelectorAll('[data-cat-check]').forEach(function(e){e.onchange=function(){toggleCat(this.dataset.catCheck);};});root.querySelectorAll('[data-act="save-product"]').forEach(function(e){e.onclick=saveProduct;});root.querySelectorAll('[data-act="trash-product"]').forEach(function(e){e.onclick=trashProduct;});root.querySelectorAll('[data-act="refresh"]').forEach(function(e){e.onclick=refresh;});root.querySelectorAll('[data-act="test-native-notification"]').forEach(function(e){e.onclick=function(){if(window.ShishaLoveNative&&typeof window.ShishaLoveNative.notifyOrder==='function'){window.ShishaLoveNative.notifyOrder('TEST','Merchant notification test','€0.00');}else{alert('Open this preview inside the ShishaLove Merchant Beta app to test Android notifications.');}};});root.querySelectorAll('[data-act="search-products"]').forEach(function(e){e.onclick=function(){merchantReturnScroll=null;state.query=val('slm-product-search').trim();state.page=1;resetProductResults(state.view);render();loadProducts(state.view==='stock',true);};});root.querySelectorAll('[data-filter-cat]').forEach(function(e){e.onclick=function(){merchantReturnScroll=null;state.categoryId=Number(this.dataset.filterCat)||0;state.page=1;resetProductResults(state.view);render();loadProducts(state.view==='stock',true);};});root.querySelectorAll('[data-page-dir]').forEach(function(e){e.onclick=function(){if(state.view==='orders'){var od=state.orders||cget(ordersKey(),0),opages=Math.max(1,Number(od&&od.pages||1));if(this.dataset.pageDir==='next'&&state.page<opages)state.page++;if(this.dataset.pageDir==='prev'&&state.page>1)state.page--;state.orders=null;hydrateViewFromCache('orders');render();loadOrders(false);window.scrollTo({top:0,behavior:'smooth'});return;}var d=currentProductData(state.view==='stock'),pages=Math.max(1,Number(d&&d.pages||1));if(this.dataset.pageDir==='next'&&state.page<pages)state.page++;if(this.dataset.pageDir==='prev'&&state.page>1)state.page--;var pool=state.searchPools[state.view==='stock'?'stock':'products'];if(String(state.query||'').trim()!==''&&pool&&pool.key===searchPoolKey(state.view==='stock'))applySearchPool(state.view==='stock');else{resetProductResults(state.view);hydrateViewFromCache(state.view);render();loadProducts(state.view==='stock',false);}window.scrollTo({top:0,behavior:'smooth'});};});var s=document.getElementById('slm-product-search');if(s){
   s.oninput=function(){
