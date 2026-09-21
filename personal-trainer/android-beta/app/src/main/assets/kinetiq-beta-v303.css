@@ -1,0 +1,96 @@
+/* KINETIQ 3.0.3 SAFE BETA — approved additive UI only */
+:root{--beta-lime:#baff24;--beta-ink:#031008;--beta-ivory:#f5f0e5;--beta-line:rgba(220,232,222,.16)}
+body{overscroll-behavior-y:none}
+
+/* Approved cinematic cover. The artwork is the user-approved Image 1 stored locally. */
+#style2Cover.kinetiq-cover{
+  position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;
+  min-height:100dvh!important;background:#080908 url('kinetiq-cover-beta.webp') center center/cover no-repeat!important;
+  overflow:hidden!important;z-index:2147483000!important;
+}
+#style2Cover.kinetiq-cover .kinetiq-atmosphere,
+#style2Cover.kinetiq-cover .kinetiq-brand,
+#style2Cover.kinetiq-cover #coverSettings{display:none!important}
+#style2Cover.kinetiq-cover #coverEnter{
+  position:absolute!important;left:50%!important;top:46.3%!important;transform:translate(-50%,-50%)!important;
+  width:min(34vw,210px)!important;aspect-ratio:1/1!important;height:auto!important;border:0!important;border-radius:50%!important;
+  background:transparent!important;box-shadow:none!important;z-index:30!important;touch-action:manipulation!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+#style2Cover.kinetiq-cover #coverEnter span{opacity:0!important}
+#style2Cover.kinetiq-cover #coverEnter:active{background:rgba(255,222,167,.08)!important;box-shadow:0 0 30px rgba(255,206,124,.22)!important}
+
+/* Plan completion */
+.beta-plan-count{display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px;font-size:12px;font-weight:850;letter-spacing:.08em;text-transform:uppercase;color:#9aa59d}
+.beta-plan-count b{color:#07120c;background:var(--beta-lime);border-radius:999px;padding:5px 9px}
+.v7-ex{position:relative}
+.beta-done-btn{
+  flex:0 0 38px;width:38px;height:38px;border-radius:50%;border:1px solid rgba(110,150,120,.28);
+  background:#0d1c13;color:#91a097;font-size:20px;font-weight:900;display:grid;place-items:center;margin-left:8px
+}
+.beta-done-btn.done{background:var(--beta-lime);color:#07110b;border-color:var(--beta-lime)}
+.beta-completed-panel{margin:14px 0 8px;border:1px solid var(--beta-line);border-radius:24px;background:rgba(8,27,17,.52);overflow:hidden}
+.beta-completed-head{width:100%;display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border:0;background:transparent;color:#f2f3ee;font-weight:900;text-align:left}
+.beta-completed-body{padding:0 10px 10px}
+.beta-completed-panel.collapsed .beta-completed-body{display:none}
+.beta-completed-body .v7-ex{opacity:.78;background:rgba(240,238,227,.92)}
+.beta-completed-body .v7-ex-main b,.beta-completed-body .v7-score{color:#07120c!important}
+.beta-completed-body .v7-ex-main small{color:#6e766f!important}
+.beta-completed-body .beta-done-btn{background:#ecf0e8;color:#526057}
+.beta-complete-label{font-size:11px;font-weight:900;color:#5dca77;margin-top:4px;letter-spacing:.05em}
+
+/* Undo snackbar */
+#betaUndoBar{
+ position:fixed;left:18px;right:18px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:2147482500;
+ display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 16px;border-radius:18px;
+ background:#112019;color:#f5f5ef;border:1px solid rgba(255,255,255,.12);box-shadow:0 12px 38px rgba(0,0,0,.42);
+ font-size:14px;font-weight:750;transform:translateY(14px);opacity:0;pointer-events:none;transition:.18s ease
+}
+#betaUndoBar.show{transform:none;opacity:1;pointer-events:auto}
+#betaUndoBar button{border:0;background:transparent;color:var(--beta-lime);font-weight:950;font-size:13px;letter-spacing:.05em}
+
+/* Set tracking + Voice Coach */
+.beta-set-tracker{margin:18px 0;padding:15px;border:1px solid var(--beta-line);border-radius:24px;background:rgba(5,22,13,.72)}
+.beta-set-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.beta-set-title b{font-size:15px}.beta-set-title span{font-size:12px;color:#98a49c;font-weight:800}
+.beta-set-row{width:100%;min-height:50px;display:grid;grid-template-columns:72px 1fr 38px;align-items:center;gap:8px;padding:0 4px;border:0;border-top:1px solid rgba(255,255,255,.08);background:transparent;color:#f6f5ef;text-align:left}
+.beta-set-row:first-of-type{border-top:0}
+.beta-set-row small{color:#9aa59d}
+.beta-set-check{width:30px;height:30px;border:2px solid #91a098;border-radius:50%;display:grid;place-items:center;font-weight:950}
+.beta-set-row.done .beta-set-check{background:var(--beta-lime);border-color:var(--beta-lime);color:#07120c}
+.beta-coach-actions{display:grid;grid-template-columns:1.15fr .85fr;gap:10px;margin-top:14px}
+.beta-coach-actions button{min-height:52px;border-radius:18px;font-weight:950;font-size:14px}
+.beta-start-set{border:0;background:var(--beta-lime);color:#06110b}
+.beta-end-set{border:1px solid rgba(255,255,255,.18);background:#0a1710;color:#f5f5ef}
+.beta-voice-tools{display:flex;gap:8px;align-items:center;margin-top:10px}
+.beta-voice-tools button{min-height:40px;border:1px solid rgba(255,255,255,.14);background:#0b1810;color:#f3f3ec;border-radius:14px;padding:0 12px;font-weight:800}
+.beta-voice-tools button.on{color:#07110b;background:var(--beta-lime);border-color:var(--beta-lime)}
+.beta-voice-settings{margin-top:10px;padding:12px;border-radius:16px;background:#0a1710;border:1px solid rgba(255,255,255,.09)}
+.beta-voice-settings label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0;color:#d8ddd8;font-size:13px}
+.beta-voice-settings input[type=range]{width:48%}
+
+/* Rest coach */
+.beta-rest-sub{font-size:13px;color:#a8b0aa;text-align:center;margin-top:10px}
+.beta-rest-cue{font-size:18px;line-height:1.4;color:#f2f3ee;text-align:center;margin:18px 24px}
+.beta-rest-ring{width:min(72vw,310px);aspect-ratio:1;margin:28px auto 18px;border-radius:50%;display:grid;place-items:center;
+ background:conic-gradient(var(--beta-lime) var(--beta-rest-progress,100%),rgba(255,255,255,.09) 0);padding:10px}
+.beta-rest-ring>div{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;align-content:center;background:#06130c}
+.beta-rest-ring strong{font-size:58px}.beta-rest-ring span{color:#9ca69f}
+
+/* Run map */
+#betaRunMap{height:310px;margin:16px 0 14px;border-radius:24px;overflow:hidden;border:1px solid rgba(255,255,255,.12);background:#102019;position:relative;z-index:1}
+#betaRunMap .leaflet-control-attribution{font-size:9px}
+.beta-map-fallback{height:100%;display:grid;place-items:center;text-align:center;color:#aab2ac;padding:30px}
+.beta-map-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:#102019;border:1px solid rgba(255,255,255,.12);font-size:11px;font-weight:900;color:#dfe5df;margin:0 0 6px}
+.beta-route-section{margin-top:14px;padding:16px;border:1px solid var(--beta-line);border-radius:24px;background:#071910}
+.beta-route-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.beta-route-head b{font-size:13px;letter-spacing:.08em}.beta-route-head span{color:#9ca59f;font-size:12px}
+.beta-route-card{min-height:118px;border:1px solid rgba(255,255,255,.11);border-radius:18px;padding:14px;background:#0a1d13;touch-action:pan-y}
+.beta-route-card h3{margin:2px 0 5px;font-size:19px}.beta-route-card p{margin:0;color:#9ba69f;font-size:13px}
+.beta-route-nav{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;margin-top:10px}
+.beta-route-nav button{min-height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:#0b1a12;color:#f3f3ed;font-weight:900}
+.beta-route-nav .beta-start-route{background:var(--beta-ivory);color:#07110b;border:0}
+.beta-route-empty{color:#99a39d;font-size:13px;padding:10px 0}
+.beta-route-selected{color:var(--beta-lime)!important;font-weight:900}
+
+/* Beta marker is intentionally launcher-only; no visual redesign of production UI. */
