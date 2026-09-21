@@ -5,10 +5,10 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.ilia.personaltrainer'
+        applicationId 'com.ilia.personaltrainer.beta'
         minSdk 26
         targetSdk 35
         versionCode 43
-        versionName '3.0.3'
+        versionName '3.0.3-beta.1'
     }
 }
