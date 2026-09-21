@@ -57,7 +57,7 @@ jobs:
           grep -Fq "merchant/orders-live?page=1&per_page=20" "$M"
           grep -Fq "AbortController" "$M"
           grep -Fq "Could not refresh orders." "$M"
-          grep -Fq "function slb_orders_live($request)" "$MAIN"
+          grep -Fq 'function slb_orders_live($request)' "$MAIN"
           grep -Fq "/merchant/orders-live" "$MAIN"
           grep -Fq "'return' => 'objects'" "$MAIN"
           grep -Fq "'server_time' => time()" "$MAIN"
