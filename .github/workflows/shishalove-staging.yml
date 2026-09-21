@@ -147,6 +147,11 @@ jobs:
           grep -Fq "MERCHANT_STAGING_REST" shishalove-staging/merchant-generated.js
           grep -Fq "var DATA_CACHE='staging-beta-v3';" shishalove-staging/merchant-generated.js
           grep -Fq "var dashboardStats=null,dashboardStatsLoading=false;" shishalove-staging/merchant-generated.js
+          grep -Fq "Version: 1.3.0" shishalove-staging-loader/shishalove-staging-loader.php
+          grep -Fq "/merchant/device-register" shishalove-staging-loader/shishalove-staging-loader.php
+          grep -Fq "/merchant/order-pulse" shishalove-staging-loader/shishalove-staging-loader.php
+          grep -Fq "X-ShishaLove-Device" shishalove-staging-loader/shishalove-staging-loader.php
+          grep -Fq "slsl_merchant_order_devices_v1" shishalove-staging-loader/shishalove-staging-loader.php
           grep -Fq "var p=state.editor,creating=!p.id,busy=!!p._mediaBusy,manage=true;" shishalove-staging/merchant-generated.js
           grep -Fq "manage=true;if(ms)ms.checked=true" shishalove-staging/merchant-generated.js
           grep -Fq "fastProductImage" shishalove-staging/merchant-generated.js
@@ -183,29 +188,29 @@ jobs:
             git push origin HEAD:shishalove-staging
           fi
 
-      - name: Package staging loader 1.2.0
+      - name: Package staging loader 1.3.0
         run: |
           rm -rf dist && mkdir -p dist/shishalove-staging-loader
           cp shishalove-staging-loader/shishalove-staging-loader.php dist/shishalove-staging-loader/
-          cd dist && zip -qr shishalove-staging-loader-1.2.0.zip shishalove-staging-loader
+          cd dist && zip -qr shishalove-staging-loader-1.3.0.zip shishalove-staging-loader
 
       - uses: actions/upload-artifact@v4
         with:
-          name: shishalove-staging-loader-1.2.0
-          path: dist/shishalove-staging-loader-1.2.0.zip
+          name: shishalove-staging-loader-1.3.0
+          path: dist/shishalove-staging-loader-1.3.0.zip
           if-no-files-found: error
 
-      - name: Publish staging loader 1.2.0
+      - name: Publish staging loader 1.3.0
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG='shishalove-staging-loader-1.2.0'
-          ASSET='dist/shishalove-staging-loader-1.2.0.zip'
-          NOTES='Staging only. Merchant beta now uses the exact production Merchant UI/CSS/logo with the staged behavior changes: live partial Products/Stock search and fresh order synchronization. No fake preview logo or sample catalogue. Production Customer, Merchant and live Bridge remain unchanged.'
+          TAG='shishalove-staging-loader-1.3.0'
+          ASSET='dist/shishalove-staging-loader-1.3.0.zip'
+          NOTES='Staging only. Adds authenticated Merchant device registration and a token-protected order-pulse endpoint for native background order notifications, while preserving the exact Merchant beta UI and existing staging behavior. Production Customer, Merchant and live Bridge remain unchanged.'
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --clobber
-            gh release edit "$TAG" --title 'ShishaLove Staging Loader 1.2.0 — Exact Merchant Preview' --notes "$NOTES" --target shishalove-staging
+            gh release edit "$TAG" --title 'ShishaLove Staging Loader 1.3.0 — Background Order Notifications' --notes "$NOTES" --target shishalove-staging
           else
-            gh release create "$TAG" "$ASSET" --title 'ShishaLove Staging Loader 1.2.0 — Exact Merchant Preview' --notes "$NOTES" --target shishalove-staging
+            gh release create "$TAG" "$ASSET" --title 'ShishaLove Staging Loader 1.3.0 — Background Order Notifications' --notes "$NOTES" --target shishalove-staging
           fi
