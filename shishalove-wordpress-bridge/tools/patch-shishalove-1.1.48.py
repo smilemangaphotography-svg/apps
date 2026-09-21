@@ -74,8 +74,8 @@ t = replace_func(t, 'loadOrders', r'''function loadOrders(force,allowNotify){
 # Friendly retry instead of endless ghost rows when there is genuinely no cache.
 t = once(
     t,
-    "function ordersBody(){var d=state.orders||cget(ordersKey(),0);var items=d&&d.items||[];return '<main class="slm-page"><div class="slm-head"><div><h1>Orders</h1><div class="slm-muted">Latest WooCommerce orders</div></div></div><section>'+((d)?orderRows(items):ghostRows(6))+'</section>'+pagerMarkup(d)+'</main>';}",
-    "function ordersBody(){var d=state.orders||cget(ordersKey(),0),items=d&&d.items||[];var body=!d?ghostRows(6):(d._loadError?'<div class="slm-empty" style="padding:36px 0;text-align:center"><p>Could not refresh orders.</p><button class="slb-primary" data-act="refresh">TRY AGAIN</button></div>':orderRows(items));return '<main class="slm-page"><div class="slm-head"><div><h1>Orders</h1><div class="slm-muted">Latest WooCommerce orders</div></div></div><section>'+body+'</section>'+pagerMarkup(d)+'</main>';}",
+    '''function ordersBody(){var d=state.orders||cget(ordersKey(),0);var items=d&&d.items||[];return '<main class="slm-page"><div class="slm-head"><div><h1>Orders</h1><div class="slm-muted">Latest WooCommerce orders</div></div></div><section>'+((d)?orderRows(items):ghostRows(6))+'</section>'+pagerMarkup(d)+'</main>';}''',
+    '''function ordersBody(){var d=state.orders||cget(ordersKey(),0),items=d&&d.items||[];var body=!d?ghostRows(6):(d._loadError?'<div class="slm-empty" style="padding:36px 0;text-align:center"><p>Could not refresh orders.</p><button class="slb-primary" data-act="refresh">TRY AGAIN</button></div>':orderRows(items));return '<main class="slm-page"><div class="slm-head"><div><h1>Orders</h1><div class="slm-muted">Latest WooCommerce orders</div></div></div><section>'+body+'</section>'+pagerMarkup(d)+'</main>';}''',
     'orders retry state'
 )
 
