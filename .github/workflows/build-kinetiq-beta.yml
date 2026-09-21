@@ -1,0 +1,171 @@
+name: Build KINETIQ 3.0.3 Safe Beta
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ kinetiq-v303-approved-beta ]
+    paths:
+      - 'personal-trainer/android-beta/**'
+      - '.github/workflows/build-kinetiq-beta.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout beta branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.10.2
+
+      - name: Install Android SDK packages and ffmpeg
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(command -v sdkmanager)"; fi
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+      - name: Import proven anatomy motion library
+        shell: bash
+        run: |
+          set -euo pipefail
+          A=personal-trainer/android-beta/app/src/main/assets
+          mkdir -p "$A/media/adaptive" /tmp/kinetiq-anatomy
+          git fetch --depth=1 origin rebuild/ilias-coach-v2
+          git show FETCH_HEAD:ILIA-SAFE-SOURCE.bin > /tmp/kinetiq-anatomy/source.zip
+          unzip -q /tmp/kinetiq-anatomy/source.zip -d /tmp/kinetiq-anatomy/source
+          SRC=/tmp/kinetiq-anatomy/source/Ilias-Coach/app/src/main/assets/media/anatomy
+          test -d "$SRC"
+          cp -a "$SRC"/. "$A/media/adaptive/"
+          test -s "$A/media/adaptive/leg-press.mp4"
+          test -s "$A/media/adaptive/leg-press.webp"
+
+      - name: Validate frozen runtime plus approved beta layer
+        shell: bash
+        run: |
+          set -euo pipefail
+          A=personal-trainer/android-beta/app/src/main/assets
+          node --check "$A/style2-v29-runtime-preflight.js"
+          node --check "$A/app-v2.js"
+          node --check "$A/pt-v25-core.js"
+          node --check "$A/style2-v29.js"
+          node --check "$A/style2-v29-admin.js"
+          node --check "$A/style2-v29-focus.js"
+          node --check "$A/style2-v29-priority-engine.js"
+          node --check "$A/style2-v29-master-mockup.js"
+          node --check "$A/style2-v29-master-fix.js"
+          node --check "$A/style2-v7.js"
+          node --check "$A/style2-v7-final-fix.js"
+          node --check "$A/style2-v73-library-tools.js"
+          node --check "$A/style2-v73-refresh.js"
+          node --check "$A/kinetiq-beta-v303.js"
+
+          test -s "$A/kinetiq-beta-v303.css"
+          test -s "$A/kinetiq-cover-beta.webp"
+          grep -q 'kinetiq-beta-v303.css' "$A/index29.html"
+          grep -q 'kinetiq-beta-v303.js' "$A/index29.html"
+
+          grep -q "applicationId 'com.ilia.personaltrainer.beta'" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.3-beta.1'" personal-trainer/android-beta/app/build.gradle
+          grep -q '<string name="app_name">KINETIQ BETA</string>' personal-trainer/android-beta/app/src/main/res/values/strings.xml
+
+          grep -q 'MY PLAN' "$A/style2-v7.js"
+          grep -q 'RECOMMENDED' "$A/style2-v7.js"
+          grep -q 'AI RECOMMENDED' "$A/style2-v7.js"
+          grep -q 'data-swipe-exercise' "$A/style2-v7.js"
+          grep -q 'bindSwipeGestures' "$A/style2-v73-library-tools.js"
+          grep -q 'betaUndoBar' "$A/kinetiq-beta-v303.js"
+          grep -q 'exerciseDone' "$A/kinetiq-beta-v303.js"
+          grep -q 'SET TRACKING' "$A/kinetiq-beta-v303.js"
+          grep -q 'START SET' "$A/kinetiq-beta-v303.js"
+          grep -q 'OpenStreetMap' "$A/kinetiq-beta-v303.js"
+          grep -q 'selectedRouteId' "$A/kinetiq-beta-v303.js"
+          grep -q 'getTtsVoices' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'setTtsVolume' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+
+          if grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle; then
+            echo "ERROR: beta would collide with production package"
+            exit 1
+          fi
+
+      - name: Build installable isolated beta APK
+        run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
+
+      - name: Validate APK identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.beta' versionCode='43' versionName='3.0.3-beta.1'"
+          "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ BETA'"
+          unzip -l "$APK" | grep -q 'assets/kinetiq-beta-v303.js'
+          unzip -l "$APK" | grep -q 'assets/kinetiq-beta-v303.css'
+          unzip -l "$APK" | grep -q 'assets/kinetiq-cover-beta.webp'
+          unzip -l "$APK" | grep -q 'assets/media/adaptive/leg-press.mp4'
+
+      - name: Package beta deliverables
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release web-preview
+          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/KINETIQ-BETA-3.0.3.apk
+          cp -a personal-trainer/android-beta/app/src/main/assets/. web-preview/
+          cp web-preview/index29.html web-preview/index.html
+          cat > release/BETA-README.txt <<'REPORT'
+          KINETIQ 3.0.3 — SAFE ISOLATED BETA
+          Package: com.ilia.personaltrainer.beta
+          Label: KINETIQ BETA
+          Version: 3.0.3-beta.1 / versionCode 43
+          Production package com.ilia.personaltrainer is untouched.
+          This APK installs alongside the production KINETIQ app.
+          Approved beta layer:
+          - cinematic Q entry cover
+          - stable Plan date selection
+          - swipe remove Undo
+          - exercise completion + Completed section
+          - individual set tracking
+          - Voice Coach + rest guidance
+          - live GPS map
+          - persisted saved-route carousel, latest first
+          REPORT
+          sha256sum release/KINETIQ-BETA-3.0.3.apk > release/SHA256SUMS.txt
+
+      - name: Upload installable beta APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: KINETIQ-BETA-3.0.3
+          path: release/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload web runtime preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: KINETIQ-BETA-WEB-PREVIEW
+          path: web-preview/*
+          if-no-files-found: error
+          retention-days: 30
