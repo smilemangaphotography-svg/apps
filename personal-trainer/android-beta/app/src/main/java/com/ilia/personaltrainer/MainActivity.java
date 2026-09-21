@@ -205,37 +205,35 @@ public class MainActivity extends Activity {
         if (webView == null || isFinishing()) return;
 
         final String js = "(function(){try{" +
+                "var gate=document.getElementById('kinetiqCleanGate');" +
                 "var cover=document.getElementById('style2Cover');" +
                 "var main=document.getElementById('mainApp');" +
                 "var builder=document.getElementById('builder');" +
-                "var runtime=(window.__PT_STYLE29__==='locked-all-in-one-2.9'&&" +
-                    "window.PT29&&typeof window.PT29.showMain==='function'&&" +
-                    "typeof window.showBuilder==='function');" +
-                "if(!runtime)return 'not-ready';" +
-                "var s=window.S||((typeof S!=='undefined')?S:null);" +
-                "if(!s)return 'not-ready';" +
-                "if(s.built){" +
-                    "window.PT29.showMain('home');" +
+                "var s=window.__KINETIQ_STATE__||window.S||null;" +
+                "if(!s){try{s=JSON.parse(localStorage.getItem('personalTrainer.beta2')||'{}')}catch(_){s={}}}" +
+                "var built=!!s.built;" +
+                "if(built){" +
+                    "if(window.PT29&&typeof window.PT29.showMain==='function')window.PT29.showMain('home');" +
+                    "else if(typeof window.showMain==='function')window.showMain('home');" +
+                    "else{if(builder)builder.classList.add('hidden');if(main)main.classList.remove('hidden');}" +
                 "}else{" +
-                    "window.showBuilder(Number(s.builderStep)||0);" +
+                    "if(typeof window.showBuilder==='function')window.showBuilder(Number(s.builderStep)||0);" +
+                    "else{if(main)main.classList.add('hidden');if(builder)builder.classList.remove('hidden');}" +
                 "}" +
-                "var coverHidden=!!cover&&cover.classList.contains('hidden');" +
-                "var destinationVisible=s.built?" +
-                    "(!!main&&!main.classList.contains('hidden')):" +
-                    "(!!builder&&!builder.classList.contains('hidden'));" +
-                "return (coverHidden&&destinationVisible)?'entered':'not-ready';" +
+                "if(cover)cover.classList.add('hidden');" +
+                "if(gate)gate.classList.add('hidden');" +
+                "document.documentElement.classList.add('kinetiq-app-open');" +
+                "document.body.classList.add('kinetiq-app-open');" +
+                "var visible=built?(!!main&&!main.classList.contains('hidden')):(!!builder&&!builder.classList.contains('hidden'));" +
+                "return visible?'entered':'not-ready';" +
                 "}catch(e){return 'error';}})()";
 
         webView.evaluateJavascript(js, value -> {
             if ("\"entered\"".equals(value)) {
-                // Only commit after the final runtime has actually hidden the cover
-                // and made the destination page visible.
                 nativeEntryCommitted = true;
                 setCoverMode(false);
                 return;
             }
-
-            // Keep the native cover authoritative while the WebView finishes booting.
             if (attempt < 60 && webView != null) {
                 webView.postDelayed(() -> enterCoverFromNative(attempt + 1), 100L);
             }
@@ -243,7 +241,7 @@ public class MainActivity extends Activity {
     }
 
     private boolean isCoverQTouch(MotionEvent event) {
-        if (root == null || event == null || nativeCover == null || nativeCover.getVisibility() != View.VISIBLE) return false;
+        if (root == null || event == null || !coverVisible) return false;
         int w = root.getWidth();
         int h = root.getHeight();
         if (w <= 0 || h <= 0) return false;
@@ -258,9 +256,7 @@ public class MainActivity extends Activity {
     }
 
     @Override public boolean dispatchTouchEvent(MotionEvent event) {
-        boolean nativeCoverActive =
-                nativeCover != null && nativeCover.getVisibility() == View.VISIBLE;
-        if (false && nativeCoverActive && event != null && isCoverQTouch(event)) {
+        if (coverVisible && event != null && isCoverQTouch(event)) {
             int action = event.getActionMasked();
             if (action == MotionEvent.ACTION_DOWN && nativeCoverImage != null) {
                 nativeCoverImage.animate().alpha(0.94f).setDuration(70L).start();
@@ -352,17 +348,19 @@ public class MainActivity extends Activity {
     private void verifyRuntimeReady(WebView view, int attempt) {
         if (view == null || isFinishing()) return;
         final String probe = "(function(){try{" +
-                "var s=window.__PT_STYLE29__||'missing';" +
-                "var k=window.__KINETIQ_MASTER_MOCKUPS__||'missing';" +
-                "return (s==='locked-all-in-one-2.9'&&k==='3.1.0-permanent')?'ready':(s+'|'+k);" +
-                "}catch(e){return 'error';}})()";
+                "var q=!!document.getElementById('kinetiqCleanGateQ');" +
+                "var state=!!(window.__KINETIQ_STATE__||window.S);" +
+                "var builder=(typeof window.showBuilder==='function');" +
+                "var main=(typeof window.showMain==='function')||(window.PT29&&typeof window.PT29.showMain==='function');" +
+                "var entry=(window.__KINETIQ_ENTRY_READY__===true)||(typeof window.KINETIQ_CLEAN_GATE_ENTER==='function');" +
+                "return (q&&state&&builder&&main&&entry)?'ready':'warming';" +
+                "}catch(e){return 'warming';}})()";
         view.evaluateJavascript(probe, value -> {
             if ("\"ready\"".equals(value)) return;
             if (attempt + 1 < RUNTIME_MAX_ATTEMPTS) {
                 view.postDelayed(() -> verifyRuntimeReady(view, attempt + 1), RUNTIME_RETRY_MS);
-            } else {
-                Toast.makeText(MainActivity.this, "KINETIQ 3.1.0 runtime failed to initialize", Toast.LENGTH_LONG).show();
             }
+            // No blocking/toast failure state: native Q entry remains available independently.
         });
     }
 
