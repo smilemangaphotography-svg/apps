@@ -112,7 +112,9 @@ function rememberOrderId(id){try{localStorage.setItem(ORDER_SEEN_KEY,String(Numb
 function notifyNativeOrder(o){
   if(!o)return;
   try{
-    if(window.ShishaLoveNative&&typeof window.ShishaLoveNative.notifyOrder==='function'){
+    if(window.ShishaLoveNative&&typeof window.ShishaLoveNative.notifyOrderWithId==='function'){
+      window.ShishaLoveNative.notifyOrderWithId(String(o.id||0),String(o.number||o.id||''),String(o.customer||'Customer'),String(o.total||''));
+    }else if(window.ShishaLoveNative&&typeof window.ShishaLoveNative.notifyOrder==='function'){
       window.ShishaLoveNative.notifyOrder(String(o.number||o.id||''),String(o.customer||'Customer'),String(o.total||''));
     }
   }catch(e){}
@@ -166,6 +168,70 @@ t = replace_func(t, 'loadOrders', r'''function loadOrders(force,allowNotify){
 # Install synchronization once Bridge JS is active. Existing bootstrap/navigation
 # calls to loadOrders remain valid and now use the fresh implementation.
 t = once(t, 'render();bootstrap(false);', 'render();bootstrap(false);startMerchantOrderSync();', 'merchant order sync bootstrap')
+
+# -----------------------------------------------------------------------------
+# ORDER DETAIL / RELOAD BEHAVIOR
+# - Order detail always owns Orders context, so bottom navigation cannot show
+#   Products/Stock while an order is open.
+# - Cached detail paints immediately, then refreshes silently from WooCommerce.
+# - Refresh while an order is open refreshes only that order, never the whole app.
+# - Native notification taps can open the exact order without reloading WebView.
+# -----------------------------------------------------------------------------
+order_detail_helpers = r'''function orderDetailKey(id){return vkey('slm-order-detail-'+String(Number(id)||0));}
+function openOrder(id,force){
+  id=Number(id)||0;if(!id)return;
+  merchantReturnScroll=null;state.menuOpen=false;state.editor=null;state.catSearch='';
+  state.view='orders';state.page=1;hydrateViewFromCache('orders');
+  var key=orderDetailKey(id),cached=cget(key,0);
+  state.orderDetail=cached||{id:id,loading:true};
+  render();
+  api('merchant/order/'+encodeURIComponent(id)+(force?'?_slm_fresh='+Date.now():''),
+      {cache:'no-store'}).then(function(d){
+        state.orderDetail=d;cset(key,d);render();
+      }).catch(function(){
+        if(!cached){state.orderDetail=null;render();}
+      });
+}
+window.SLM_OPEN_ORDER=function(id){openOrder(id,true);return true;};
+'''
+marker = 'function openOrder('
+pos = t.find(marker)
+if pos < 0:
+    raise SystemExit('openOrder marker missing')
+next_fn = t.find('\nfunction saveOrderStatus(', pos)
+if next_fn < 0:
+    raise SystemExit('saveOrderStatus marker missing')
+t = t[:pos] + order_detail_helpers + t[next_fn+1:]
+
+t = replace_func(t, 'saveOrderStatus', r'''function saveOrderStatus(status){
+  var d=state.orderDetail;if(!d||!d.id)return;
+  api('merchant/order/'+d.id,{method:'POST',body:JSON.stringify({status:status})}).then(function(next){
+    state.orderDetail=next;cset(orderDetailKey(next.id||d.id),next);
+    cdelPrefix(vkey('slm-orders-'));state.orders=null;render();loadOrders(true);
+  });
+}''')
+
+t = replace_func(t, 'navigate', r'''function navigate(view){
+  merchantReturnScroll=null;state.menuOpen=false;state.orderDetail=null;
+  var changed=view!==state.view;
+  if(changed&&(view==='products'||view==='stock')){state.query='';state.categoryId=0;state.stockStatus='all';state.searchPools[view]=null;}
+  state.view=view;state.page=1;hydrateViewFromCache(view);
+  if(view==='media-library'){mediaManager.page=1;mediaManager.search='';hydrateMediaManagerCache();}
+  render();
+  if(view==='products')loadProducts(false,false);
+  if(view==='stock')loadProducts(true,false);
+  if(view==='orders')loadOrders(false);
+  if(view==='media-library')loadMediaManager(false);
+}''')
+
+t = replace_func(t, 'refresh', r'''function refresh(){
+  if(state.orderDetail&&state.orderDetail.id){openOrder(state.orderDetail.id,true);return;}
+  if(state.view==='media-library'){loadMediaManager(true);return;}
+  if(state.view==='products')loadProducts(false,true);
+  else if(state.view==='stock')loadProducts(true,true);
+  else if(state.view==='orders')loadOrders(true);
+  else bootstrap(true);
+}''')
 
 p.write_text(t, encoding='utf-8')
 
@@ -251,9 +317,14 @@ assert "api('merchant/orders?page=1&per_page=20&_slm_fresh='" in final_js
 assert "window.SLM_CHECK_ORDERS=function(){loadOrders(true,true);};" in final_js
 assert "window.__SLM_ORDER_WATCH_INSTALLED=true;" in final_js
 assert "ShishaLoveNative.notifyOrder" in final_js
+assert "ShishaLoveNative.notifyOrderWithId" in final_js
+assert "window.SLM_OPEN_ORDER=function(id)" in final_js
+assert "function orderDetailKey(id)" in final_js
+assert "state.view='orders';state.page=1" in final_js
+assert "if(state.orderDetail&&state.orderDetail.id){openOrder(state.orderDetail.id,true);return;}" in final_js
 assert "p.post_title LIKE %s OR pm.meta_value LIKE %s" in final_php
 assert "t.name LIKE %s" in final_php
 assert "Cloudflare-CDN-Cache-Control" in final_php
 assert "merchantReturnScroll" in final_js
 assert ">Filter · All<" in final_js
-print('Merchant staging MASTER FIX: fresh order sync/notifications + debounced partial Products/Stock search applied')
+print('Merchant staging MASTER FIX: notification deep-link + instant order detail reload + Orders context + existing sync/search applied')
