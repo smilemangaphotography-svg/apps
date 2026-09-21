@@ -7,7 +7,7 @@
 #kinetiqCleanGate.hidden{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important}
 #kinetiqCleanGate img{
   position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
-  object-fit:cover!important;object-position:center center!important;display:block!important;
+  object-fit:fill!important;object-position:center center!important;display:block!important;
   pointer-events:none!important;user-select:none!important;-webkit-user-drag:none!important;
 }
 #kinetiqCleanGateQ{
