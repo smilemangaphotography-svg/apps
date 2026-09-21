@@ -1,4 +1,4 @@
-name: Build KINETIQ 3.0.15 In-Place Update
+name: Build KINETIQ 3.0.16 In-Place Update
 
 on:
   push:
@@ -161,6 +161,33 @@ jobs:
           out.save(a/'kinetiq-cover-a54-v312.png','PNG',optimize=True)
           check=Image.open(a/'kinetiq-cover-a54-v312.png')
           assert check.size==(941,2039)
+
+          # 3.0.16 cover-only lock:
+          # preserve the approved 941x1672 artwork pixel-for-pixel and keep the
+          # visual Q center at the already-locked 80.6% screen position.
+          # 2039-1672 = 367 extra px; top=296, bottom=71.
+          W2,H2=941,2039
+          top2=296
+          bottom2=H2-src.height-top2
+          assert bottom2==71
+          out2=Image.new('RGB',(W2,H2),(8,9,10))
+
+          top_src2=src.crop((0,0,W2,210))
+          top_ext2=top_src2.resize((W2,max(1,top2+120)),Image.Resampling.BICUBIC)
+          top_ext2=top_ext2.filter(ImageFilter.GaussianBlur(34))
+          top_ext2=ImageEnhance.Brightness(top_ext2).enhance(0.50)
+          out2.paste(top_ext2.crop((0,0,W2,top2)),(0,0))
+
+          bottom_src2=src.crop((0,src.height-120,W2,src.height))
+          bottom_ext2=bottom_src2.resize((W2,max(1,bottom2+100)),Image.Resampling.BICUBIC)
+          bottom_ext2=bottom_ext2.filter(ImageFilter.GaussianBlur(38))
+          bottom_ext2=ImageEnhance.Brightness(bottom_ext2).enhance(0.42)
+          out2.paste(bottom_ext2.crop((0,0,W2,bottom2)),(0,top2+src.height))
+
+          out2.paste(src,(0,top2))
+          out2.save(a/'kinetiq-cover-a54-v316.png','PNG',optimize=True)
+          check2=Image.open(a/'kinetiq-cover-a54-v316.png')
+          assert check2.size==(941,2039)
           PY
           curl -fL 'https://d2ol7oe51mr4n9.cloudfront.net/user_35vkPzhsm2L0FO5iYEXz13FP2Gn/9d5261e2-b84f-43a2-8ac8-c5888efdd969.png' -o "$R/kinetiq_launcher_foreground_v307.png"
           echo 'f6dba6ccdcfb362cdb5eea835bf0cf8b067faeec1c0a14f30bd59e18a6a82cd2  '"$R"'/kinetiq_launcher_foreground_v307.png' | sha256sum -c -
@@ -199,8 +226,8 @@ jobs:
           node --check "$A/kinetiq-v311-entry.js"
           node --check "$A/kinetiq-v315-root-lock.js"
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionCode 55" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.15'" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionCode 56" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.16'" personal-trainer/android-beta/app/build.gradle
           grep -q 'android:icon="@mipmap/kinetiq_launcher_v308"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q 'android:roundIcon="@mipmap/kinetiq_launcher_v308_round"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           test -s personal-trainer/android-beta/app/src/main/res/drawable-nodpi/kinetiq_launcher_foreground_final.webp
@@ -254,6 +281,14 @@ jobs:
           grep -q '#style2Cover.kinetiq-cover-locked.hidden' "$A/kinetiq-v315-root-lock.css"
           grep -q 'overflow-y:auto!important' "$A/kinetiq-v315-root-lock.css"
           grep -q 'window.__KINETIQ_V315_LOCK__' "$A/kinetiq-v315-root-lock.js"
+          grep -q 'kinetiq-cover-a54-v316.png' "$A/index29.html"
+          grep -q 'object-fit:fill!important' "$A/kinetiq-v315-root-lock.css"
+          test -s "$A/kinetiq-cover-a54-v316.png"
+          python3 - <<'PY'
+          from PIL import Image
+          im=Image.open('personal-trainer/android-beta/app/src/main/assets/kinetiq-cover-a54-v316.png')
+          assert im.size==(941,2039)
+          PY
           grep -q 'runOnUiThread(() -> setCoverMode(visible))' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           test -s "$A/kinetiq-cover-a54-v312.png"
           python3 - <<'PY'
@@ -271,8 +306,8 @@ jobs:
           set -euo pipefail
           mkdir -p release
           UNSIGNED=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
-          ALIGNED=release/KINETIQ-3.0.15-UPDATE-aligned.apk
-          SIGNED=release/KINETIQ-3.0.15-UPDATE.apk
+          ALIGNED=release/KINETIQ-3.0.16-UPDATE-aligned.apk
+          SIGNED=release/KINETIQ-3.0.16-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
 
           test -s "$UNSIGNED"
@@ -307,8 +342,8 @@ jobs:
               '--ks-key-alias',key_alias,
               '--ks-pass','pass:'+store_password,
               '--key-pass','pass:'+key_password,
-              '--out','release/KINETIQ-3.0.15-UPDATE.apk',
-              'release/KINETIQ-3.0.15-UPDATE-aligned.apk'
+              '--out','release/KINETIQ-3.0.16-UPDATE.apk',
+              'release/KINETIQ-3.0.16-UPDATE-aligned.apk'
           ]
           subprocess.run(cmd,check=True,stdout=subprocess.DEVNULL)
           PY
@@ -319,24 +354,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK=release/KINETIQ-3.0.15-UPDATE.apk
+          APK=release/KINETIQ-3.0.16-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
           AAPT="$BT/aapt"
           test -s "$APK"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='55' versionName='3.0.15'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='56' versionName='3.0.16'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
           "$BT/apksigner" verify --verbose "$APK"
           CERT="$("$BT/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1 | tr 'A-F' 'a-f')"
           test "$CERT" = "4d7cd06f969d9c4b1e3e361440544a27dc187a125851655aa45796453d50c3a8"
           sha256sum "$APK" | tee release/SHA256SUMS.txt
-          printf '%s\n'             'KINETIQ 3.0.15 IN-PLACE UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 55'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
+          printf '%s\n'             'KINETIQ 3.0.16 IN-PLACE UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 56'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
 
       - name: Upload signed update
         uses: actions/upload-artifact@v4
         with:
-          name: KINETIQ-3.0.15-IN-PLACE-UPDATE
+          name: KINETIQ-3.0.16-IN-PLACE-UPDATE
           path: |
-            release/KINETIQ-3.0.15-UPDATE.apk
+            release/KINETIQ-3.0.16-UPDATE.apk
             release/SHA256SUMS.txt
             release/UPDATE-INSTRUCTIONS.txt
           if-no-files-found: error
