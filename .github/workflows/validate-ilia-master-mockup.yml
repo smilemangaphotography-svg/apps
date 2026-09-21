@@ -1,4 +1,4 @@
-name: Validate KINETIQ 3.1.1 Master Mockups
+name: Validate KINETIQ 3.1.2 Master Mockups
 
 on:
   workflow_dispatch:
@@ -46,6 +46,9 @@ jobs:
           grep -q 'showMusic' "$A/kinetiq-master-310.js"
           grep -q 'showAI' "$A/kinetiq-master-310.js"
           grep -q 'showOwner' "$A/kinetiq-master-310.js"
-          grep -q 'kinetiq-cover-approved-v307.png' "$A/index29.html"
-          grep -q 'top:calc(50% + 54.4vw)!important' "$A/kinetiq-v315-root-lock.css"
-          echo 'KINETIQ 3.1.1 Master Mockups validation PASS'
+          grep -q 'KINETIQ 3.1.2 — APPROVED MASTER MOCKUP FIDELITY LOCK' "$A/kinetiq-master-310.css"
+          grep -q 'km-more-row' "$A/kinetiq-master-310.js"
+          grep -q 'Machine Chest Press' "$A/kinetiq-master-310.js"
+          grep -q 'kinetiq-cover-a54-v317.png' "$A/index29.html"
+          grep -q 'top:80.6%!important' "$A/kinetiq-v315-root-lock.css"
+          echo 'KINETIQ 3.1.2 Master Mockups validation PASS'
