@@ -2,7 +2,7 @@ name: Build KINETIQ 3.1.1 Permanent Entry + Cover Fix
 
 on:
   push:
-    branches: [ personal-trainer-main, kinetiq-master-mockups-310 ]
+    branches: [ personal-trainer-main, kinetiq-master-mockups-310, kinetiq-311-permanent-entry-cover-fix ]
     paths:
       - '.github/workflows/build-kinetiq-update-signed.yml'
       - 'personal-trainer/android-beta/**'
