@@ -53,7 +53,9 @@ t = main.read_text(encoding='utf-8')
 
 # Final identity/cache.
 t = once(t, 'build=146', 'build=147', 'merchant build cache bust')
-t = t.replace('ShishaLoveMerchant/1.1.46', 'ShishaLoveMerchant/1.1.47')
+t, ua_count = re.subn(r'ShishaLoveMerchant/[0-9.]+', 'ShishaLoveMerchant/1.1.47', t)
+if ua_count < 1:
+    raise SystemExit('Merchant user agent marker missing')
 
 # Native splash dependencies.
 t = once(t, 'import android.graphics.Color;\n', 'import android.graphics.Color;\nimport android.graphics.drawable.GradientDrawable;\n', 'splash drawable import')
