@@ -150,7 +150,7 @@ jobs:
           grep -Fq "Version: 1.3.0" shishalove-staging-loader/shishalove-staging-loader.php
           grep -Fq "/merchant/device-register" shishalove-staging-loader/shishalove-staging-loader.php
           grep -Fq "/merchant/order-pulse" shishalove-staging-loader/shishalove-staging-loader.php
-          grep -Fq "X-ShishaLove-Device" shishalove-staging-loader/shishalove-staging-loader.php
+          grep -Fq "x-shishalove-device" shishalove-staging-loader/shishalove-staging-loader.php
           grep -Fq "slsl_merchant_order_devices_v1" shishalove-staging-loader/shishalove-staging-loader.php
           grep -Fq "var p=state.editor,creating=!p.id,busy=!!p._mediaBusy,manage=true;" shishalove-staging/merchant-generated.js
           grep -Fq "manage=true;if(ms)ms.checked=true" shishalove-staging/merchant-generated.js
