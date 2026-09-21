@@ -42,5 +42,5 @@ jobs:
           grep -q 'data-nav="run"' "$A/index29.html"
           grep -q "__KINETIQ_BASE_READY__=true" "$A/index29.html"
           grep -q "__KINETIQ_ENTRY_READY__=true" "$A/kinetiq-v315-root-lock.js"
-          grep -q "3.1.2-permanent-entry" "$A/kinetiq-v315-root-lock.js"
+          grep -q "3.1.2-master-fidelity" "$A/kinetiq-v315-root-lock.js"
           echo 'KINETIQ 3.1.2 permanent runtime validation PASS'
