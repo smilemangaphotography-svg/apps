@@ -179,6 +179,7 @@ function settingsHtml(){
     '<label><span>Voice Coach</span><input id="betaVoiceOn" type="checkbox" '+(v.enabled?'checked':'')+'></label>'+
     '<label><span>Countdown</span><input id="betaCountdown" type="checkbox" '+(v.countdown?'checked':'')+'></label>'+
     '<label><span>Technique cues</span><input id="betaCues" type="checkbox" '+(v.cues?'checked':'')+'></label>'+
+    '<label><span>Voice</span><select id="betaVoiceSelect"><option value="">System default</option></select></label>'+ 
     '<label><span>Voice volume</span><input id="betaVolume" type="range" min="0.2" max="1" step="0.05" value="'+v.volume+'"></label>'+
     '<label><span>Speech rate</span><input id="betaRate" type="range" min="0.75" max="1.25" step="0.05" value="'+v.rate+'"></label>'+
   '</div>';
@@ -213,7 +214,8 @@ function renderSetTracker(host,e,date,workoutMode){
   };
   $('.beta-voice-toggle',panel).onclick=()=>{beta().voice.enabled=!beta().voice.enabled;persist();applyVoiceSettings();renderSetTracker(host,e,date,workoutMode)};
   $('.beta-voice-config',panel).onclick=()=>{const s=$('#betaVoiceSettings',panel);s.hidden=!s.hidden};
-  const vo=$('#betaVoiceOn',panel),co=$('#betaCountdown',panel),cu=$('#betaCues',panel),vol=$('#betaVolume',panel),rate=$('#betaRate',panel);
+  const vo=$('#betaVoiceOn',panel),co=$('#betaCountdown',panel),cu=$('#betaCues',panel),voiceSel=$('#betaVoiceSelect',panel),vol=$('#betaVolume',panel),rate=$('#betaRate',panel);
+  if(voiceSel){try{const voices=JSON.parse(window.PTNative?.getTtsVoices?.()||'[]');voices.slice(0,30).forEach(x=>{const o=document.createElement('option');o.value=x.name;o.textContent=(x.locale?x.locale+' · ':'')+x.name;if(beta().voice.voiceName===x.name)o.selected=true;voiceSel.appendChild(o)});voiceSel.onchange=()=>{beta().voice.voiceName=voiceSel.value;persist();if(voiceSel.value)window.PTNative?.setTtsVoice?.(voiceSel.value)}}catch(_){}}
   if(vo)vo.onchange=()=>{beta().voice.enabled=vo.checked;persist();applyVoiceSettings()};
   if(co)co.onchange=()=>{beta().voice.countdown=co.checked;persist()};
   if(cu)cu.onchange=()=>{beta().voice.cues=cu.checked;persist()};
