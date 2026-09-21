@@ -2,37 +2,25 @@
 #kinetiqCleanGate{
   position:fixed!important;inset:0!important;width:100vw!important;
   height:100vh!important;height:100dvh!important;min-height:100dvh!important;
-  z-index:2147483647!important;background:#050b09!important;
+  z-index:2147483647!important;background:#050807!important;
   overflow:hidden!important;touch-action:manipulation!important;
   margin:0!important;padding:0!important;
 }
-#kinetiqCleanGate::before{
-  content:"";position:absolute;inset:-8%;z-index:0;
-  background:url("kinetiq-cover-approved-v307.png") center center/cover no-repeat;
-  filter:blur(30px) brightness(.40) saturate(.82);
-  transform:scale(1.10);
-  opacity:.98;
-}
-#kinetiqCleanGate::after{
-  content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
-  background:
-    linear-gradient(to bottom,rgba(3,8,7,.20) 0%,rgba(3,8,7,0) 20%,rgba(3,8,7,0) 78%,rgba(3,8,7,.14) 100%);
-}
+#kinetiqCleanGate::before,#kinetiqCleanGate::after{content:none!important}
 #kinetiqCleanGate.hidden{
   display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;
 }
 #kinetiqCleanGate img,
 #kinetiqCoverArt{
-  position:absolute!important;left:50%!important;top:50%!important;
-  width:100vw!important;height:auto!important;max-width:none!important;max-height:none!important;
-  transform:translate(-50%,-50%)!important;
-  object-fit:unset!important;object-position:center center!important;
+  position:absolute!important;inset:0!important;
+  width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;
+  transform:none!important;
+  object-fit:fill!important;object-position:center center!important;
   display:block!important;z-index:1!important;
   pointer-events:none!important;user-select:none!important;-webkit-user-drag:none!important;
 }
 #kinetiqCleanGateQ{
-  position:absolute!important;left:50.4%!important;
-  top:calc(50% + 54.4vw)!important;
+  position:absolute!important;left:50.4%!important;top:80.6%!important;
   width:36vw!important;min-width:132px!important;max-width:246px!important;
   aspect-ratio:1/1!important;transform:translate(-50%,-50%)!important;
   border:0!important;border-radius:50%!important;background:transparent!important;
