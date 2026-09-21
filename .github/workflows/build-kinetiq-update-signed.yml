@@ -1,4 +1,4 @@
-name: Build KINETIQ 3.1.0 Master Mockups Update
+name: Build KINETIQ 3.1.1 Permanent Entry + Cover Fix
 
 on:
   push:
@@ -247,8 +247,8 @@ jobs:
           node --check "$A/kinetiq-master-310.js"
           node --check "$A/kinetiq-v315-root-lock.js"
           grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionCode 57" personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.1.0'" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionCode 58" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.1.1'" personal-trainer/android-beta/app/build.gradle
           grep -q 'id="kinetiqCleanGate"' "$A/index29.html"
           grep -q 'kinetiq-v315-root-lock.css' "$A/index29.html"
           grep -q 'kinetiq-v315-root-lock.js' "$A/index29.html"
@@ -256,7 +256,7 @@ jobs:
           grep -q 'kinetiq-master-310.js' "$A/index29.html"
           grep -q 'data-nav="run"' "$A/index29.html"
           grep -q 'id="masterOverlay"' "$A/index29.html"
-          grep -q "__KINETIQ_MASTER_MOCKUPS__='3.1.0-permanent'" "$A/kinetiq-master-310.js"
+          grep -q "__KINETIQ_MASTER_MOCKUPS__='3.1.1-permanent'" "$A/kinetiq-master-310.js"
           grep -q 'Show completed' "$A/kinetiq-master-310.js"
           grep -q 'EXERCISE COMPLETED' "$A/kinetiq-master-310.js"
           grep -q 'Workout Complete!' "$A/kinetiq-master-310.js"
@@ -264,9 +264,16 @@ jobs:
           grep -q 'INFINITE DRIVE' "$A/kinetiq-master-310.js"
           grep -q '#exerciseDetail,#masterOverlay' "$A/kinetiq-master-310.css"
           grep -q 'overflow-y:auto!important' "$A/kinetiq-master-310.css"
-          grep -q "k==='3.1.0-permanent'" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q "__KINETIQ_BASE_READY__=true" "$A/index29.html"
+          grep -q "__KINETIQ_ENTRY_READY__=true" "$A/kinetiq-v315-root-lock.js"
+          grep -q "3.1.1-permanent-entry" "$A/kinetiq-v315-root-lock.js"
+          grep -q "top:calc(50% + 54.4vw)!important" "$A/kinetiq-v315-root-lock.css"
+          grep -q 'background:url("kinetiq-cover-approved-v307.png") center center/cover no-repeat' "$A/kinetiq-v315-root-lock.css"
+          grep -q "if (coverVisible && event != null && isCoverQTouch(event))" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          ! grep -q "runtime failed to initialize" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q "k==='3.1.1-permanent'" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           grep -q 'runOnUiThread(() -> setCoverMode(visible))' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          test -s "$A/kinetiq-cover-a54-v317.png"
+          test -s "$A/kinetiq-cover-approved-v307.png"
           python3 - <<'PY'
           from PIL import Image
           from pathlib import Path
@@ -286,8 +293,8 @@ jobs:
           set -euo pipefail
           mkdir -p release
           UNSIGNED=personal-trainer/android-beta/app/build/outputs/apk/release/app-release-unsigned.apk
-          ALIGNED=release/KINETIQ-3.1.0-UPDATE-aligned.apk
-          SIGNED=release/KINETIQ-3.1.0-UPDATE.apk
+          ALIGNED=release/KINETIQ-3.1.1-UPDATE-aligned.apk
+          SIGNED=release/KINETIQ-3.1.1-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
 
           test -s "$UNSIGNED"
@@ -322,8 +329,8 @@ jobs:
               '--ks-key-alias',key_alias,
               '--ks-pass','pass:'+store_password,
               '--key-pass','pass:'+key_password,
-              '--out','release/KINETIQ-3.1.0-UPDATE.apk',
-              'release/KINETIQ-3.1.0-UPDATE-aligned.apk'
+              '--out','release/KINETIQ-3.1.1-UPDATE.apk',
+              'release/KINETIQ-3.1.1-UPDATE-aligned.apk'
           ]
           subprocess.run(cmd,check=True,stdout=subprocess.DEVNULL)
           PY
@@ -334,24 +341,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APK=release/KINETIQ-3.1.0-UPDATE.apk
+          APK=release/KINETIQ-3.1.1-UPDATE.apk
           BT="$ANDROID_HOME/build-tools/35.0.0"
           AAPT="$BT/aapt"
           test -s "$APK"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='57' versionName='3.1.0'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer' versionCode='58' versionName='3.1.1'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
           "$BT/apksigner" verify --verbose "$APK"
           CERT="$("$BT/apksigner" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1 | tr 'A-F' 'a-f')"
           test "$CERT" = "4d7cd06f969d9c4b1e3e361440544a27dc187a125851655aa45796453d50c3a8"
           sha256sum "$APK" | tee release/SHA256SUMS.txt
-          printf '%s\n'             'KINETIQ 3.1.0 MASTER MOCKUPS UPDATE'             'Package: com.ilia.personaltrainer'             'Version code: 57'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
+          printf '%s\n'             'KINETIQ 3.1.1 PERMANENT ENTRY + COVER FIX'             'Package: com.ilia.personaltrainer'             'Version code: 58'             'Signing certificate: preserved owner update certificate'             'Install over the existing app. Do not uninstall first.'             > release/UPDATE-INSTRUCTIONS.txt
 
       - name: Upload signed update
         uses: actions/upload-artifact@v4
         with:
-          name: KINETIQ-3.1.0-MASTER-MOCKUPS
+          name: KINETIQ-3.1.1-PERMANENT-FIX
           path: |
-            release/KINETIQ-3.1.0-UPDATE.apk
+            release/KINETIQ-3.1.1-UPDATE.apk
             release/SHA256SUMS.txt
             release/UPDATE-INSTRUCTIONS.txt
           if-no-files-found: error
