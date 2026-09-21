@@ -66,6 +66,8 @@ function enterAttempt(){
   if(!destinationVisible(s))return false;
 
   entryCommitted=true;
+  document.documentElement.dataset.kmEntryState='entered';
+  document.documentElement.dataset.kmDestination=(s&&s.built)?'home':'builder';
   setAppOpen(true);
   const gate=byId('kinetiqCleanGate');
   if(gate)gate.classList.add('hidden');
@@ -117,6 +119,8 @@ function install(){
 
   window.KINETIQ_CLEAN_GATE_ENTER=enter;
   window.__KINETIQ_ENTRY_READY__=true;
+  document.documentElement.dataset.kmEntry='ready';
+  if(location.hash==='#entry-smoke')setTimeout(()=>enter(),450);
   window.__KINETIQ_V315_LOCK__=VERSION;
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});
