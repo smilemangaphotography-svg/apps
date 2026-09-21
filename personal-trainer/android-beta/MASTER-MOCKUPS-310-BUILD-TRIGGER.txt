@@ -1,0 +1,16 @@
+KINETIQ 3.1.0 MASTER MOCKUPS BUILD TRIGGER
+
+Canonical repair branch: kinetiq-master-mockups-310
+Package: com.ilia.personaltrainer
+Version: 3.1.0
+Version code: 57
+Locks:
+- Q entry path preserved
+- vertical scrolling preserved
+- user data preserved
+- completed exercises persist and are hidden from remaining workout by default
+- master pages: HOME / PLAN / TRAIN / RUN / MORE
+- Exercise Detail sticky header + phase states + origin tab retention
+- Run / Music / Recovery / Fuel / Progress / AI / Settings / Owner Mode included
+
+This file exists only to trigger the signed regression build for the permanent Master Mockups update.
