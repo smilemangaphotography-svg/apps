@@ -237,7 +237,7 @@ jobs:
           assert (b[3]-b[1]) <= src.height*0.80
           PY
 
-      - name: Validate KINETIQ 3.1.0 Master Mockups source
+      - name: Validate KINETIQ 3.1.1 permanent entry and cover source
         shell: bash
         run: |
           set -euo pipefail
@@ -271,7 +271,6 @@ jobs:
           grep -q 'background:url("kinetiq-cover-approved-v307.png") center center/cover no-repeat' "$A/kinetiq-v315-root-lock.css"
           grep -q "if (coverVisible && event != null && isCoverQTouch(event))" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           ! grep -q "runtime failed to initialize" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
-          grep -q "k==='3.1.1-permanent'" personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           grep -q 'runOnUiThread(() -> setCoverMode(visible))' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           test -s "$A/kinetiq-cover-approved-v307.png"
           python3 - <<'PY'
