@@ -35,3 +35,202 @@ body{font-family:Inter,Arial,sans-serif!important}
 /* MASTER overlay layering: detail/content pages retain the persistent bottom navigation. */
 #exerciseDetail,#masterOverlay{z-index:80!important}
 #workoutOverlay,#restOverlay,#runOverlay{z-index:120!important}
+
+/* =========================================================
+   KINETIQ 3.1.2 — APPROVED MASTER MOCKUP FIDELITY LOCK
+   The complete mockup board is the visual specification.
+   ========================================================= */
+html[data-km-master="3.1.2"] body{font-size:14px!important}
+.app-topbar{display:none!important}
+#mainApp{
+  grid-template-rows:1fr auto!important;
+  padding:0!important;
+}
+.page{
+  padding:12px 16px calc(82px + env(safe-area-inset-bottom))!important;
+}
+.bottom-nav{
+  left:18px!important;right:18px!important;
+  bottom:calc(7px + env(safe-area-inset-bottom))!important;
+  height:60px!important;
+  padding:4px!important;
+  border-radius:20px!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.30)!important;
+}
+.nav-btn{
+  min-height:50px!important;
+  border-radius:14px!important;
+  gap:2px!important;
+}
+.nav-icon{font-size:15px!important}
+.nav-btn small{font-size:7px!important;letter-spacing:.15px!important}
+
+.km-main-head{
+  min-height:34px;
+  display:grid;
+  grid-template-columns:32px 1fr 32px;
+  align-items:center;
+  margin:0 0 9px;
+}
+.km-main-head h2{
+  margin:0;
+  text-align:center;
+  font-size:16px;
+  line-height:1;
+  letter-spacing:-.2px;
+}
+.km-search{
+  height:38px;
+  border:1px solid var(--km-line);
+  border-radius:14px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:0 12px;
+  color:#7f8c84;
+  background:#07180f;
+  font-size:10px;
+  margin-bottom:8px;
+}
+
+.km-home-greeting{
+  grid-template-columns:1fr 66px!important;
+  gap:10px!important;
+  padding:4px 2px 11px!important;
+}
+.km-home-greeting h1{
+  font-size:28px!important;
+  line-height:.94!important;
+  margin:3px 0 7px!important;
+  letter-spacing:-1px!important;
+}
+.km-home-greeting p{font-size:11px!important;line-height:1.35!important}
+.km-readiness{
+  width:64px!important;height:64px!important;border-width:5px!important;
+}
+.km-readiness b{font-size:22px!important}
+.km-today{
+  border-radius:15px!important;
+  padding:13px!important;
+  margin-bottom:10px!important;
+  min-height:132px;
+}
+.km-today h2{font-size:18px!important;margin:4px 0!important;max-width:70%}
+.km-today .km-meta{font-size:10px!important;margin-bottom:10px!important;max-width:72%}
+.km-today .km-btn{min-height:42px!important;border-radius:13px!important;padding:0 15px!important}
+.km-today-art{
+  right:7px!important;bottom:5px!important;
+  width:100px!important;max-height:118px!important;
+  opacity:.78!important;filter:grayscale(1) contrast(.9)!important;
+  object-fit:contain!important;
+}
+.km-home-shortcuts{gap:7px!important;margin:10px 0!important}
+.km-shortcut{min-height:56px!important;border-radius:13px!important;font-size:9px!important}
+.km-shortcut span{font-size:17px!important;margin-bottom:4px!important}
+.km-card{border-radius:15px!important;padding:12px!important}
+.km-week-chart{height:66px!important;gap:6px!important;margin-top:6px!important}
+.km-week-chart i{width:9px!important}
+#pageHome>.km-card:last-child{margin-top:8px!important;padding:10px!important}
+
+.km-tabs{
+  padding:3px!important;
+  border-radius:15px!important;
+  margin-bottom:9px!important;
+}
+.km-tabs button{height:30px!important;border-radius:11px!important;font-size:8px!important}
+.km-plan-week{font-size:10px!important;margin:7px 0!important}
+.km-plan-list{gap:5px!important}
+.km-plan-row{
+  grid-template-columns:38px 1fr 20px!important;
+  min-height:47px!important;
+  padding:7px 8px!important;
+  border-radius:12px!important;
+}
+.km-plan-row b{font-size:10px!important}
+.km-plan-row small{font-size:8px!important}
+.km-check{width:20px!important;height:20px!important;border-width:1.5px!important}
+
+.overlay,.km-overlay{
+  padding:0 16px calc(82px + env(safe-area-inset-bottom))!important;
+}
+.overlay-head,.km-sticky-head{
+  height:54px!important;
+  grid-template-columns:36px 1fr 36px!important;
+  padding:0!important;
+}
+.overlay-head button,.km-sticky-head button{
+  width:34px!important;height:34px!important;font-size:24px!important;
+}
+.overlay-head .tiny-label,.km-sticky-head .title{
+  font-size:8px!important;
+  letter-spacing:1.7px!important;
+}
+.km-workout-summary{margin:0 0 8px!important}
+.km-workout-head{
+  gap:8px!important;
+  padding:0 0 9px!important;
+  margin:0!important;
+}
+.km-workout-symbol{font-size:24px;line-height:1}
+.km-workout-head h2{font-size:16px!important}
+.km-workout-head small{font-size:9px!important}
+.km-workout-list{gap:6px!important}
+.km-workout-row{
+  grid-template-columns:20px 48px 1fr 24px!important;
+  min-height:58px!important;
+  gap:7px!important;
+  padding:6px 8px!important;
+  border-radius:12px!important;
+}
+.km-workout-row img{
+  width:46px!important;height:46px!important;border-radius:7px!important;
+}
+.km-workout-row b{font-size:11px!important}
+.km-workout-row small{font-size:8px!important}
+#kmCompleteWorkout{min-height:43px!important;border-radius:13px!important;font-size:11px!important}
+
+.km-more-list{display:grid;gap:5px}
+.km-more-row{
+  min-height:44px;
+  display:grid;
+  grid-template-columns:28px 1fr 18px;
+  gap:7px;
+  align-items:center;
+  width:100%;
+  border:1px solid var(--km-line);
+  border-radius:12px;
+  background:#07180f;
+  color:#fff;
+  padding:7px 10px;
+  text-align:left;
+}
+.km-more-row .ico{
+  width:24px;height:24px;
+  display:grid;place-items:center;
+  font-size:14px;color:#d7ded9;
+}
+.km-more-row b{font-size:10px}
+.km-more-row .arrow{justify-self:end;font-size:18px;color:#d7ded9}
+.km-settings{gap:5px!important}
+.km-setting{
+  min-height:42px!important;
+  border-radius:12px!important;
+  padding:7px 10px!important;
+}
+.km-setting b{font-size:9px!important}
+.km-setting small{font-size:7px!important}
+
+.km-btn{min-height:43px!important;border-radius:13px!important}
+.km-chip{min-height:30px!important;font-size:8px!important;padding:0 11px!important}
+.km-list{gap:6px!important}
+.km-list-row{border-radius:12px!important;padding:9px!important}
+.km-list-row b{font-size:10px!important}
+.km-list-row small{font-size:8px!important}
+
+@media (max-height:760px){
+  .page{padding-top:8px!important}
+  .km-home-greeting h1{font-size:25px!important}
+  .km-today{min-height:122px!important}
+  .bottom-nav{height:56px!important}
+  .nav-btn{min-height:46px!important}
+}
