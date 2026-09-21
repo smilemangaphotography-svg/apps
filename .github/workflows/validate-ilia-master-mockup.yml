@@ -1,16 +1,15 @@
-name: Validate ILIA Coach Master Mockup
+name: Validate KINETIQ Master Mockups
 
 on:
+  workflow_dispatch:
   push:
     branches: [ personal-trainer-main ]
     paths:
-      - 'personal-trainer/android-beta/app/src/main/assets/style2-v29-master-mockup.js'
-      - 'personal-trainer/android-beta/app/src/main/assets/style2-v29-master-mockup.css'
-      - 'personal-trainer/android-beta/app/src/main/assets/style2-v29-priority-engine.js'
+      - 'personal-trainer/android-beta/app/src/main/assets/kinetiq-master-310.js'
+      - 'personal-trainer/android-beta/app/src/main/assets/kinetiq-master-310.css'
       - 'personal-trainer/android-beta/app/src/main/assets/index29.html'
-      - 'personal-trainer/ILIA-COACH-MASTER-MOCKUP-LOCK.md'
+      - 'personal-trainer/KINETIQ-3.1.0-PERMANENT-MASTER-MOCKUPS-LOCK.md'
       - '.github/workflows/validate-ilia-master-mockup.yml'
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,21 +24,26 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Syntax and master-lock validation
+      - name: Validate Master Mockups lock
         shell: bash
         run: |
           set -euo pipefail
           A=personal-trainer/android-beta/app/src/main/assets
-          node --check "$A/style2-v29-master-mockup.js"
-          node --check "$A/style2-v29-priority-engine.js"
-          test -s "$A/style2-v29-master-mockup.css"
-          test -s personal-trainer/ILIA-COACH-MASTER-MOCKUP-LOCK.md
-          grep -q 'style2-v29-master-mockup.css' "$A/index29.html"
-          grep -q 'style2-v29-master-mockup.js' "$A/index29.html"
-          grep -q "__ILIA_MASTER_MOCKUP__='approved-functional'" "$A/style2-v29-master-mockup.js"
-          grep -q 'Upper + Strong Legs' "$A/style2-v29-master-mockup.js"
-          grep -q 'Knee Support + Strength' "$A/style2-v29-master-mockup.js"
-          grep -q 'Runner + Leg Strength' "$A/style2-v29-master-mockup.js"
-          grep -q 'CREATE MY PLAN' "$A/style2-v29-master-mockup.js"
-          grep -q "'Knee','Hip','Ankle','Lower Back','Shoulder','Elbow','Wrist'" "$A/style2-v29-priority-engine.js"
-          echo 'ILIA Coach master mockup static validation PASS'
+          node --check "$A/kinetiq-master-310.js"
+          test -s "$A/kinetiq-master-310.css"
+          test -s personal-trainer/KINETIQ-3.1.0-PERMANENT-MASTER-MOCKUPS-LOCK.md
+          grep -q 'HOME' "$A/index29.html"
+          grep -q 'PLAN' "$A/index29.html"
+          grep -q 'TRAIN' "$A/index29.html"
+          grep -q 'RUN' "$A/index29.html"
+          grep -q 'MORE' "$A/index29.html"
+          grep -q 'km-sticky-head' "$A/kinetiq-master-310.css"
+          grep -q 'overflow-y:auto!important' "$A/kinetiq-master-310.css"
+          grep -q 'showTodayWorkout' "$A/kinetiq-master-310.js"
+          grep -q 'showRecovery' "$A/kinetiq-master-310.js"
+          grep -q 'showFuel' "$A/kinetiq-master-310.js"
+          grep -q 'showProgress' "$A/kinetiq-master-310.js"
+          grep -q 'showMusic' "$A/kinetiq-master-310.js"
+          grep -q 'showAI' "$A/kinetiq-master-310.js"
+          grep -q 'showOwner' "$A/kinetiq-master-310.js"
+          echo 'KINETIQ 3.1.0 Master Mockups validation PASS'
