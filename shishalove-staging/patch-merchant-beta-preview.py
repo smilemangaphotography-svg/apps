@@ -376,7 +376,7 @@ t = replace_method(t, '            public void onPageCommitVisible(WebView view,
                     enterButton.setText("ENTER");
                 }
                 if (enterRequested && pendingOpenOrderId <= 0L) hideLaunchOverlay();
-                view.postDelayed(this::tryOpenPendingOrder, 90);
+                view.postDelayed(() -> MainActivity.this.tryOpenPendingOrder(), 90);
                 view.postDelayed(() -> registerBackgroundOrderChannel(view, url), 350);
                 view.postDelayed(() -> {
                     applyRuntimeJs(view, url);
