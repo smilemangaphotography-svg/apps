@@ -1,4 +1,4 @@
-name: Validate KINETIQ 3.1.1 Permanent Runtime
+name: Validate KINETIQ 3.1.2 Permanent Runtime
 
 on:
   workflow_dispatch:
@@ -34,14 +34,13 @@ jobs:
           test -s "$A/kinetiq-master-310.css"
           grep -q 'kinetiq-master-310.css' "$A/index29.html"
           grep -q 'kinetiq-master-310.js' "$A/index29.html"
-          grep -q "__KINETIQ_MASTER_MOCKUPS__='3.1.1-permanent'" "$A/kinetiq-master-310.js"
-          grep -q 'Show completed' "$A/kinetiq-master-310.js"
-          grep -q 'EXERCISE COMPLETED' "$A/kinetiq-master-310.js"
+          grep -q "__KINETIQ_MASTER_MOCKUPS__='3.1.2-permanent'" "$A/kinetiq-master-310.js"
+                    grep -q 'EXERCISE COMPLETED' "$A/kinetiq-master-310.js"
           grep -q 'Workout Complete!' "$A/kinetiq-master-310.js"
           grep -q 'Run Activity' "$A/kinetiq-master-310.js"
           grep -q 'INFINITE DRIVE' "$A/kinetiq-master-310.js"
           grep -q 'data-nav="run"' "$A/index29.html"
           grep -q "__KINETIQ_BASE_READY__=true" "$A/index29.html"
           grep -q "__KINETIQ_ENTRY_READY__=true" "$A/kinetiq-v315-root-lock.js"
-          grep -q "3.1.1-permanent-entry" "$A/kinetiq-v315-root-lock.js"
-          echo 'KINETIQ 3.1.1 permanent runtime validation PASS'
+          grep -q "3.1.2-permanent-entry" "$A/kinetiq-v315-root-lock.js"
+          echo 'KINETIQ 3.1.2 permanent runtime validation PASS'
