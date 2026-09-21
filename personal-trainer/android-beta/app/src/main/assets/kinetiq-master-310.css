@@ -234,3 +234,21 @@ html[data-km-master="3.1.2"] body{font-size:14px!important}
   .bottom-nav{height:56px!important}
   .nav-btn{min-height:46px!important}
 }
+
+
+/* KINETIQ PHASE 1 — historical calendar/status logic in the approved Master UI only. */
+.km-date-strip{display:flex;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;padding:1px 0 7px;margin:0 0 2px;touch-action:pan-x}
+.km-date-strip::-webkit-scrollbar{display:none}
+.km-date{flex:0 0 48px;min-height:58px;border:1px solid var(--km-line);border-radius:13px;background:#07180f;color:#8f9a93;display:grid;place-items:center;align-content:center;gap:1px;padding:4px 2px;position:relative}
+.km-date span,.km-date small{font-size:7px;text-transform:uppercase;letter-spacing:.4px}.km-date b{font-size:16px;line-height:1;color:#dce2de}.km-date i{font-style:normal;font-size:5px;letter-spacing:.7px;color:var(--km-lime)}
+.km-date.active{background:var(--km-cream);border-color:var(--km-cream);color:#111}.km-date.active b,.km-date.active small,.km-date.active span{color:#111}.km-date.active i{color:#496300}
+.km-selected-session{width:100%;min-height:54px;display:grid;grid-template-columns:1fr 26px;align-items:center;gap:10px;border:1px solid var(--km-line);border-radius:14px;background:#07180f;color:#fff;padding:10px 12px;text-align:left;margin:0 0 9px}
+.km-selected-session b{display:block;font-size:12px}.km-selected-session small{display:block;color:#8c9790;font-size:8px;margin-top:3px}.km-selected-session.done{border-color:#52773d}
+.km-plan-row.selected{border-color:rgba(186,255,39,.48)}.km-plan-row .day small{display:block!important;margin-top:2px!important;font-size:6px!important;letter-spacing:.2px!important}
+.km-status-row{display:flex;flex-wrap:wrap;gap:5px;margin:7px 0 2px}
+.km-ex-status{display:inline-flex;align-items:center;min-height:22px;border:1px solid currentColor;border-radius:999px;padding:0 8px;font-size:7px;line-height:1;font-weight:900;letter-spacing:.35px;white-space:nowrap}
+.km-ex-status.compact{min-height:16px;padding:0 5px;font-size:5.5px;margin-top:4px;margin-right:3px}
+.km-status-good{color:#3ad46f;background:rgba(58,212,111,.09)}.km-status-orange{color:#ffae3d;background:rgba(255,174,61,.10)}.km-status-red{color:#ff5a5f;background:rgba(255,90,95,.10)}.km-status-hard{color:#a783ff;background:rgba(167,131,255,.10)}
+.km-ai-proposal{margin:10px 0;border:1px solid var(--km-line);border-radius:15px;background:#07180f;padding:12px}.km-ai-proposal-row{display:grid;grid-template-columns:76px 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--km-line)}
+.km-ai-proposal-row:last-of-type{border-bottom:0}.km-ai-proposal-row>b{font-size:9px}.km-ai-proposal-row strong{display:block;font-size:10px}.km-ai-proposal-row small{display:block;color:#8c9790;font-size:8px;margin-top:2px}.km-ai-proposal p{font-size:9px;color:#aab3ad;line-height:1.4}
+.km-ai-proposal-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px}.km-ai-proposal-actions .km-btn{min-height:42px;font-size:8px;padding:0 8px}
