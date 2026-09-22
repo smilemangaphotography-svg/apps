@@ -1,6 +1,6 @@
 /* KINETIQ 3.0.3 SAFE BETA — approved additive UI only */
 :root{--beta-lime:#baff24;--beta-ink:#031008;--beta-ivory:#f5f0e5;--beta-line:rgba(220,232,222,.16)}
-body{overscroll-behavior-y:none}
+body{overscroll-behavior-y:auto}
 
 /* Approved cinematic cover. The artwork is the user-approved Image 1 stored locally. */
 #style2Cover.kinetiq-cover{
