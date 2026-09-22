@@ -186,6 +186,11 @@ public class MainActivity extends Activity {
                 }
             });
         }
+        @JavascriptInterface public void stopTts() {
+            runOnUiThread(() -> {
+                if (tts != null) tts.stop();
+            });
+        }
         @JavascriptInterface public void setTtsVolume(double value) {
             ttsVolume = (float)Math.max(0.2d, Math.min(1.0d, value));
         }

@@ -160,7 +160,7 @@ function dateStrip(){
   </button>`}).join('')}</div><div class="v7-swipe">← swipe real calendar days → · tap any date</div>`;
 }
 function centerDate(){
- const a=$v('.v7-day.active');if(a)setTimeout(()=>a.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'}),20);
+ const box=$v('.v7-days'),a=$v('.v7-day.active');if(!box||!a)return;const left=a.offsetLeft-(box.clientWidth-a.offsetWidth)/2;box.scrollLeft=Math.max(0,left);
 }
 function tabs(){
  return `<div class="v7-tabs">
@@ -186,6 +186,7 @@ function renderPlanV7(){
   </section>
   <section class="v7-coach-card"><div class="v7-kicker">COACH SUGGESTION</div><h2>After ${esc(p?.type||'Rest')} → ${esc(recommendedNext(p))}</h2><p>Suggestion only. My Plan stays unchanged until you apply a recommendation.</p></section>
   <section class="v7-ai-card"><div><div class="v7-kicker">AI COACH</div><h2>Need to rearrange the week?</h2><p>Tell the coach what happened. It uses the real phone calendar.</p></div><button onclick="ILIA_V7.openAI()">ASK AI</button></section>
+  <section class="v7-coach-card"><div class="v7-kicker">PLAN VIEWS</div><div class="seg-v29"><button data-v7-mode="weekly" onclick="ILIA_V7.viewMode('weekly')">WEEKLY</button><button data-v7-mode="monthly" onclick="ILIA_V7.viewMode('monthly')">MONTHLY</button><button data-v7-mode="blocks" onclick="ILIA_V7.viewMode('blocks')">2-WEEK BLOCKS</button></div></section>
  </div>`;
  centerDate();
 }
@@ -296,7 +297,17 @@ function syncLegacyProgram(){
 function distanceKm(v){if(!v)return 5; if(/half/i.test(v))return 21.1;if(/marathon/i.test(v)&&!/half/i.test(v))return 42.2;const n=parseFloat(v);return Number.isFinite(n)?n:S.v7.run.customKm||10}
 function tab(t){S.v7.planTab=t;saveAll();renderPlanV7()}
 function pickDate(k){S.v7.selectedDate=k;saveAll();renderPlanV7()}
-function openPlanDate(k,t='my'){S.v7.selectedDate=k;S.v7.planTab=t;saveAll();showMain('plan')}
+function viewMode(mode){if(!['weekly','monthly','blocks'].includes(mode))return;S.planMode=mode;saveAll();if(typeof renderPlan==='function')renderPlan()}
+function revealPlanV7(){
+ seedV7();
+ const builder=$v('#builder'),main=$v('#mainApp');if(builder)builder.classList.add('hidden');if(main)main.classList.remove('hidden');
+ $$v('.page').forEach(p=>p.classList.toggle('active',p.dataset.page==='plan'));
+ $$v('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.nav==='plan'));
+ const title=$v('#topTitle'),label=$v('#topLabel');if(title)title.textContent='Plan';if(label)label.textContent='KINETIQ';
+ renderPlanV7();scrollTo(0,0);
+}
+function openPlanToday(){seedV7();S.v7.selectedDate=ymd(today0());S.v7.planTab='my';saveAll();revealPlanV7()}
+function openPlanDate(k,t='my'){S.v7.selectedDate=k;S.v7.planTab=t;saveAll();revealPlanV7()}
 function openAI(){
  seedV7();
  const recent=(S.v7.aiHistory||[]).slice(-6).map(m=>`<div class="v7-bubble ${m.role}">${esc(m.text)}</div>`).join('');
@@ -395,7 +406,7 @@ function handleLoc(lat,lon,speed,accuracy){
  updateRunUi(cue);
 }
 function paceCue(current,target){if(!current)return'hold';if(current>target+10)return'speed';if(current<target-10)return'slow';return'hold'}
-function speakCue(c){try{window.PTNative?.speak(c==='speed'?'Speed up slightly.':c==='slow'?'Slow down slightly.':'Perfect pace. Hold this pace.')}catch(e){}}
+function speakCue(c){if(S.voiceCoach?.enabled===false||!runState.active)return;const t=c==='speed'?'Speed up slightly.':c==='slow'?'Slow down slightly.':'Perfect pace. Hold this pace.';try{window.KINETIQVoice?.speak?window.KINETIQVoice.speak(t):window.PTNative?.speak(t)}catch(e){}}
 function updateRunUi(cue='hold'){
  const a=$v('#v7RunCue'),p=$v('#v7RunPace'),d=$v('#v7RunDist'),t=$v('#v7RunTime');
  if(a)a.textContent=cue==='speed'?'SPEED UP':cue==='slow'?'SLOW DOWN':runState.active?'ON PACE':'READY';
@@ -405,11 +416,11 @@ function updateRunUi(cue='hold'){
 function startRun(){
  seedV7();runState.active=true;runState.start=Date.now();runState.elapsed=0;runState.distance=0;runState.currentPace=0;runState.target=S.v7.run.paceMin*60+S.v7.run.paceSec;runState.lastVoice=0;runState.lastLoc=null;
  clearInterval(runState.timer);runState.timer=setInterval(()=>{if(runState.active){runState.elapsed=Math.floor((Date.now()-runState.start)/1000);updateRunUi()}},1000);
- try{window.PTNative?.startLocation();window.PTNative?.speak('Run started. Settle into your target pace.')}catch(e){}
+ try{window.PTNative?.startLocation();if(S.voiceCoach?.enabled!==false)(window.KINETIQVoice?.speak?window.KINETIQVoice.speak('Run started. Settle into your target pace.'):window.PTNative?.speak('Run started. Settle into your target pace.'))}catch(e){}
  renderRunV7();
 }
 function stopRun(){
- if(!runState.active)return;clearInterval(runState.timer);runState.active=false;try{window.PTNative?.stopLocation();window.PTNative?.speak('Run complete. Nice work.')}catch(e){}
+ if(!runState.active)return;clearInterval(runState.timer);runState.active=false;try{window.PTNative?.stopLocation();if(S.voiceCoach?.enabled!==false)(window.KINETIQVoice?.speak?window.KINETIQVoice.speak('Run complete. Nice work.'):window.PTNative?.speak('Run complete. Nice work.'))}catch(e){}
  S.runHistory=S.runHistory||[];S.runHistory.push({date:new Date().toISOString(),name:'V7 Run',distance:+runState.distance.toFixed(2),seconds:runState.elapsed});saveAll();renderRunV7();
 }
 function simCue(k){runState.currentPace=k==='slow'?S.v7.run.paceMin*60+S.v7.run.paceSec+18:k==='fast'?S.v7.run.paceMin*60+S.v7.run.paceSec-18:S.v7.run.paceMin*60+S.v7.run.paceSec;const c=paceCue(runState.currentPace,S.v7.run.paceMin*60+S.v7.run.paceSec);updateRunUi(c);speakCue(c)}
@@ -430,9 +441,9 @@ function patchShowMain(){
    $$v('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.nav==='runv7'));
    const title=$v('#topTitle');if(title)title.textContent='Run Coach';renderRunV7();scrollTo(0,0);return;
   }
+  if(page==='plan'){openPlanToday();return}
   baseShowMain(page);
   if(page==='home')setTimeout(renderHomeV7,10);
-  if(page==='plan')setTimeout(renderPlanV7,10);
   if(page==='more')moreEnhanceDelayed();
   if(page==='train')setTimeout(renderTrainBanner,10);
  };
@@ -468,7 +479,7 @@ function init(){
 }
 window.ILIA_V7={
  tab,pickDate,openPlanDate,better,showAlternatives,replace,addExercise,add,applyRecommended,applyAI,openAI,fillAI,askAI,sendAI,cancelAI,
- coachSetup,setPriority,setDuration,runSettings,setRun,openRun,startRun,stopRun,simCue,renderPlan:renderPlanV7,renderHome:renderHomeV7
+ coachSetup,setPriority,setDuration,runSettings,setRun,openRun,startRun,stopRun,simCue,viewMode,renderPlan:renderPlanV7,renderHome:renderHomeV7
 };
 setTimeout(init,380);
 })();

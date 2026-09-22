@@ -13,13 +13,20 @@ function beta(){
   const b=s.beta303;
   b.exerciseDone=b.exerciseDone||{};
   b.sets=b.sets||{};
-  b.voice=Object.assign({enabled:true,countdown:true,cues:true,volume:1,rate:1.02},b.voice||{});
   b.routes=Array.isArray(b.routes)?b.routes:[];
   b.selectedRouteId=b.selectedRouteId||null;
   b.lastPlanDate=b.lastPlanDate||s.v7?.selectedDate||ymd(new Date());
   b.liveRun=b.liveRun||{active:false,startedAt:0,points:[]};
   return b;
 }
+function voiceState(){
+  const s=S0();if(!s)return null;const b=s.beta303||(s.beta303={});
+  if(!b.voiceUnifiedV1){const old=b.voice||{},home=s.voiceCoach||{},enabled=typeof home.enabled==='boolean'?home.enabled:(typeof old.enabled==='boolean'?old.enabled:true);s.voiceCoach=Object.assign({enabled:true,frequency:'Normal',countdown:true,cues:true,volume:1,rate:1.02,voiceName:''},home,old,{enabled});delete b.voice;b.voiceUnifiedV1=true;persist()}
+  s.voiceCoach=Object.assign({enabled:true,frequency:'Normal',countdown:true,cues:true,volume:1,rate:1.02,voiceName:''},s.voiceCoach||{});return s.voiceCoach;
+}
+function stopNativeVoice(){try{window.PTNative?.stopTts?.()}catch(_){} }
+function voiceContextActive(){return !$('#exerciseDetail')?.classList.contains('hidden')||!$('#workoutOverlay')?.classList.contains('hidden')||!$('#restOverlay')?.classList.contains('hidden')}
+function setVoiceEnabled(on){const v=voiceState();if(!v)return;v.enabled=!!on;if(!v.enabled){clearVoiceTimers();stopNativeVoice()}persist();applyVoiceSettings()}
 function persist(){try{save()}catch(e){}}
 function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 function parseYmd(k){const p=String(k||'').split('-').map(Number);return p.length===3?new Date(p[0],p[1]-1,p[2],12):new Date()}
@@ -37,28 +44,28 @@ function setDone(date,id,v){doneMap(date)[id]=!!v;persist()}
 function allSetsDone(date,id,e){const r=rxFor(e),a=setState(date,id,r.sets);return a.length===r.sets&&a.every(Boolean)}
 function syncDoneFromSets(date,id,e){setDone(date,id,allSetsDone(date,id,e))}
 
-function speak(t){const b=beta();if(!b?.voice?.enabled||!t)return;try{window.PTNative?.speak(String(t))}catch(e){}}
+function speak(t){const v=voiceState();if(!v?.enabled||!t||!voiceContextActive())return;try{window.PTNative?.speak(String(t))}catch(e){}}
 function clearVoiceTimers(){voiceTimers.forEach(clearTimeout);voiceTimers=[]}
 function queueVoice(lines){
   clearVoiceTimers(); let delay=0;
   lines.filter(Boolean).forEach((line,i)=>{voiceTimers.push(setTimeout(()=>speak(line),delay));delay+=i===0?1100:850});
 }
 function shortCue(e){
-  if(!beta()?.voice?.cues)return'';
+  if(!voiceState()?.cues)return'';
   const t=String(e?.cue||'').replace(/\s+/g,' ').trim();
   return t.length>105?t.slice(0,102)+'…':t;
 }
 function startSetVoice(e,setIndex){
-  const b=beta(); if(!b)return;
+  const b=beta(),v=voiceState(); if(!b||!v)return;
   const r=rxFor(e),lines=[e.name,'Get into position.'];
   const cue=shortCue(e); if(cue)lines.push(cue);
-  if(b.voice.countdown)lines.push('Ready.','3','2','1','Start.');
+  if(v.countdown)lines.push('Ready.','3','2','1','Start.');
   else lines.push('Start.');
   queueVoice(lines);
   b.activeVoiceSet={date:selectedDateKey(),id:e.id,index:setIndex,startedAt:Date.now(),rest:r.rest};persist();
 }
 function applyVoiceSettings(){
-  const v=beta()?.voice;if(!v)return;
+  const v=voiceState();if(!v)return;
   try{window.PTNative?.setTtsVolume?.(Number(v.volume)||1)}catch(e){}
   try{window.PTNative?.setTtsRate?.(Number(v.rate)||1.02)}catch(e){}
 }
@@ -174,7 +181,7 @@ function patchDetail(){
   wrapped.__beta303=true;window.PT29.openDetail=wrapped;window.openDetail=wrapped;detailPatched=true;
 }
 function settingsHtml(){
-  const v=beta().voice;
+  const v=voiceState();
   return '<div class="beta-voice-settings" id="betaVoiceSettings" hidden>'+
     '<label><span>Voice Coach</span><input id="betaVoiceOn" type="checkbox" '+(v.enabled?'checked':'')+'></label>'+
     '<label><span>Countdown</span><input id="betaCountdown" type="checkbox" '+(v.countdown?'checked':'')+'></label>'+
@@ -182,10 +189,11 @@ function settingsHtml(){
     '<label><span>Voice</span><select id="betaVoiceSelect"><option value="">System default</option></select></label>'+
     '<label><span>Voice volume</span><input id="betaVolume" type="range" min="0.2" max="1" step="0.05" value="'+v.volume+'"></label>'+
     '<label><span>Speech rate</span><input id="betaRate" type="range" min="0.75" max="1.25" step="0.05" value="'+v.rate+'"></label>'+
+    '<button type="button" id="betaVoiceSettingsClose" class="manage-btn-v29" style="min-height:48px;margin-top:10px">DONE</button>'+
   '</div>';
 }
 function syncVoiceControls(panel){
-  const on=!!beta().voice.enabled,btn=$('.beta-voice-toggle',panel),vo=$('#betaVoiceOn',panel);
+  const on=!!voiceState().enabled,btn=$('.beta-voice-toggle',panel),vo=$('#betaVoiceOn',panel);
   if(btn){btn.classList.toggle('on',on);btn.textContent='VOICE '+(on?'ON':'OFF');btn.setAttribute('aria-pressed',String(on))}
   if(vo)vo.checked=on;
 }
@@ -193,13 +201,13 @@ function renderSetTracker(host,e,date,workoutMode){
   if(!host||!e)return;
   $('.beta-set-tracker',host)?.remove();
   const r=rxFor(e),states=setState(date,e.id,r.sets);
-  const panel=document.createElement('section');panel.className='beta-set-tracker';
+  const panel=document.createElement('section');panel.className='beta-set-tracker';panel.dataset.exerciseId=e.id;panel.dataset.date=date;panel.dataset.workoutMode=workoutMode?'1':'0';
   const complete=states.filter(Boolean).length;
   let rows='';
   for(let i=0;i<r.sets;i++)rows+='<button type="button" class="beta-set-row '+(states[i]?'done':'')+'" data-beta-set="'+i+'"><b>Set '+(i+1)+'</b><small>'+esc(r.reps)+' reps</small><span class="beta-set-check">'+(states[i]?'✓':'')+'</span></button>';
   panel.innerHTML='<div class="beta-set-title"><b>SET TRACKING</b><span>'+complete+' / '+r.sets+' SETS COMPLETE</span></div>'+rows+
    '<div class="beta-coach-actions"><button type="button" class="beta-start-set">START SET</button><button type="button" class="beta-end-set">END SET</button></div>'+
-   '<div class="beta-voice-tools"><button type="button" class="beta-voice-toggle '+(beta().voice.enabled?'on':'')+'" aria-pressed="'+String(!!beta().voice.enabled)+'">VOICE '+(beta().voice.enabled?'ON':'OFF')+'</button><button type="button" class="beta-voice-config" aria-expanded="false">SETTINGS</button></div>'+settingsHtml();
+   '<div class="beta-voice-tools"><button type="button" class="beta-voice-toggle '+(voiceState().enabled?'on':'')+'" aria-pressed="'+String(!!voiceState().enabled)+'">VOICE '+(voiceState().enabled?'ON':'OFF')+'</button><button type="button" class="beta-voice-config" aria-expanded="false">SETTINGS</button></div>'+settingsHtml();
   const stats=$('.workout-stats',host)||$('.phase-row-v29',host)||host.firstChild;
   stats?.insertAdjacentElement?.('afterend',panel);
   $$('.beta-set-row',panel).forEach(btn=>btn.onclick=ev=>{
@@ -217,22 +225,23 @@ function renderSetTracker(host,e,date,workoutMode){
     if(a.every(Boolean)){speak('Exercise complete.');renderSetTracker(host,e,date,false)}
     else{showBetaRest(e,r.rest,i+1);renderSetTracker(host,e,date,false)}
   };
-  $('.beta-voice-toggle',panel).onclick=()=>{beta().voice.enabled=!beta().voice.enabled;if(!beta().voice.enabled)clearVoiceTimers();persist();applyVoiceSettings();syncVoiceControls(panel)};
-  $('.beta-voice-config',panel).onclick=()=>{const s=$('#betaVoiceSettings',panel),btn=$('.beta-voice-config',panel);s.hidden=!s.hidden;btn.setAttribute('aria-expanded',String(!s.hidden));if(!s.hidden)requestAnimationFrame(()=>s.scrollIntoView({behavior:'smooth',block:'nearest'}))};
-  const vo=$('#betaVoiceOn',panel),co=$('#betaCountdown',panel),cu=$('#betaCues',panel),voiceSel=$('#betaVoiceSelect',panel),vol=$('#betaVolume',panel),rate=$('#betaRate',panel);
-  if(voiceSel){try{const voices=JSON.parse(window.PTNative?.getTtsVoices?.()||'[]');voices.slice(0,30).forEach(x=>{const o=document.createElement('option');o.value=x.name;o.textContent=(x.locale?x.locale+' · ':'')+x.name;if(beta().voice.voiceName===x.name)o.selected=true;voiceSel.appendChild(o)});voiceSel.onchange=()=>{beta().voice.voiceName=voiceSel.value;persist();if(voiceSel.value)window.PTNative?.setTtsVoice?.(voiceSel.value)}}catch(_){}}
-  if(vo)vo.onchange=()=>{beta().voice.enabled=vo.checked;if(!vo.checked)clearVoiceTimers();persist();applyVoiceSettings();syncVoiceControls(panel)};
-  if(co)co.onchange=()=>{beta().voice.countdown=co.checked;persist()};
-  if(cu)cu.onchange=()=>{beta().voice.cues=cu.checked;persist()};
-  if(vol)vol.oninput=()=>{beta().voice.volume=+vol.value;persist();applyVoiceSettings()};
-  if(rate)rate.oninput=()=>{beta().voice.rate=+rate.value;persist();applyVoiceSettings()};
+  $('.beta-voice-toggle',panel).onclick=()=>{setVoiceEnabled(!voiceState().enabled);syncVoiceControls(panel)};
+  $('.beta-voice-config',panel).onclick=ev=>{ev.preventDefault();ev.stopPropagation();const s=$('#betaVoiceSettings',panel),btn=$('.beta-voice-config',panel);s.hidden=false;btn.setAttribute('aria-expanded','true');requestAnimationFrame(()=>s.scrollIntoView({behavior:'smooth',block:'nearest'}))};
+  const vo=$('#betaVoiceOn',panel),co=$('#betaCountdown',panel),cu=$('#betaCues',panel),voiceSel=$('#betaVoiceSelect',panel),vol=$('#betaVolume',panel),rate=$('#betaRate',panel),closeSettings=$('#betaVoiceSettingsClose',panel);
+  if(voiceSel){try{const voices=JSON.parse(window.PTNative?.getTtsVoices?.()||'[]');voices.slice(0,30).forEach(x=>{const o=document.createElement('option');o.value=x.name;o.textContent=(x.locale?x.locale+' · ':'')+x.name;if(voiceState().voiceName===x.name)o.selected=true;voiceSel.appendChild(o)});voiceSel.onchange=()=>{voiceState().voiceName=voiceSel.value;persist();if(voiceSel.value)window.PTNative?.setTtsVoice?.(voiceSel.value)}}catch(_){}}
+  if(vo)vo.onchange=()=>{setVoiceEnabled(vo.checked);syncVoiceControls(panel)};
+  if(co)co.onchange=()=>{voiceState().countdown=co.checked;persist()};
+  if(cu)cu.onchange=()=>{voiceState().cues=cu.checked;persist()};
+  if(vol)vol.oninput=()=>{voiceState().volume=+vol.value;persist();applyVoiceSettings()};
+  if(rate)rate.oninput=()=>{voiceState().rate=+rate.value;persist();applyVoiceSettings()};
+  if(closeSettings)closeSettings.onclick=ev=>{ev.preventDefault();ev.stopPropagation();const box=$('#betaVoiceSettings',panel);box.hidden=true;$('.beta-voice-config',panel)?.setAttribute('aria-expanded','false')};
 }
 function enhanceDetail(given){
   if(detailBusy)return;
   const ov=$('#exerciseDetail');if(!ov||ov.classList.contains('hidden'))return;
   const e=given||exercise(currentExerciseId)||window.PT29?.catalog?.().find(x=>x.name===$('h1',ov)?.textContent?.trim());if(!e)return;
-  currentExerciseId=e.id;detailBusy=true;
-  try{renderSetTracker($('.detail-page',ov)||ov,e,selectedDateKey(),false)}finally{detailBusy=false}
+  currentExerciseId=e.id;const date=selectedDateKey(),existing=$('.beta-set-tracker',ov);if(existing&&existing.dataset.exerciseId===e.id&&existing.dataset.date===date&&existing.dataset.workoutMode==='0'){syncVoiceControls(existing);return}
+  detailBusy=true;try{renderSetTracker($('.detail-page',ov)||ov,e,date,false)}finally{detailBusy=false}
 }
 function inferWorkoutDate(){
   try{
@@ -243,7 +252,7 @@ function inferWorkoutDate(){
 function enhanceWorkout(){
   const ov=$('#workoutOverlay');if(!ov||ov.classList.contains('hidden'))return;
   const name=$('h1',ov)?.textContent?.trim(),e=window.PT29?.catalog?.().find(x=>x.name===name);if(!e)return;
-  const date=inferWorkoutDate();renderSetTracker($('.detail-page',ov)||ov,e,date,true);
+  const date=inferWorkoutDate(),existing=$('.beta-set-tracker',ov);if(!existing||existing.dataset.exerciseId!==e.id||existing.dataset.date!==date||existing.dataset.workoutMode!=='1')renderSetTracker($('.detail-page',ov)||ov,e,date,true);else syncVoiceControls(existing);
   const end=$('#completeSet',ov);if(end&&!end.dataset.betaSync){
     end.dataset.betaSync='1';end.textContent='END SET';
     end.addEventListener('click',()=>{
@@ -264,13 +273,13 @@ function showBetaRest(e,seconds,completedIndex){
     '<div class="beta-rest-cue">Good set.<br>Rest '+seconds+' seconds.</div><div class="beta-rest-sub">Next: Set '+(completedIndex+1)+'</div>'+
     '<div class="rest-actions"><button id="betaRestPause" class="btn ghost">PAUSE</button><button id="betaRestSkip" class="btn lime">SKIP REST</button></div>';
   speak('Set complete. Rest '+seconds+' seconds.');
-  const finish=()=>{clearInterval(window.__betaRestTimer);ov.classList.add('hidden');if(beta().voice.countdown)queueVoice(['Prepare for set '+(completedIndex+1)+'.','3','2','1','Start.']);else speak('Prepare for set '+(completedIndex+1)+'.')};
+  const finish=()=>{clearInterval(window.__betaRestTimer);ov.classList.add('hidden');if(voiceState().countdown)queueVoice(['Prepare for set '+(completedIndex+1)+'.','3','2','1','Start.']);else speak('Prepare for set '+(completedIndex+1)+'.')};
   window.__betaRestTimer=setInterval(()=>{
     if(paused)return;left--;const n=$('#betaRestSeconds',ov);if(n)n.textContent=Math.max(0,left);
     const ring=$('#betaRestRing',ov);if(ring)ring.style.setProperty('--beta-rest-progress',(Math.max(0,left)/seconds*100)+'%');
     if(left===30&&seconds>35)speak('30 seconds remaining.');
     if(left===10)speak('10 seconds.');
-    if(beta().voice.countdown&&left===3)speak('3');if(beta().voice.countdown&&left===2)speak('2');if(beta().voice.countdown&&left===1)speak('1');
+    if(voiceState().countdown&&left===3)speak('3');if(voiceState().countdown&&left===2)speak('2');if(voiceState().countdown&&left===1)speak('1');
     if(left<=0)finish();
   },1000);
   $('#betaRestBack',ov).onclick=()=>{paused=true;$('#betaRestPause',ov).textContent='RESUME'};
@@ -283,7 +292,7 @@ function enhanceExistingRest(){
   const v=Number(n.textContent);if(!Number.isFinite(v)||restVoiceSeen.has(v))return;restVoiceSeen.add(v);
   if(v>35&&restVoiceSeen.size===1)speak('Set complete. Rest '+v+' seconds.');
   if(v===30)speak('30 seconds remaining.');if(v===10)speak('10 seconds.');
-  if(beta().voice.countdown&&[3,2,1].includes(v))speak(String(v));
+  if(voiceState().countdown&&[3,2,1].includes(v))speak(String(v));
   if(v===0)speak('Start.');
 }
 
@@ -404,13 +413,13 @@ function observe(){
   const main=$('#mainApp'),detail=$('#exerciseDetail'),work=$('#workoutOverlay'),rest=$('#restOverlay');
   const schedule=()=>setTimeout(enhanceAll,0);
   if(main)new MutationObserver(schedule).observe(main,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
-  if(detail)new MutationObserver(schedule).observe(detail,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
+  if(detail)new MutationObserver(()=>{if(detail.classList.contains('hidden')){clearVoiceTimers();stopNativeVoice();const b=beta();if(b){delete b.activeVoiceSet;persist()}}schedule()}).observe(detail,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
   if(work)new MutationObserver(schedule).observe(work,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
   if(rest)new MutationObserver(schedule).observe(rest,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class']});
 }
 function init(){
   if(!window.S||!window.PT29||!window.ILIA_V7||!window.ILIA_V73){setTimeout(init,140);return}
-  beta();applyVoiceSettings();installSwipeUndo();enhanceAll();observe();
+  beta();voiceState();window.KINETIQVoice={get:voiceState,setEnabled:setVoiceEnabled,speak:t=>{const v=voiceState();if(v?.enabled&&t)try{window.PTNative?.speak(String(t))}catch(_){}},stop:()=>{clearVoiceTimers();stopNativeVoice()}};applyVoiceSettings();installSwipeUndo();enhanceAll();observe();
   document.documentElement.dataset.kinetiqBeta303='ready';window.__KINETIQ_BETA303__=VERSION;
 }
 setTimeout(init,900);
