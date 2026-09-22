@@ -12,9 +12,12 @@ body{overscroll-behavior-y:none}
 #style2Cover.kinetiq-cover .kinetiq-brand,
 #style2Cover.kinetiq-cover #coverSettings{display:none!important}
 #style2Cover.kinetiq-cover #coverEnter{
-  position:absolute!important;left:50%!important;top:46.3%!important;transform:translate(-50%,-50%)!important;
-  width:min(34vw,210px)!important;aspect-ratio:1/1!important;height:auto!important;border:0!important;border-radius:50%!important;
-  background:transparent!important;box-shadow:none!important;z-index:30!important;touch-action:manipulation!important;
+  position:absolute!important;
+  left:calc(50% - max(0.0695vw,0.0391dvh))!important;
+  top:calc(50% + max(56.0880vw,31.5495dvh))!important;
+  transform:translate(-50%,-50%)!important;
+  width:max(25.4630vw,14.3229dvh)!important;height:max(25.4630vw,14.3229dvh)!important;aspect-ratio:1/1!important;border:0!important;border-radius:50%!important;
+  background:transparent!important;box-shadow:none!important;z-index:30!important;touch-action:manipulation!important;pointer-events:auto!important;
   -webkit-tap-highlight-color:transparent!important;
 }
 #style2Cover.kinetiq-cover #coverEnter span{opacity:0!important}
