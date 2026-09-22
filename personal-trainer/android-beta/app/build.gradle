@@ -1,8 +1,28 @@
 plugins { id 'com.android.application' }
 
+def betaKeystorePath = System.getenv('KINETIQ_BETA_KEYSTORE_PATH')
+def betaStorePassword = System.getenv('KINETIQ_BETA_STORE_PASSWORD')
+def betaKeyAlias = System.getenv('KINETIQ_BETA_KEY_ALIAS')
+def betaKeyPassword = System.getenv('KINETIQ_BETA_KEY_PASSWORD')
+
+if (!betaKeystorePath || !betaStorePassword || !betaKeyAlias || !betaKeyPassword) {
+    throw new GradleException('Persistent KINETIQ beta signing credentials are required.')
+}
+
 android {
     namespace 'com.ilia.personaltrainer'
     compileSdk 35
+
+    signingConfigs {
+        beta {
+            storeFile file(betaKeystorePath)
+            storePassword betaStorePassword
+            keyAlias betaKeyAlias
+            keyPassword betaKeyPassword
+            enableV1Signing true
+            enableV2Signing true
+        }
+    }
 
     defaultConfig {
         applicationId 'com.ilia.personaltrainer.beta'
@@ -10,5 +30,11 @@ android {
         targetSdk 35
         versionCode 43
         versionName '3.0.3-beta.1'
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.beta
+        }
     }
 }
