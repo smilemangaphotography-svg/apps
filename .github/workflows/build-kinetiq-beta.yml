@@ -55,24 +55,37 @@ jobs:
           KINETIQ_BETA_KEYSTORE_B64: ${{ secrets.KINETIQ_BETA_KEYSTORE_B64 }}
           KINETIQ_BETA_STORE_PASSWORD: ${{ secrets.KINETIQ_BETA_STORE_PASSWORD }}
           KINETIQ_BETA_KEY_ALIAS: ${{ secrets.KINETIQ_BETA_KEY_ALIAS }}
+          KINETIQ_BETA_KEY_PASSWORD: ${{ secrets.KINETIQ_BETA_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           : "${KINETIQ_BETA_KEYSTORE_B64:?Missing KINETIQ_BETA_KEYSTORE_B64}"
           : "${KINETIQ_BETA_STORE_PASSWORD:?Missing KINETIQ_BETA_STORE_PASSWORD}"
           : "${KINETIQ_BETA_KEY_ALIAS:?Missing KINETIQ_BETA_KEY_ALIAS}"
+          : "${KINETIQ_BETA_KEY_PASSWORD:?Missing KINETIQ_BETA_KEY_PASSWORD}"
+
+          # Accept either a raw GitHub secret value or an accidentally pasted NAME=value line.
+          KEYSTORE_B64="${KINETIQ_BETA_KEYSTORE_B64#KINETIQ_BETA_KEYSTORE_B64=}"
+          STORE_PASSWORD="${KINETIQ_BETA_STORE_PASSWORD#KINETIQ_BETA_STORE_PASSWORD=}"
+          KEY_ALIAS="${KINETIQ_BETA_KEY_ALIAS#KINETIQ_BETA_KEY_ALIAS=}"
+          KEY_PASSWORD="${KINETIQ_BETA_KEY_PASSWORD#KINETIQ_BETA_KEY_PASSWORD=}"
+          KEYSTORE_B64="$(printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]')"
+
+          printf '::add-mask::%s\n' "$STORE_PASSWORD"
+          printf '::add-mask::%s\n' "$KEY_ALIAS"
+          printf '::add-mask::%s\n' "$KEY_PASSWORD"
 
           SIGNING_DIR="$RUNNER_TEMP/kinetiq-beta-signing"
           KEYSTORE="$SIGNING_DIR/kinetiq-beta.jks"
           install -d -m 700 "$SIGNING_DIR"
           umask 077
-          printf '%s' "$KINETIQ_BETA_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
           test -s "$KEYSTORE"
           chmod 600 "$KEYSTORE"
 
           CERT_SHA256="$(keytool -list -v \
             -keystore "$KEYSTORE" \
-            -storepass "$KINETIQ_BETA_STORE_PASSWORD" \
-            -alias "$KINETIQ_BETA_KEY_ALIAS" \
+            -storepass "$STORE_PASSWORD" \
+            -alias "$KEY_ALIAS" \
             | sed -n 's/^[[:space:]]*SHA256: //p' \
             | head -n1 \
             | tr -d ':' \
@@ -81,7 +94,12 @@ jobs:
           test -n "$CERT_SHA256"
           test "$CERT_SHA256" = "$EXPECTED_BETA_CERT_SHA256"
           echo "Persistent beta signing certificate: $CERT_SHA256"
-          echo "KINETIQ_BETA_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+          {
+            echo "KINETIQ_BETA_KEYSTORE_PATH=$KEYSTORE"
+            echo "KINETIQ_BETA_STORE_PASSWORD=$STORE_PASSWORD"
+            echo "KINETIQ_BETA_KEY_ALIAS=$KEY_ALIAS"
+            echo "KINETIQ_BETA_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
 
       - name: Import proven anatomy motion library
         shell: bash
@@ -148,10 +166,6 @@ jobs:
           fi
 
       - name: Build installable isolated beta APK
-        env:
-          KINETIQ_BETA_STORE_PASSWORD: ${{ secrets.KINETIQ_BETA_STORE_PASSWORD }}
-          KINETIQ_BETA_KEY_ALIAS: ${{ secrets.KINETIQ_BETA_KEY_ALIAS }}
-          KINETIQ_BETA_KEY_PASSWORD: ${{ secrets.KINETIQ_BETA_KEY_PASSWORD }}
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
 
       - name: Validate APK identity and persistent signature
