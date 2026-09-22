@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      EXPECTED_BETA_CERT_SHA256: a8a8d8c6f73d1440d13b9deb4a9f57af1e49c68b42bb30ba3bef9cdd3186ddbc
+      EXPECTED_BETA_CERT_SHA256: 7f557546ddba96bdf8ec36b447d4acd7c62861cc074bc10a1b46ea9c96634487
     steps:
       - name: Checkout beta branch
         uses: actions/checkout@v4
