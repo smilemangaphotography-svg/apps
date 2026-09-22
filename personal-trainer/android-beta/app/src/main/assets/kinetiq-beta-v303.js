@@ -179,10 +179,15 @@ function settingsHtml(){
     '<label><span>Voice Coach</span><input id="betaVoiceOn" type="checkbox" '+(v.enabled?'checked':'')+'></label>'+
     '<label><span>Countdown</span><input id="betaCountdown" type="checkbox" '+(v.countdown?'checked':'')+'></label>'+
     '<label><span>Technique cues</span><input id="betaCues" type="checkbox" '+(v.cues?'checked':'')+'></label>'+
-    '<label><span>Voice</span><select id="betaVoiceSelect"><option value="">System default</option></select></label>'+ 
+    '<label><span>Voice</span><select id="betaVoiceSelect"><option value="">System default</option></select></label>'+
     '<label><span>Voice volume</span><input id="betaVolume" type="range" min="0.2" max="1" step="0.05" value="'+v.volume+'"></label>'+
     '<label><span>Speech rate</span><input id="betaRate" type="range" min="0.75" max="1.25" step="0.05" value="'+v.rate+'"></label>'+
   '</div>';
+}
+function syncVoiceControls(panel){
+  const on=!!beta().voice.enabled,btn=$('.beta-voice-toggle',panel),vo=$('#betaVoiceOn',panel);
+  if(btn){btn.classList.toggle('on',on);btn.textContent='VOICE '+(on?'ON':'OFF');btn.setAttribute('aria-pressed',String(on))}
+  if(vo)vo.checked=on;
 }
 function renderSetTracker(host,e,date,workoutMode){
   if(!host||!e)return;
@@ -194,7 +199,7 @@ function renderSetTracker(host,e,date,workoutMode){
   for(let i=0;i<r.sets;i++)rows+='<button type="button" class="beta-set-row '+(states[i]?'done':'')+'" data-beta-set="'+i+'"><b>Set '+(i+1)+'</b><small>'+esc(r.reps)+' reps</small><span class="beta-set-check">'+(states[i]?'✓':'')+'</span></button>';
   panel.innerHTML='<div class="beta-set-title"><b>SET TRACKING</b><span>'+complete+' / '+r.sets+' SETS COMPLETE</span></div>'+rows+
    '<div class="beta-coach-actions"><button type="button" class="beta-start-set">START SET</button><button type="button" class="beta-end-set">END SET</button></div>'+
-   '<div class="beta-voice-tools"><button type="button" class="beta-voice-toggle '+(beta().voice.enabled?'on':'')+'">VOICE '+(beta().voice.enabled?'ON':'OFF')+'</button><button type="button" class="beta-voice-config">SETTINGS</button></div>'+settingsHtml();
+   '<div class="beta-voice-tools"><button type="button" class="beta-voice-toggle '+(beta().voice.enabled?'on':'')+'" aria-pressed="'+String(!!beta().voice.enabled)+'">VOICE '+(beta().voice.enabled?'ON':'OFF')+'</button><button type="button" class="beta-voice-config" aria-expanded="false">SETTINGS</button></div>'+settingsHtml();
   const stats=$('.workout-stats',host)||$('.phase-row-v29',host)||host.firstChild;
   stats?.insertAdjacentElement?.('afterend',panel);
   $$('.beta-set-row',panel).forEach(btn=>btn.onclick=ev=>{
@@ -212,11 +217,11 @@ function renderSetTracker(host,e,date,workoutMode){
     if(a.every(Boolean)){speak('Exercise complete.');renderSetTracker(host,e,date,false)}
     else{showBetaRest(e,r.rest,i+1);renderSetTracker(host,e,date,false)}
   };
-  $('.beta-voice-toggle',panel).onclick=()=>{beta().voice.enabled=!beta().voice.enabled;persist();applyVoiceSettings();renderSetTracker(host,e,date,workoutMode)};
-  $('.beta-voice-config',panel).onclick=()=>{const s=$('#betaVoiceSettings',panel);s.hidden=!s.hidden};
+  $('.beta-voice-toggle',panel).onclick=()=>{beta().voice.enabled=!beta().voice.enabled;if(!beta().voice.enabled)clearVoiceTimers();persist();applyVoiceSettings();syncVoiceControls(panel)};
+  $('.beta-voice-config',panel).onclick=()=>{const s=$('#betaVoiceSettings',panel),btn=$('.beta-voice-config',panel);s.hidden=!s.hidden;btn.setAttribute('aria-expanded',String(!s.hidden));if(!s.hidden)requestAnimationFrame(()=>s.scrollIntoView({behavior:'smooth',block:'nearest'}))};
   const vo=$('#betaVoiceOn',panel),co=$('#betaCountdown',panel),cu=$('#betaCues',panel),voiceSel=$('#betaVoiceSelect',panel),vol=$('#betaVolume',panel),rate=$('#betaRate',panel);
   if(voiceSel){try{const voices=JSON.parse(window.PTNative?.getTtsVoices?.()||'[]');voices.slice(0,30).forEach(x=>{const o=document.createElement('option');o.value=x.name;o.textContent=(x.locale?x.locale+' · ':'')+x.name;if(beta().voice.voiceName===x.name)o.selected=true;voiceSel.appendChild(o)});voiceSel.onchange=()=>{beta().voice.voiceName=voiceSel.value;persist();if(voiceSel.value)window.PTNative?.setTtsVoice?.(voiceSel.value)}}catch(_){}}
-  if(vo)vo.onchange=()=>{beta().voice.enabled=vo.checked;persist();applyVoiceSettings()};
+  if(vo)vo.onchange=()=>{beta().voice.enabled=vo.checked;if(!vo.checked)clearVoiceTimers();persist();applyVoiceSettings();syncVoiceControls(panel)};
   if(co)co.onchange=()=>{beta().voice.countdown=co.checked;persist()};
   if(cu)cu.onchange=()=>{beta().voice.cues=cu.checked;persist()};
   if(vol)vol.oninput=()=>{beta().voice.volume=+vol.value;persist();applyVoiceSettings()};
