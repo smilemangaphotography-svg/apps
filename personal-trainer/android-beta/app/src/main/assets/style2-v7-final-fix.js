@@ -9,11 +9,11 @@ function enforceHeader(){
 }
 
 function openExerciseCard(card){
-  const name=card?.querySelector('.v7-ex-main b')?.textContent?.trim();
-  if(!name)return;
-  const e=window.PT29?.catalog?.().find(x=>x.name===name);
+  const id=card?.dataset?.swipeExercise||card?.dataset?.exerciseId||'';
+  if(!id)return;
+  const e=window.PT29?.catalog?.().find(x=>x.id===id);
   if(!e)return;
-  try{ window.PT29.openDetail(e,{}); }catch(err){ console.warn('V7.3 detail open failed',err); }
+  try{ window.PT29.openDetail(e,{}); }catch(err){ console.warn('V7.3 canonical detail open failed',err); }
 }
 
 function installExerciseDelegation(){
@@ -23,6 +23,7 @@ function installExerciseDelegation(){
     const card=ev.target.closest?.('.v7-ex');
     if(!card)return;
     if(ev.target.closest('button,a,input,select,textarea'))return;
+    ev.preventDefault();ev.stopPropagation();
     openExerciseCard(card);
   },true);
   document.addEventListener('keydown',ev=>{

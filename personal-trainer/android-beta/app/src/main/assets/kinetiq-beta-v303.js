@@ -117,20 +117,18 @@ function enhancePlan(){
     const b=beta(); b.lastPlanDate=S0().v7.selectedDate||b.lastPlanDate;persist();
     if(S0().v7.planTab!=='my')return;
     const list=$('.v7-ex-list',root);if(!list)return;
+    const date=selectedDateKey(),enhanceKey=date+'|'+String(S0().v7.planTab||'my');
+    if(list.dataset.betaPlanEnhanced===enhanceKey)return;
+    list.dataset.betaPlanEnhanced=enhanceKey;
     $('.beta-plan-count',root)?.remove();
     $('.beta-completed-panel',root)?.remove();
-    const date=selectedDateKey(),dm=doneMap(date);
+    const dm=doneMap(date);
     const rows=$$('.v7-ex[data-swipe-exercise]',list);
     let active=0,completed=[];
     rows.forEach(row=>{
       const id=row.dataset.swipeExercise,e=exercise(id);if(!e)return;
-      let btn=$('.beta-done-btn',row);
-      if(!btn){
-        btn=document.createElement('button');btn.type='button';btn.className='beta-done-btn';btn.setAttribute('aria-label','Mark exercise complete');row.appendChild(btn);
-      }
+      $('.beta-done-btn',row)?.remove();
       const isDone=!!dm[id];
-      btn.textContent=isDone?'✓':'○';btn.classList.toggle('done',isDone);
-      btn.onclick=ev=>{ev.preventDefault();ev.stopPropagation();setDone(date,id,!doneMap(date)[id]);planRerender()};
       if(isDone){
         row.classList.add('beta-completed');
         if(!$('.beta-complete-label',row)){const l=document.createElement('div');l.className='beta-complete-label';l.textContent='DONE';$('.v7-ex-main',row)?.appendChild(l)}

@@ -34,7 +34,7 @@ function mondayOf(d){return addDays(d,-((d.getDay()+6)%7))}
 function calendarDates(){const start=addDays(mondayOf(today0()),-7);return Array.from({length:28},(_,i)=>addDays(start,i))}
 function nextWeekday(from,wd,strict=false){let d=from?new Date(from):today0();if(strict)d=addDays(d,1);for(let i=0;i<8;i++){if(d.getDay()===wd)return d;d=addDays(d,1)}return d}
 function clone(x){return JSON.parse(JSON.stringify(x))}
-function toastV7(msg){try{toast(msg)}catch(e){const t=$v('#toast');if(t){t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500)}}}
+function toastV7(msg){const t=$v('#toast');if(!t)return;t.textContent=msg;t.classList.add('v7-brief-toast','show');clearTimeout(window.__v7ToastTimer);window.__v7ToastTimer=setTimeout(()=>t.classList.remove('show'),1050)}
 function cat(){return window.PT29?.catalog?.()||[]}
 function byId(id){return cat().find(e=>e.id===id)||null}
 function saveAll(){try{save()}catch(e){localStorage.setItem('ilia.v7.fallback',JSON.stringify(S.v7||{}))}}
@@ -145,8 +145,14 @@ function exerciseHtml(id){
    <strong class="v7-score">${r.score}/10</strong>
  </article>`;
 }
+function textExercisesHtml(p){
+ const list=Array.isArray(p?.textExercises)?p.textExercises:[];
+ if(!list.length)return'';
+ return `<div class="v7-swipe-hint">TEXT-ONLY RECOMMENDATIONS · MEDIA NOT REQUIRED</div>${list.map(x=>`<div class="v7-note"><b>${esc(x.name||'Exercise')}${x.prescription?` · ${esc(x.prescription)}`:''}</b>${x.muscles?`<br>${esc(x.muscles)}`:''}${x.cue?`<br>${esc(x.cue)}`:''}</div>`).join('')}`;
+}
 function planExercisesHtml(p){
- if(p?.ids?.length)return `<div class="v7-swipe-hint">← SWIPE LEFT: REMOVE / NO EQUIPMENT · SWIPE RIGHT: REPLACEMENTS →</div>${p.ids.map(exerciseHtml).join('')}<button class="v7-add" onclick="ILIA_V7.addExercise()">＋ ADD EXERCISE</button>`;
+ const ids=p?.ids||[],text=textExercisesHtml(p);
+ if(ids.length||text)return `${ids.length?`<div class="v7-swipe-hint">← SWIPE LEFT: REMOVE / NO EQUIPMENT · SWIPE RIGHT: REPLACEMENTS →</div>${ids.map(exerciseHtml).join('')}`:''}${text}<button class="v7-add" onclick="ILIA_V7.addExercise()">＋ ADD EXERCISE</button>`;
  if(p?.run)return `<article class="v7-run-card"><b>${esc(p.run.kind||p.name)}</b><small>${esc(p.run.distance||S.v7.run.distance)} · target ${S.v7.run.paceMin}:${String(S.v7.run.paceSec).padStart(2,'0')} / km</small><button onclick="ILIA_V7.openRun()">OPEN RUN COACH →</button></article>`;
  return `<div class="v7-note">Recovery / mobility day. You can add core or rehab exercises.</div><button class="v7-add" onclick="ILIA_V7.addExercise()">＋ ADD EXERCISE</button>`;
 }
@@ -319,44 +325,75 @@ function openAI(){
 }
 function fillAI(t){const a=$v('#v7AIInput');if(a){a.value=t;a.focus()}}
 function aiProposal(text){
- const t=text.toLowerCase(),today=today0();let rows=[],reason='';
- if(t.includes('missed')){
+ const t=String(text||'').toLowerCase().replace(/[’]/g,"'").replace(/\s+/g,' ').trim(),today=today0();
+ let rows=[],reason='';
+ const mentionsToday=/\btoday\b/.test(t),mentionsTomorrow=/\btomorrow\b/.test(t),mentionsYesterday=/\byesterday\b/.test(t);
+ const legs=/(?:trained|did|worked|workout|session|hit|trained my)\s+(?:my\s+)?legs|legs\s+(?:workout|session|day)/.test(t);
+ const upper=/(?:trained|did|worked|workout|session|hit)\s+(?:my\s+)?(?:upper|upper body|chest|back|shoulders|arms)/.test(t);
+ const home=/(?:at home|home workout|workout at home|train at home|no gym|without (?:the )?gym|can't (?:go|get) to (?:the )?gym|cannot (?:go|get) to (?:the )?gym|don't have time to (?:go|get) to (?:the )?gym|do not have time to (?:go|get) to (?:the )?gym)/.test(t);
+ const missed=/(?:missed|skip(?:ped)?|couldn't train|could not train)/.test(t);
+ const available=id=>{const e=byId(id);return !!e&&(!window.ILIA_V73?.isAvailable||window.ILIA_V73.isAvailable(e)!==false)};
+ const homePlan=()=>{
+  const desired=[
+   {id:'pushup',name:'Push-Up',prescription:'3 × 8–15',muscles:'Chest + Triceps',cue:'Use a wall or elevated surface if floor push-ups are too demanding.'},
+   {name:'Bodyweight Squat to Chair',prescription:'3 × 10–12',muscles:'Quads + Glutes',cue:'Use a comfortable depth and controlled tempo.'},
+   {name:'Glute Bridge',prescription:'3 × 12–15',muscles:'Glutes + Hamstrings',cue:'Pause briefly at the top without arching the lower back.'},
+   {name:'Dead Bug',prescription:'3 × 6–10 / side',muscles:'Core',cue:'Keep the lower back controlled and move slowly.'},
+   {id:'sideplank',name:'Side Plank',prescription:'3 × 20–30s / side',muscles:'Core + Hip Stability',cue:'Use a short-lever version from the knees if needed.'}
+  ];
+  const ids=[],textExercises=[];
+  desired.forEach(x=>{if(x.id&&available(x.id))ids.push(x.id);else textExercises.push({name:x.name,prescription:x.prescription,muscles:x.muscles,cue:x.cue})});
+  return {type:'Home',name:'AI Home Workout',ids,textExercises};
+ };
+ if(home){
+  const target=mentionsTomorrow?addDays(today,1):today;
+  rows=[{date:target,plan:homePlan(),note:'Home session · no gym equipment required'}];
+  reason='Your request is for a home session, so the recommendation switches today to a practical bodyweight workout. Exercises without app media remain valid as text-only movements instead of being dropped.';
+ }else if(legs&&mentionsYesterday){
+  rows=[
+   {date:today,plan:{type:'Upper',name:'AI Upper Strength',ids:['machinepress','row','lat','shoulderpress'].filter(available)},note:'Today · avoids repeating yesterday’s leg load'},
+   {date:addDays(today,1),plan:{type:'Recovery',name:'AI Recovery / Easy Day',ids:['sideplank','pallof'].filter(available),textExercises:[{name:'Easy Mobility',prescription:'10–15 min',muscles:'Full body',cue:'Keep it comfortable and use this day to judge leg recovery.'}]},note:'Tomorrow · recovery-led option'}
+  ];
+  reason='Because you trained legs yesterday and asked about today, the next recommendation moves to upper body instead of scheduling another leg session.';
+ }else if(legs&&mentionsToday){
+  rows=[
+   {date:addDays(today,1),plan:{type:'Upper',name:'AI Upper Strength',ids:['machinepress','row','lat','shoulderpress'].filter(available)},note:'Tomorrow · balances today’s leg fatigue'},
+   {date:addDays(today,2),plan:{type:'Run',name:'AI Easy Run',run:{kind:'Easy Run',distance:'5K'}},note:'Following day · only if recovered'}
+  ];
+  reason='Today’s leg session is treated as completed context. The next strength recommendation shifts to upper body.';
+ }else if(upper&&mentionsYesterday){
+  rows=[{date:today,plan:{type:'Legs',name:'AI Lower Strength',ids:['legpress','stepup','hipthrust','hamcurl'].filter(available)},note:'Today · alternates away from yesterday’s upper body'}];
+  reason='Yesterday was upper body, so today can move to lower body if recovery and symptoms are acceptable.';
+ }else if(/legs\s+tomorrow|want (?:to do )?legs tomorrow|train legs tomorrow/.test(t)){
+  rows=[
+   {date:addDays(today,1),plan:{type:'Legs',name:'AI Lower Strength',ids:['legpress','goblet','hipthrust','hamcurl'].filter(available)},note:'Your requested leg day'},
+   {date:addDays(today,2),plan:{type:'Upper',name:'AI Upper Strength',ids:['machinepress','row','lat','facepull'].filter(available)},note:'Balances lower-body fatigue'}
+  ];
+  reason='Your requested leg day is preserved, then the following session moves away from lower-body loading.';
+ }else if(missed){
   const th=nextWeekday(today,4,true),fr=nextWeekday(today,5,true),sa=nextWeekday(today,6,true),su=nextWeekday(today,0,true);
-  const options=[
-   {date:th,role:'gym'},{date:fr,role:'gym'},{date:sa,role:'run'},{date:su,role:'run'}
-  ].sort((a,b)=>a.date-b.date);
+  const options=[{date:th,role:'gym'},{date:fr,role:'gym'},{date:sa,role:'run'},{date:su,role:'run'}].sort((a,b)=>a.date-b.date);
   let gymN=0,runN=0;
   rows=options.map(x=>{
-    if(x.role==='gym'){
-      gymN++;
-      return gymN===1
-       ? {date:x.date,plan:{type:'Upper',name:'AI Upper Strength',ids:['machinepress','row','lat','shoulderpress']},note:'Gym day · preserve leg recovery'}
-       : {date:x.date,plan:{type:'Legs',name:'AI Lower Strength',ids:['legpress','stepup','hipthrust','hamcurl']},note:'Leg priority · moderate volume'};
-    }
-    runN++;
-    return runN===1
-      ? {date:x.date,plan:{type:'Run',name:'AI Easy Run',run:{kind:'Easy Run',distance:'5K'}},note:'Easy pace'}
-      : {date:x.date,plan:{type:'Run',name:'AI Quality Run',run:{kind:'10K Support Run',distance:S.v7.run.distance}},note:'Quality run if recovered'};
+   if(x.role==='gym'){
+    gymN++;
+    return gymN===1
+     ? {date:x.date,plan:{type:'Upper',name:'AI Upper Strength',ids:['machinepress','row','lat','shoulderpress'].filter(available)},note:'Gym day · preserve leg recovery'}
+     : {date:x.date,plan:{type:'Legs',name:'AI Lower Strength',ids:['legpress','stepup','hipthrust','hamcurl'].filter(available)},note:'Leg priority · moderate volume'};
+   }
+   runN++;
+   return runN===1
+    ? {date:x.date,plan:{type:'Run',name:'AI Easy Run',run:{kind:'Easy Run',distance:'5K'}},note:'Easy pace'}
+    : {date:x.date,plan:{type:'Run',name:'AI Quality Run',run:{kind:'10K Support Run',distance:S.v7.run.distance}},note:'Quality run if recovered'};
   });
-  reason='The missed session is redistributed across the next real calendar days. Gym days remain coordinated with the weekend runs instead of stacking two hard lower-body days.';
- }else if(t.includes('trained legs')||t.includes('did legs')||t.includes('legs today')){
-  rows=[
-   {date:addDays(today,1),plan:{type:'Upper',name:'AI Upper Strength',ids:['machinepress','row','lat','shoulderpress']},note:'Best balance after legs'},
-   {date:addDays(today,2),plan:{type:'Run',name:'AI Easy Run',run:{kind:'Easy Run',distance:'5K'}},note:'Choose by recovery'}
-  ];
-  reason='Upper body is the cleanest next session after a leg-priority day. The following day can be an easy run if recovery is good.';
- }else if(t.includes('legs tomorrow')){
-  rows=[
-   {date:addDays(today,1),plan:{type:'Legs',name:'AI Lower Strength',ids:['legpress','goblet','hipthrust','hamcurl']},note:'Your requested leg day'},
-   {date:addDays(today,2),plan:{type:'Upper',name:'AI Upper Strength',ids:['machinepress','row','lat','facepull']},note:'Balances lower-body fatigue'}
-  ];
-  reason='Your manual choice is preserved. AI recommends Upper the day after instead of stacking another demanding lower-body day.';
+  reason='The missed session is redistributed across the next real calendar days without stacking two demanding lower-body days.';
  }else{
+  const target=mentionsToday?today:mentionsTomorrow?addDays(today,1):addDays(today,1);
   rows=[
-   {date:addDays(today,1),plan:{type:'Upper',name:'AI Upper Strength',ids:['machinepress','row','lat','shoulderpress']},note:'Balanced next session'},
-   {date:addDays(today,2),plan:{type:'Legs',name:'AI Lower Strength',ids:['legpress','stepup','hipthrust','hamcurl']},note:'Leg priority'}
+   {date:target,plan:{type:'Upper',name:'AI Upper Strength',ids:['machinepress','row','lat','shoulderpress'].filter(available)},note:mentionsToday?'Today · balanced alternative':'Balanced next session'},
+   {date:addDays(target,1),plan:{type:'Legs',name:'AI Lower Strength',ids:['legpress','stepup','hipthrust','hamcurl'].filter(available)},note:'Leg priority'}
   ];
-  reason='This follows your current priority mix while keeping running secondary.';
+  reason='This follows your current priority mix while keeping consecutive hard sessions separated.';
  }
  return {rows,reason};
 }
@@ -370,7 +407,7 @@ function pendingHtml(){
 }
 function sendAI(){
  const p=S.v7.pending;if(!p)return;
- p.rows.forEach(r=>S.v7.aiPlans[ymd(r.date)]=clone(r.plan));S.v7.pending=null;S.v7.planTab='ai';saveAll();window.PT29?.closeSheet?.();toastV7('AI Recommended updated');showMain('plan');
+ const first=p.rows[0]?.date||today0();p.rows.forEach(r=>S.v7.aiPlans[ymd(r.date)]=sanitizePlan(clone(r.plan)));S.v7.pending=null;saveAll();window.PT29?.closeSheet?.();toastV7('AI Recommended updated');openPlanDate(ymd(first),'ai');
 }
 function cancelAI(){S.v7.pending=null;saveAll();openAI()}
 function coachSetup(){

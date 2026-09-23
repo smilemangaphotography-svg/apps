@@ -94,3 +94,6 @@ button.v7-badge{appearance:none}.v7-good{color:var(--v7-green);border-color:rgba
 .kinetiq-enter:active{transform:translateX(-50%) scale(.96);box-shadow:0 0 0 1px rgba(198,255,49,.28) inset,0 0 38px rgba(176,255,77,.18)}
 .kinetiq-hidden-settings{display:none!important}
 @media(max-height:690px){.kinetiq-brand{top:18%}.kinetiq-enter{bottom:7.5%;width:92px;height:92px;font-size:38px}.kinetiq-statement{margin-top:20px}}
+
+/* KINETIQ 3.0.3 targeted Plan feedback: brief, non-blocking confirmation. */
+.toast.v7-brief-toast{max-width:calc(100vw - 36px);white-space:normal;text-align:center;pointer-events:none;bottom:calc(110px + env(safe-area-inset-bottom))}
