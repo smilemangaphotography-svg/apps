@@ -48,6 +48,7 @@ var openKey='';
 var taxonomy=null;
 var taxonomyMap={};
 var taxonomyPromise=null;
+var taxonomyRetryAfter=0;
 var lastProductView='';
 var restoreRunning=false;
 var initialStateHandled=false;
@@ -102,19 +103,36 @@ function slm3SetTaxonomy(rows){
   slm3ValidateState();
   return taxonomy;
 }
+function slm3ScheduleTaxonomyRetry(){
+  var wait=Math.max(250,taxonomyRetryAfter-Date.now()+40);
+  clearTimeout(slm3ScheduleTaxonomyRetry._t);
+  slm3ScheduleTaxonomyRetry._t=setTimeout(function(){taxonomyPromise=null;slm3Mount();},wait);
+}
+function slm3FetchTaxonomy(){
+  var cfg=window.SHISHALOVE_BRIDGE||{},base=String(cfg.rest||location.origin+'/wp-json/shishalove/v1/');
+  var headers={'Cache-Control':'no-cache','Pragma':'no-cache'};
+  if(cfg.restNonce)headers['X-WP-Nonce']=cfg.restNonce;
+  return nativeFetch(base+'merchant/bootstrap?_slm_ui='+Date.now(),{
+    method:'GET',credentials:'same-origin',cache:'no-store',headers:headers
+  }).then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(function(d){
+    var rows=d&&d.categories&&Array.isArray(d.categories.all)?d.categories.all:[];
+    if(!rows.length)throw new Error('Merchant taxonomy unavailable');
+    return rows;
+  });
+}
 function slm3EnsureTaxonomy(){
   if(taxonomy&&taxonomy.length)return Promise.resolve(taxonomy);
+  var cached=slm3ReadTaxonomyCache();
+  if(cached)return Promise.resolve(slm3SetTaxonomy(cached));
   if(taxonomyPromise)return taxonomyPromise;
-  taxonomyPromise=new Promise(function(resolve){
-    var attempts=0;
-    function tryRead(){
-      var rows=slm3ReadTaxonomyCache();
-      if(rows){resolve(slm3SetTaxonomy(rows));return;}
-      attempts++;
-      if(attempts<24){setTimeout(tryRead,75);return;}
-      resolve(slm3SetTaxonomy([]));
-    }
-    tryRead();
+  if(Date.now()<taxonomyRetryAfter){slm3ScheduleTaxonomyRetry();return Promise.resolve([]);}
+  taxonomyPromise=slm3FetchTaxonomy().then(function(rows){
+    taxonomyPromise=null;taxonomyRetryAfter=0;return slm3SetTaxonomy(rows);
+  },function(){
+    taxonomyPromise=null;taxonomyRetryAfter=Date.now()+650;slm3ScheduleTaxonomyRetry();return [];
   });
   return taxonomyPromise;
 }
