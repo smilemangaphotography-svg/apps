@@ -45,7 +45,19 @@ function askAI(){const a=$('#v7AIInput'),text=(a?.value||'').trim();if(!text){wi
 function sendAI(){const v=V(),p=v.pending;if(!p)return;const first=p.rows[0]?.date||today();p.rows.forEach(r=>{const k=ymd(r.date),clean=clone(r.plan);v.aiPlans[k]=clone(clean);v.myPlans[k]=clone(clean)});v.pending=null;v.planTab='my';v.selectedDate=ymd(first);syncLegacy();saveState();window.PT29?.closeSheet?.();window.ILIA_V7?.openPlanDate?.(v.selectedDate,'my');setTimeout(decoratePlan,30)}
 function cancelAI(){const v=V();v.pending=null;saveState();window.PT29?.closeSheet?.()}
 function wireAI(){const api=window.ILIA_V7;if(!api)return;api.openAI=openAI;api.fillAI=fillAI;api.askAI=askAI;api.sendAI=sendAI;api.cancelAI=cancelAI;api.replace=silentReplace;api.add=silentAdd;api.applyRecommended=()=>applyTab('recommended');api.applyAI=()=>applyTab('ai');const fab=$('#v7AiFab');if(fab){fab.innerHTML='<span>✦</span><b>AI</b><small>Coach</small>';fab.onclick=openAI;const p=$('.page.active')?.dataset.page;fab.classList.toggle('hidden',!(p==='home'||p==='plan'||p==='train'))}}
-function decorate(){restoreBottomNav();wireAI();enhanceLibrary();decoratePlan();suppressSuccessBars();installCanonicalDetail()}
+function wirePlanNavigation(){
+ const api=window.ILIA_V7;
+ if(api){
+  ['tab','pickDate','openPlanDate','renderPlan'].forEach(key=>{
+   const fn=api[key];if(typeof fn!=='function'||fn.__uxPlanDecorate)return;
+   const wrapped=function(){const out=fn.apply(this,arguments);setTimeout(decoratePlan,0);return out};
+   wrapped.__uxPlanDecorate=true;api[key]=wrapped;
+  });
+ }
+ const btn=$('.bottom-nav .nav-btn[data-nav="plan"]');
+ if(btn&&!btn.dataset.uxPlanDecorate){btn.dataset.uxPlanDecorate='1';btn.addEventListener('click',()=>setTimeout(decoratePlan,0))}
+}
+function decorate(){restoreBottomNav();wireAI();wirePlanNavigation();enhanceLibrary();decoratePlan();suppressSuccessBars();installCanonicalDetail()}
 let decorateBusy=false,decorateTimer=null;
 const observerOptions={subtree:true,childList:true,attributes:true,attributeFilter:['class']};
 function runDecorate(){

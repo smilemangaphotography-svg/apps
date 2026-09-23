@@ -140,7 +140,7 @@ jobs:
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
           for i in {1..30}; do curl -fsS http://127.0.0.1:8765/index29.html >/dev/null && break; sleep 1; done
-          UX_SCREEN_DIR="$R" node "$T/ux-browser-test.cjs"
+          UX_SCREEN_DIR="$R" timeout 60s node "$T/ux-browser-test.cjs"
 
       - name: Build installable isolated UX beta APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug

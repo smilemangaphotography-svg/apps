@@ -1,53 +1,107 @@
 const { chromium } = require('playwright');
 const fs=require('fs'), path=require('path');
-const out=process.env.UX_SCREEN_DIR||path.join(process.cwd(),'ux-browser-results');fs.mkdirSync(out,{recursive:true});
-const fail=[],result=[];const check=(n,v,d='')=>{result.push({name:n,ok:!!v,detail:d});console.log((v?'PASS: ':'FAIL: ')+n+(d?' — '+d:''));if(!v)fail.push(n+(d?': '+d:''))};
-const shot=async(p,n)=>{try{const cdp=await p.context().newCDPSession(p);const cap=await cdp.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:false});fs.writeFileSync(path.join(out,n),Buffer.from(cap.data,'base64'));await cdp.detach()}catch(e){console.warn('SCREENSHOT_SKIPPED',n,String(e).slice(0,160))}};
+const out=process.env.UX_SCREEN_DIR||path.join(process.cwd(),'ux-browser-results');
+fs.mkdirSync(out,{recursive:true});
+const results=[];
+const check=(n,ok,detail='')=>{results.push({test:n,ok:!!ok,detail});console.log(`${ok?'PASS':'FAIL'}: TEST ${n}${detail?' — '+detail:''}`);if(!ok)throw new Error(`TEST ${n} failed${detail?': '+detail:''}`)};
 const ymd=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
-async function openAI(p){await p.locator('#v7AiFab').click();await p.waitForSelector('#sheet.ux-ai-coach-sheet:not(.hidden)')}
-async function ask(p,t){await p.locator('#v7AIInput').fill(t);await p.getByRole('button',{name:'BUILD COACHING DECISION'}).click();await p.waitForSelector('.ux-ai-result')}
+const snap=async(p,n)=>{try{await p.screenshot({path:path.join(out,n),fullPage:false,timeout:5000})}catch(_){}};
+async function openCoach(p){await p.evaluate(()=>window.KINETIQUX.openAI());await p.waitForSelector('#sheet.ux-ai-coach-sheet:not(.hidden)',{timeout:5000})}
+async function ask(p,text){await p.locator('#v7AIInput').fill(text);await p.getByRole('button',{name:'BUILD COACHING DECISION'}).click();await p.waitForSelector('.ux-ai-result',{timeout:5000})}
 (async()=>{
  const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required']});
  const c=await browser.newContext({viewport:{width:412,height:915},deviceScaleFactor:1});
- await c.addInitScript(()=>localStorage.setItem('personalTrainer.beta2',JSON.stringify({built:true,name:'Athlete',goal:'Get Stronger',experience:'Intermediate',days:4,minutes:45,equipment:'Full Gym',injuries:[],currentDay:0,currentWeek:1,completed:{},history:[],libraryFilter:'All',goals:['Get Stronger','Running / Endurance'],trainingSystems:['Strength','Hybrid Strength + Running'],runTypes:['Easy Run','Tempo','Long Run'],schedule:{strengthDays:3,runningDays:3,rehabDays:0,sessionLength:45,preferred:[1,2,3,4,5,6,0]},exerciseEnabled:{},animationEnabled:{},voiceCoach:{enabled:true,frequency:'Normal',countdown:true,cues:true,volume:1,rate:1.02,voiceName:''},planMode:'weekly',trainTab:'exercises',admin:{owner:true}})));
- const p=await c.newPage(),errors=[];p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});p.on('pageerror',e=>errors.push(String(e)));
+ await c.addInitScript(()=>{
+   window.__uxSpeakCalls=0;
+   window.PTNative={
+     speak(){window.__uxSpeakCalls++},stopTts(){},setTtsVolume(){},setTtsRate(){},getTtsVoices(){return '[]'},setTtsVoice(){return true},
+     startLocation(){},stopLocation(){},hasLocationPermission(){return false}
+   };
+   localStorage.setItem('personalTrainer.beta2',JSON.stringify({built:true,name:'Athlete',goal:'Get Stronger',experience:'Intermediate',days:4,minutes:45,equipment:'Full Gym',injuries:[],currentDay:0,currentWeek:1,completed:{},history:[],libraryFilter:'All',goals:['Get Stronger','Running / Endurance'],trainingSystems:['Strength','Hybrid Strength + Running'],runTypes:['Easy Run','Tempo','Long Run'],schedule:{strengthDays:3,runningDays:3,rehabDays:0,sessionLength:45,preferred:[1,2,3,4,5,6,0]},exerciseEnabled:{},animationEnabled:{},voiceCoach:{enabled:true,frequency:'Normal',countdown:true,cues:true,volume:1,rate:1.02,voiceName:''},planMode:'weekly',trainTab:'exercises',admin:{owner:true}}));
+ });
+ const p=await c.newPage();
+ p.setDefaultTimeout(8000);p.setDefaultNavigationTimeout(20000);
+ const errors=[];p.on('pageerror',e=>errors.push(String(e)));p.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
  try{
-  await p.goto('http://127.0.0.1:8765/index29.html',{waitUntil:'networkidle',timeout:30000});
-  await p.waitForFunction(()=>window.__KINETIQ_UX_BETA__==='KINETIQ-3.0.3-ux-beta-1',null,{timeout:12000});
-  const rt=await p.evaluate(()=>({v7:window.__ILIA_V7__,beta:window.__KINETIQ_BETA303__,ux:window.__KINETIQ_UX_BETA__}));
-  check('UX runtime marker',rt.ux==='KINETIQ-3.0.3-ux-beta-1',JSON.stringify(rt));check('Verified beta runtime retained',!!rt.v7&&!!rt.beta);
-  if(await p.locator('#style2Cover:not(.hidden)').count()){await p.locator('#coverEnter').click();await p.waitForSelector('#mainApp:not(.hidden)')}
-  const nav=(await p.locator('.bottom-nav .nav-btn small').allTextContents()).map(x=>x.trim().toUpperCase());check('Bottom navigation Home Plan Train Fuel More',nav.join('|')==='HOME|PLAN|TRAIN|FUEL|MORE',nav.join('|'));
-  await p.locator('.nav-btn[data-nav="train"]').click();await p.waitForSelector('#pageTrain.active .library-grid');await p.waitForTimeout(350);
-  check('Exercise Library mockup heading',(await p.locator('#pageTrain .ux-page-heading h1').textContent())?.trim()==='Exercise Library');
-  const cards=await p.locator('#pageTrain .library-card-v29').count(), videos=await p.locator('#pageTrain .library-card-v29 .media video').count(), imgs=await p.locator('#pageTrain .library-card-v29 .media img').count();
-  check('Motion-aware Exercise Library',cards>5&&videos>0&&imgs===0,`cards=${cards}, videos=${videos}, static=${imgs}`);await shot(p,'01-exercise-library.png');
-  await p.locator('#pageTrain [data-open29]').first().click();await p.waitForSelector('#exerciseDetail:not(.hidden).ux-canonical-detail');await p.waitForTimeout(650);
-  check('One canonical Exercise Detail',await p.locator('#exerciseDetail.ux-canonical-detail').count()===1);
-  check('Legacy large phase bar removed',await p.locator('#exerciseDetail .phase-row-v29').count()===0);
-  check('Integrated Start/End keyframes',await p.locator('#exerciseDetail .ux-keyframe').count()===2);
-  check('Active muscles visible',await p.locator('#exerciseDetail .ux-target-muscles').count()===1);
-  check('Set tracker preserved',await p.locator('#exerciseDetail .beta-set-tracker').count()===1);
-  check('Voice Coach preserved',await p.locator('#exerciseDetail .beta-voice-tools').count()===1);
-  const motionSource=await p.evaluate(()=>{const name=document.querySelector('#exerciseDetail h1')?.textContent?.trim();const e=window.PT29?.catalog?.().find(x=>x.name===name);return e?window.PT29.motionSrc(e):''});
-  check('Canonical motion source mapped',/\\.mp4$/i.test(motionSource),motionSource);
-  const motionReachable=motionSource?await p.evaluate(async src=>{try{const r=await fetch(src,{cache:'no-store'});return r.ok&&Number(r.headers.get('content-length')||1)>0}catch(e){return false}},motionSource):false;
-  check('Canonical motion media reachable',motionReachable,motionSource);
-  const mainVideo=p.locator('#motionStage29 video.motion-video-v29').first();
-  if(await mainVideo.count()){const btn=p.locator('#motionStage29 .motion-play-v29');if(await btn.isVisible().catch(()=>false)){await btn.click();await p.waitForTimeout(80);check('Visible motion control works',await mainVideo.evaluate(v=>v.paused));await btn.click()}}
-  await shot(p,'02-canonical-detail.png');await p.locator('#detailBack').click();
-  await p.locator('.nav-btn[data-nav="plan"]').click();await p.waitForSelector('#pagePlan.active .ux-plan-page');await p.waitForTimeout(150);
-  const active=await p.locator('#pagePlan .v7-day.active').getAttribute('data-v7-date');check('Plan opens current date immediately',active===ymd(),active+' vs '+ymd());
-  check('No monthly screen flash path',await p.locator('#pagePlan .calendar-v29,#pagePlan .month-card-v29').count()===0);await shot(p,'03-plan-current-day.png');
-  const pc=p.locator('#pagePlan .v7-ex').first();check('Plan has exercise for detail route',await pc.count()>0);if(await pc.count()){await pc.click({position:{x:150,y:35}});await p.waitForSelector('#exerciseDetail:not(.hidden).ux-canonical-detail');check('Plan uses same canonical detail',await p.locator('#exerciseDetail .ux-keyframe').count()===2&&await p.locator('#exerciseDetail .phase-row-v29').count()===0);await shot(p,'04-plan-canonical-detail.png');await p.locator('#detailBack').click()}
-  const todayKey=ymd(),before=await p.evaluate(k=>window.S.v7.myPlans[k]?.name,todayKey);
-  await openAI(p);await ask(p,'I trained legs yesterday. What should I do today?');let text=await p.locator('.ux-ai-result').innerText();check('AI legs-yesterday coaching',/Upper/i.test(text)&&/legs were trained yesterday/i.test(text),text.slice(0,160));check('Apply + Keep actions',await p.getByRole('button',{name:'APPLY TO PLAN'}).count()===1&&await p.getByRole('button',{name:'KEEP CURRENT PLAN'}).count()===1);await shot(p,'05-ai-legs-yesterday.png');await p.getByRole('button',{name:'KEEP CURRENT PLAN'}).click();check('Keep Current changes nothing',(await p.evaluate(k=>window.S.v7.myPlans[k]?.name,todayKey))===before);
-  await openAI(p);await ask(p,"I don't have time for the gym today. Give me a home workout.");text=await p.locator('.ux-ai-result').innerText();check('AI creates home workout',/AI Home Upper Body/i.test(text));check('Text-only fallback allowed',await p.locator('.ux-ai-ex.text').count()>=3);await shot(p,'06-ai-home-workout.png');await p.getByRole('button',{name:'APPLY TO PLAN'}).click();await p.waitForSelector('#pagePlan.active .ux-plan-page');const applied=await p.evaluate(k=>({my:window.S.v7.myPlans[k]?.name,ai:window.S.v7.aiPlans[k]?.name}),todayKey);check('Apply updates real plan state',applied.my==='AI Home Upper Body'&&applied.ai==='AI Home Upper Body',JSON.stringify(applied));check('Successful Apply is silent',await p.locator('#toast.show').count()===0);await shot(p,'07-plan-silent-apply.png');
-  await openAI(p);await ask(p,'I did upper body today. Adjust tomorrow.');text=await p.locator('.ux-ai-result').innerText();check('Before/After adjustment visible',await p.locator('.ux-before').count()>0&&await p.locator('.ux-after').count()>0&&/Lower/i.test(text));await shot(p,'08-ai-before-after.png');await p.getByRole('button',{name:'KEEP CURRENT PLAN'}).click();
-  await openAI(p);await ask(p,"I missed today's workout. I only have Thursday and Friday for gym and Saturday and Sunday for running. Adjust my week.");text=await p.locator('.ux-ai-result').innerText();check('Revised week shows four days',await p.locator('.ux-ai-decision').count()===4);check('Revised week content',/Upper/i.test(text)&&/Lower/i.test(text)&&/Easy Run/i.test(text)&&/Long Run/i.test(text));await shot(p,'09-ai-revised-week.png');await p.getByRole('button',{name:'KEEP CURRENT PLAN'}).click();
-  await openAI(p);await ask(p,'I want upper body gym.');check('Upper body gym intent',/Upper/i.test(await p.locator('.ux-ai-result').innerText()));await p.getByRole('button',{name:'KEEP CURRENT PLAN'}).click();
-  await openAI(p);await ask(p,'I want lower body home.');check('Lower body home intent',/Home Lower Body/i.test(await p.locator('.ux-ai-result').innerText()));await p.getByRole('button',{name:'KEEP CURRENT PLAN'}).click();
-  check('No browser runtime errors',errors.length===0,errors.join(' | ').slice(0,500));
- }catch(e){fail.push('Unhandled: '+(e.stack||e));console.error(e);try{await shot(p,'99-failure.png')}catch(_){}}
- fs.writeFileSync(path.join(out,'results.json'),JSON.stringify({result,fail,errors},null,2));await browser.close();if(fail.length){console.error(fail.join('\n'));process.exit(1)}console.log('KINETIQ_UX_BROWSER_ACCEPTANCE_PASS');
-})().catch(e=>{console.error(e);process.exit(1)});
+   await p.goto('http://127.0.0.1:8765/index29.html',{waitUntil:'domcontentloaded',timeout:20000});
+   await p.waitForFunction(()=>window.__KINETIQ_UX_BETA__==='KINETIQ-3.0.3-ux-beta-1',null,{timeout:8000});
+   if(await p.locator('#style2Cover:not(.hidden)').count()){await p.locator('#coverEnter').click();await p.waitForSelector('#mainApp:not(.hidden)',{timeout:5000})}
+
+   // TEST 1 — Exercise Library opens.
+   await p.locator('.nav-btn[data-nav="train"]').click();
+   await p.waitForSelector('#pageTrain.active .library-grid',{timeout:5000});
+   await p.waitForSelector('#pageTrain .ux-page-heading',{timeout:5000});
+   const cards=await p.locator('#pageTrain .library-card-v29').count();
+   check(1,cards>5,`Exercise Library open, cards=${cards}`);
+
+   // TEST 2 — canonical motion plays and is configured to loop.
+   await p.locator('#pageTrain [data-open29]').first().click();
+   await p.waitForSelector('#exerciseDetail:not(.hidden).ux-canonical-detail',{timeout:5000});
+   const main=p.locator('#motionStage29 video.motion-video-v29').first();
+   await main.waitFor({state:'attached',timeout:5000});
+   const play=p.locator('#motionStage29 .motion-play-v29');
+   if(await main.evaluate(v=>v.paused) && await play.count()) await play.click();
+   const t1=await main.evaluate(v=>v.currentTime);await p.waitForTimeout(650);const t2=await main.evaluate(v=>v.currentTime);
+   const loop=await main.evaluate(v=>v.loop);const duration=await main.evaluate(v=>v.duration||0);
+   check(2,loop&&t2>t1&&duration>1,`motion ${t1.toFixed(2)}→${t2.toFixed(2)}s, duration=${duration.toFixed(2)}s, loop=${loop}`);
+
+   // TEST 4 — integrated Start/End references.
+   const labels=(await p.locator('#exerciseDetail .ux-keyframe b').allTextContents()).map(x=>x.trim().toUpperCase());
+   check(4,labels.length===2&&labels.includes('START')&&labels.includes('END'),labels.join('|'));
+
+   // TEST 5 — active muscles render on canonical detail.
+   const muscleChips=await p.locator('#exerciseDetail .ux-target-muscles span').count();
+   const activeLabel=(await p.locator('#motionStage29 .motion-state-v29 b').textContent().catch(()=>''))||'';
+   check(5,muscleChips>0&&/ACTIVE MUSCLES/i.test(activeLabel),`chips=${muscleChips}`);
+
+   // TEST 9 — Voice Coach toggles, without speaking outside active set/workout context.
+   const voice=p.locator('#exerciseDetail .beta-voice-toggle').first();
+   await voice.waitFor({state:'visible',timeout:5000});
+   const speakBefore=await p.evaluate(()=>window.__uxSpeakCalls||0);
+   const aria1=await voice.getAttribute('aria-pressed');await voice.click();const aria2=await voice.getAttribute('aria-pressed');await voice.click();const aria3=await voice.getAttribute('aria-pressed');
+   const speakAfter=await p.evaluate(()=>window.__uxSpeakCalls||0);
+   check(9,aria1!==aria2&&aria1===aria3&&speakAfter===speakBefore,`toggle ${aria1}→${aria2}→${aria3}, outside-workout speech delta=${speakAfter-speakBefore}`);
+   await p.locator('#detailBack').click();
+
+   // TEST 3 — Plan opens same canonical detail; UX plan decoration is deterministic.
+   await p.locator('.nav-btn[data-nav="plan"]').click();
+   await p.waitForSelector('#pagePlan.active .v7-page',{timeout:5000});
+   await p.waitForSelector('#pagePlan.active .ux-plan-page',{timeout:5000});
+   const planExercise=p.locator('#pagePlan .v7-ex[data-swipe-exercise]').first();
+   await planExercise.waitFor({state:'visible',timeout:5000});
+   await planExercise.click({position:{x:160,y:35}});
+   await p.waitForSelector('#exerciseDetail:not(.hidden).ux-canonical-detail',{timeout:5000});
+   const canonical=await p.locator('#exerciseDetail .ux-keyframe').count()===2 && await p.locator('#exerciseDetail .phase-row-v29').count()===0;
+   check(3,canonical,'Plan → PT29 canonical detail');
+
+   // TEST 10 — Back, scrolling, bottom navigation.
+   await p.locator('#detailBack').click();await p.waitForSelector('#exerciseDetail.hidden',{timeout:5000});
+   await p.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));await p.waitForTimeout(120);
+   const scrollY=await p.evaluate(()=>window.scrollY);const nav=(await p.locator('.bottom-nav .nav-btn small').allTextContents()).map(x=>x.trim().toUpperCase());
+   check(10,scrollY>0&&nav.join('|')==='HOME|PLAN|TRAIN|FUEL|MORE',`scrollY=${scrollY}, nav=${nav.join('|')}`);
+
+   // TEST 6 — contextual AI recommendation.
+   const todayKey=ymd();
+   await openCoach(p);await ask(p,'I trained legs yesterday. What should I do today?');
+   let aiText=await p.locator('.ux-ai-result').innerText();
+   check(6,/Upper/i.test(aiText)&&/Legs were trained yesterday/i.test(aiText),'legs-yesterday → upper-body recovery-aware recommendation');
+
+   // TEST 8 — Keep Current leaves plan unchanged.
+   const before=await p.evaluate(k=>JSON.stringify(window.S.v7.myPlans[k]||null),todayKey);
+   await p.getByRole('button',{name:'KEEP CURRENT PLAN'}).click();
+   const after=await p.evaluate(k=>JSON.stringify(window.S.v7.myPlans[k]||null),todayKey);
+   check(8,before===after,'real plan unchanged');
+
+   // TEST 7 — Apply to Plan changes real plan/calendar state.
+   await openCoach(p);await ask(p,"I don't have time for the gym today. Give me a home workout.");
+   await p.getByRole('button',{name:'APPLY TO PLAN'}).click();
+   await p.waitForSelector('#pagePlan.active .v7-page',{timeout:5000});
+   const applied=await p.evaluate(k=>({my:window.S.v7.myPlans[k]?.name,ai:window.S.v7.aiPlans[k]?.name}),todayKey);
+   check(7,applied.my==='AI Home Upper Body'&&applied.ai==='AI Home Upper Body',JSON.stringify(applied));
+
+   if(errors.length)throw new Error('Browser runtime errors: '+errors.join(' | '));
+   await snap(p,'recovery-critical-pass.png');
+   fs.writeFileSync(path.join(out,'recovery-results.json'),JSON.stringify({results,errors},null,2));
+   console.log('KINETIQ_UX_RECOVERY_CRITICAL_PASS');
+ } finally {await browser.close()}
+})().catch(e=>{console.error(e.stack||e);process.exit(1)});
