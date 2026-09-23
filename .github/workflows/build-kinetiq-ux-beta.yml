@@ -1,0 +1,218 @@
+name: Build KINETIQ 3.0.3 UX Beta
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ kinetiq-v303-ux-beta ]
+    paths:
+      - 'personal-trainer/android-beta/**'
+      - '.github/workflows/build-kinetiq-ux-beta.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  validate-browser-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      EXPECTED_BETA_CERT_SHA256: 7f557546ddba96bdf8ec36b447d4acd7c62861cc074bc10a1b46ea9c96634487
+    steps:
+      - name: Checkout UX beta branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.10.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.10.2
+
+      - name: Install Android SDK packages and ffmpeg
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then SDKMANAGER="$(command -v sdkmanager)"; fi
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+      - name: Reconstruct persistent KINETIQ beta signing keystore
+        shell: bash
+        env:
+          KINETIQ_BETA_KEYSTORE_B64: ${{ secrets.KINETIQ_BETA_KEYSTORE_B64 }}
+          KINETIQ_BETA_STORE_PASSWORD: ${{ secrets.KINETIQ_BETA_STORE_PASSWORD }}
+          KINETIQ_BETA_KEY_ALIAS: ${{ secrets.KINETIQ_BETA_KEY_ALIAS }}
+          KINETIQ_BETA_KEY_PASSWORD: ${{ secrets.KINETIQ_BETA_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${KINETIQ_BETA_KEYSTORE_B64:?Missing KINETIQ_BETA_KEYSTORE_B64}"
+          : "${KINETIQ_BETA_STORE_PASSWORD:?Missing KINETIQ_BETA_STORE_PASSWORD}"
+          : "${KINETIQ_BETA_KEY_ALIAS:?Missing KINETIQ_BETA_KEY_ALIAS}"
+          : "${KINETIQ_BETA_KEY_PASSWORD:?Missing KINETIQ_BETA_KEY_PASSWORD}"
+          KEYSTORE_B64="${KINETIQ_BETA_KEYSTORE_B64#KINETIQ_BETA_KEYSTORE_B64=}"
+          STORE_PASSWORD="${KINETIQ_BETA_STORE_PASSWORD#KINETIQ_BETA_STORE_PASSWORD=}"
+          KEY_ALIAS="${KINETIQ_BETA_KEY_ALIAS#KINETIQ_BETA_KEY_ALIAS=}"
+          KEY_PASSWORD="${KINETIQ_BETA_KEY_PASSWORD#KINETIQ_BETA_KEY_PASSWORD=}"
+          KEYSTORE_B64="$(printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]')"
+          printf '::add-mask::%s\n' "$STORE_PASSWORD"
+          printf '::add-mask::%s\n' "$KEY_ALIAS"
+          printf '::add-mask::%s\n' "$KEY_PASSWORD"
+          SIGNING_DIR="$RUNNER_TEMP/kinetiq-ux-beta-signing"
+          KEYSTORE="$SIGNING_DIR/kinetiq-ux-beta.jks"
+          install -d -m 700 "$SIGNING_DIR"
+          umask 077
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          test -s "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+          CERT_SHA256="$(keytool -list -v -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" | sed -n 's/^[[:space:]]*SHA256: //p' | head -n1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          test -n "$CERT_SHA256"
+          test "$CERT_SHA256" = "$EXPECTED_BETA_CERT_SHA256"
+          {
+            echo "KINETIQ_BETA_KEYSTORE_PATH=$KEYSTORE"
+            echo "KINETIQ_BETA_STORE_PASSWORD=$STORE_PASSWORD"
+            echo "KINETIQ_BETA_KEY_ALIAS=$KEY_ALIAS"
+            echo "KINETIQ_BETA_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
+      - name: Import proven anatomy motion library
+        shell: bash
+        run: |
+          set -euo pipefail
+          A=personal-trainer/android-beta/app/src/main/assets
+          mkdir -p "$A/media/adaptive" /tmp/kinetiq-anatomy
+          git fetch --depth=1 origin rebuild/ilias-coach-v2
+          git show FETCH_HEAD:ILIA-SAFE-SOURCE.bin > /tmp/kinetiq-anatomy/source.zip
+          unzip -q /tmp/kinetiq-anatomy/source.zip -d /tmp/kinetiq-anatomy/source
+          SRC=/tmp/kinetiq-anatomy/source/Ilias-Coach/app/src/main/assets/media/anatomy
+          test -d "$SRC"
+          cp -a "$SRC"/. "$A/media/adaptive/"
+          test -s "$A/media/adaptive/leg-press.mp4"
+          test -s "$A/media/adaptive/push-up.mp4"
+
+      - name: Validate UX beta source and isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          A=personal-trainer/android-beta/app/src/main/assets
+          for f in style2-v29-runtime-preflight.js app-v2.js pt-v25-core.js style2-v29.js style2-v29-admin.js style2-v29-focus.js style2-v29-priority-engine.js style2-v29-master-mockup.js style2-v29-master-fix.js style2-v7.js style2-v7-final-fix.js style2-v73-library-tools.js style2-v73-refresh.js kinetiq-beta-v303.js kinetiq-ux-beta.js; do node --check "$A/$f"; done
+          node --check personal-trainer/android-beta/ux-browser-test.cjs
+          test -s "$A/kinetiq-ux-beta.css"
+          grep -q 'kinetiq-ux-beta.css' "$A/index29.html"
+          grep -q 'kinetiq-ux-beta.js' "$A/index29.html"
+          grep -q "window.__KINETIQ_UX_BETA__=VERSION" "$A/kinetiq-ux-beta.js"
+          grep -q 'ux-motion-keyframes' "$A/kinetiq-ux-beta.js"
+          grep -q 'window.PT29.openDetail=wrapped' "$A/kinetiq-ux-beta.js"
+          grep -q "phase-row-v29',ov)?.remove" "$A/kinetiq-ux-beta.js"
+          grep -q "applicationId 'com.ilia.personaltrainer.uxbeta'" personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.3-ux-beta.1'" personal-trainer/android-beta/app/build.gradle
+          grep -q '<string name="app_name">KINETIQ UX BETA</string>' personal-trainer/android-beta/app/src/main/res/values/strings.xml
+          if grep -q "applicationId 'com.ilia.personaltrainer.beta'" personal-trainer/android-beta/app/build.gradle; then echo 'ERROR: collides with frozen verified beta'; exit 1; fi
+          if grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle; then echo 'ERROR: collides with production'; exit 1; fi
+          ! grep -q 'Workout saved' "$A/app-v2.js"
+
+      - name: Browser acceptance gate before APK build
+        shell: bash
+        run: |
+          set -euo pipefail
+          A="$GITHUB_WORKSPACE/personal-trainer/android-beta/app/src/main/assets"
+          T="$RUNNER_TEMP/kinetiq-ux-browser"
+          R="$RUNNER_TEMP/kinetiq-ux-screens"
+          mkdir -p "$T" "$R"
+          cd "$T"
+          npm init -y >/dev/null
+          npm install --no-save playwright@1.49.1 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+          cp "$GITHUB_WORKSPACE/personal-trainer/android-beta/ux-browser-test.cjs" "$T/ux-browser-test.cjs"
+          python3 -m http.server 8765 --directory "$A" > "$RUNNER_TEMP/kinetiq-ux-http.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for i in {1..30}; do curl -fsS http://127.0.0.1:8765/index29.html >/dev/null && break; sleep 1; done
+          UX_SCREEN_DIR="$R" node "$T/ux-browser-test.cjs"
+
+      - name: Build installable isolated UX beta APK
+        run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
+
+      - name: Validate UX beta APK identity and signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.uxbeta' versionCode='44' versionName='3.0.3-ux-beta.1'"
+          "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ UX BETA'"
+          unzip -l "$APK" | grep -q 'assets/kinetiq-ux-beta.css'
+          unzip -l "$APK" | grep -q 'assets/kinetiq-ux-beta.js'
+          unzip -l "$APK" | grep -q 'assets/media/adaptive/leg-press.mp4'
+          VERIFY_OUT="$RUNNER_TEMP/apksigner-ux.txt"
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee "$VERIFY_OUT"
+          grep -Fq 'Verified using v2 scheme (APK Signature Scheme v2): true' "$VERIFY_OUT"
+          CERT_SHA256="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$VERIFY_OUT" | head -n1 | tr '[:upper:]' '[:lower:]')"
+          test "$CERT_SHA256" = "$EXPECTED_BETA_CERT_SHA256"
+          printf '%s\n' "$CERT_SHA256" > "$RUNNER_TEMP/kinetiq-ux-beta-cert-sha256.txt"
+
+      - name: Package UX beta deliverables
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release web-preview
+          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/KINETIQ-UX-BETA-3.0.3.apk
+          cp "$RUNNER_TEMP/kinetiq-ux-beta-cert-sha256.txt" release/SIGNING-CERT-SHA256.txt
+          cp -a personal-trainer/android-beta/app/src/main/assets/. web-preview/
+          cp web-preview/index29.html web-preview/index.html
+          cat > release/BETA-README.txt <<'REPORT'
+          KINETIQ 3.0.3 — COMPACT UX BETA
+          Package: com.ilia.personaltrainer.uxbeta
+          Label: KINETIQ UX BETA
+          Version: 3.0.3-ux-beta.1 / versionCode 44
+          Built from the separate kinetiq-v303-ux-beta branch.
+          Frozen verified baseline bff960ac6ee406345f344554e5e8874d285bbf42 remains unchanged.
+          Production package com.ilia.personaltrainer remains unchanged.
+          Verified beta package com.ilia.personaltrainer.beta remains unchanged.
+          Browser acceptance at Galaxy A54 viewport runs before the APK build step.
+          REPORT
+          sha256sum release/KINETIQ-UX-BETA-3.0.3.apk > release/SHA256SUMS.txt
+
+      - name: Remove temporary UX beta signing material
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/kinetiq-ux-beta-signing"
+
+      - name: Upload UX beta APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: KINETIQ-UX-BETA-3.0.3
+          path: release/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload UX beta web preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: KINETIQ-UX-BETA-WEB-PREVIEW
+          path: web-preview/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload UX browser validation screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: KINETIQ-UX-BETA-UI-CHECKS
+          path: ${{ runner.temp }}/kinetiq-ux-screens/*
+          if-no-files-found: warn
+          retention-days: 30
