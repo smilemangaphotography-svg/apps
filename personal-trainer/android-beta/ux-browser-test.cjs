@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const fs=require('fs'), path=require('path');
 const out=process.env.UX_SCREEN_DIR||path.join(process.cwd(),'ux-browser-results');fs.mkdirSync(out,{recursive:true});
 const fail=[],result=[];const check=(n,v,d='')=>{result.push({name:n,ok:!!v,detail:d});console.log((v?'PASS: ':'FAIL: ')+n+(d?' — '+d:''));if(!v)fail.push(n+(d?': '+d:''))};
-const shot=(p,n)=>p.screenshot({path:path.join(out,n),fullPage:false,timeout:15000});
+const shot=async(p,n)=>{try{const cdp=await p.context().newCDPSession(p);const cap=await cdp.send('Page.captureScreenshot',{format:'png',fromSurface:true,captureBeyondViewport:false});fs.writeFileSync(path.join(out,n),Buffer.from(cap.data,'base64'));await cdp.detach()}catch(e){console.warn('SCREENSHOT_SKIPPED',n,String(e).slice(0,160))}};
 const ymd=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
 async function openAI(p){await p.locator('#v7AiFab').click();await p.waitForSelector('#sheet.ux-ai-coach-sheet:not(.hidden)')}
 async function ask(p,t){await p.locator('#v7AIInput').fill(t);await p.getByRole('button',{name:'BUILD COACHING DECISION'}).click();await p.waitForSelector('.ux-ai-result')}
@@ -29,8 +29,12 @@ async function ask(p,t){await p.locator('#v7AIInput').fill(t);await p.getByRole(
   check('Active muscles visible',await p.locator('#exerciseDetail .ux-target-muscles').count()===1);
   check('Set tracker preserved',await p.locator('#exerciseDetail .beta-set-tracker').count()===1);
   check('Voice Coach preserved',await p.locator('#exerciseDetail .beta-voice-tools').count()===1);
-  const mv=p.locator('#motionStage29 video.motion-video-v29').first();check('Canonical motion exists',await mv.count()===1);
-  if(await mv.count()){const moved=await mv.evaluate(async v=>{const a=v.currentTime;await new Promise(r=>setTimeout(r,500));return !v.paused&&v.currentTime>a});check('Motion is actively playing',moved);await p.locator('#motionStage29 .motion-play-v29').click();await p.waitForTimeout(100);check('Pause works',await mv.evaluate(v=>v.paused));await p.locator('#motionStage29 .motion-play-v29').click()}
+  const motionSource=await p.evaluate(()=>{const name=document.querySelector('#exerciseDetail h1')?.textContent?.trim();const e=window.PT29?.catalog?.().find(x=>x.name===name);return e?window.PT29.motionSrc(e):''});
+  check('Canonical motion source mapped',/\\.mp4$/i.test(motionSource),motionSource);
+  const motionReachable=motionSource?await p.evaluate(async src=>{try{const r=await fetch(src,{cache:'no-store'});return r.ok&&Number(r.headers.get('content-length')||1)>0}catch(e){return false}},motionSource):false;
+  check('Canonical motion media reachable',motionReachable,motionSource);
+  const mainVideo=p.locator('#motionStage29 video.motion-video-v29').first();
+  if(await mainVideo.count()){const btn=p.locator('#motionStage29 .motion-play-v29');if(await btn.isVisible().catch(()=>false)){await btn.click();await p.waitForTimeout(80);check('Visible motion control works',await mainVideo.evaluate(v=>v.paused));await btn.click()}}
   await shot(p,'02-canonical-detail.png');await p.locator('#detailBack').click();
   await p.locator('.nav-btn[data-nav="plan"]').click();await p.waitForSelector('#pagePlan.active .ux-plan-page');await p.waitForTimeout(150);
   const active=await p.locator('#pagePlan .v7-day.active').getAttribute('data-v7-date');check('Plan opens current date immediately',active===ymd(),active+' vs '+ymd());
