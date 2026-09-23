@@ -9,7 +9,7 @@ const snap=async(p,n)=>{try{await p.screenshot({path:path.join(out,n),fullPage:f
 async function openCoach(p){await p.evaluate(()=>window.KINETIQUX.openAI());await p.waitForSelector('#sheet.ux-ai-coach-sheet:not(.hidden)',{timeout:5000})}
 async function ask(p,text){await p.locator('#v7AIInput').fill(text);await p.getByRole('button',{name:'BUILD COACHING DECISION'}).click();await p.waitForSelector('.ux-ai-result',{timeout:5000})}
 (async()=>{
- const browser=await chromium.launch({headless:true,args:['--autoplay-policy=no-user-gesture-required']});
+ const browser=await chromium.launch({channel:'chrome',headless:true,args:['--autoplay-policy=no-user-gesture-required']});
  const c=await browser.newContext({viewport:{width:412,height:915},deviceScaleFactor:1});
  await c.addInitScript(()=>{
    window.__uxSpeakCalls=0;
