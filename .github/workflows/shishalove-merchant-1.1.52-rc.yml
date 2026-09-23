@@ -1,0 +1,176 @@
+name: ShishaLove Merchant 1.1.52 Sync Master Fix RC
+
+on:
+  push:
+    branches: [merchant-sync-master-fix-1.1.52]
+    paths:
+      - '.github/workflows/shishalove-merchant-1.1.52-rc.yml'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.52.py'
+      - 'shishalove-mobile/tools/patch-merchant-final-1.1.52.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-build-rc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: none
+
+      - name: Generate previous and 1.1.52 Bridge runtimes
+        run: |
+          set -euo pipefail
+          rm -rf package-prev package dist
+          mkdir -p package-prev package dist
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package-prev/shishalove-app-bridge
+          cp -R shishalove-wordpress-bridge/plugin/shishalove-app-bridge package/shishalove-app-bridge
+
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.51.py package-prev/shishalove-app-bridge
+          python3 shishalove-wordpress-bridge/tools/patch-shishalove-1.1.52.py package/shishalove-app-bridge
+
+          MAIN='package/shishalove-app-bridge/shishalove-app-bridge.php'
+          C='package/shishalove-app-bridge/assets/customer.js'
+          M='package/shishalove-app-bridge/assets/merchant.js'
+
+          sed -i 's/Version: 1.1.6-rc.2/Version: 1.1.52/' "$MAIN"
+          sed -i "s/define('SLB_VERSION', '1.1.6-rc.2');/define('SLB_VERSION', '1.1.52');/" "$MAIN"
+
+          node --check "$C"
+          node --check "$M"
+          php -l "$MAIN"
+
+          # Customer + visual design are frozen.
+          cmp package-prev/shishalove-app-bridge/assets/customer.js "$C"
+          cmp package-prev/shishalove-app-bridge/assets/bridge.css package/shishalove-app-bridge/assets/bridge.css
+          grep -Fq "var BUILD='1.1.45';" "$C"
+          grep -Fq 'function frontPageMarkup()' "$C"
+
+          # One authoritative Merchant dynamic-data path.
+          grep -Fq "CFG.version='1.1.52';" "$M"
+          grep -Fq "MERCHANT_CANONICAL_REST=location.origin+'/wp-json/shishalove/v1/'" "$M"
+          ! grep -Fq 'MERCHANT_STAGING_REST' "$M"
+          ! grep -Fq 'MERCHANT_ORDER_REST' "$M"
+          grep -Fq 'function apiOnce(' "$M"
+          grep -Fq 'include_variations=1' "$M"
+          grep -Fq 'orderby=date&order=DESC' "$M"
+          grep -Fq 'function syncLatestOrders(' "$M"
+          grep -Fq "page=Math.max(1,Number(state.page)||1)" "$M"
+          grep -Fq 'var dashboardStats=null,dashboardStatsLoading=false;' "$M"
+          grep -Fq "window.setInterval(function(){if(!document.hidden)syncLatestOrders(true);},15000)" "$M"
+          grep -Fq 'SLM_SYNC_DEBUG' "$M"
+
+          # Canonical WooCommerce callbacks: products, variations, stock and HPOS-safe orders.
+          grep -Fq 'function slb_sync_merchant_products_152' "$MAIN"
+          grep -Fq 'function slb_sync_merchant_orders_152' "$MAIN"
+          grep -Fq "'stock_quantity' => $product->get_stock_quantity()" "$MAIN"
+          grep -Fq "'variations' => $variations" "$MAIN"
+          grep -Fq "'status' => $statuses" "$MAIN"
+          grep -Fq "wc_get_orders(array(" "$MAIN"
+          grep -Fq "'Cache-Control', 'private, no-store, no-cache, must-revalidate, max-age=0'" "$MAIN"
+          grep -Fq "register_rest_route('shishalove/v1', '/merchant/products'" "$MAIN"
+          grep -Fq "register_rest_route('shishalove/v1', '/merchant/orders'" "$MAIN"
+          grep -Fq 'Version: 1.1.52' "$MAIN"
+
+      - name: Apply Merchant Android 1.1.52
+        run: |
+          set -euo pipefail
+          python3 shishalove-mobile/tools/patch-merchant-final-1.1.52.py package/shishalove-app-bridge
+
+          G='shishalove-mobile/merchant/build.gradle'
+          M='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+          X='shishalove-mobile/merchant/src/main/AndroidManifest.xml'
+          A='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java'
+
+          grep -Fq 'versionCode 152' "$G"
+          grep -Fq "versionName '1.1.52'" "$G"
+          grep -Fq "applicationId 'eu.shishalove.merchant'" "$G"
+          grep -Fq 'build=152' "$M"
+          grep -Fq 'ShishaLoveMerchant/1.1.52' "$M"
+          grep -Fq 'private void applyRuntimeJsOnce(WebView view, String url)' "$M"
+          ! grep -Fq 'view.postDelayed(() -> applyRuntimeJs(view, url)' "$M"
+          ! grep -Fq 'if (newProgress >= 5) applyRuntimeJs' "$M"
+          grep -Fq 'OrderPollReceiver' "$X"
+          grep -Fq 'android:launchMode="singleTop"' "$X"
+          grep -Fq 'slm-native-layout-147' "$A"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Compile Merchant 1.1.52 test candidate
+        working-directory: shishalove-mobile
+        run: gradle :merchant:assembleRelease :merchant:assembleDebug --stacktrace
+
+      - name: Verify package and signing continuity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          RELEASE='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          DEBUG='shishalove-mobile/merchant/build/outputs/apk/debug/merchant-debug.apk'
+
+          "$AAPT" dump badging "$RELEASE" | grep -q "package: name='eu.shishalove.merchant' versionCode='152' versionName='1.1.52'"
+          "$AAPT" dump badging "$DEBUG" | grep -q "package: name='eu.shishalove.merchant.dev' versionCode='152' versionName='1.1.52-dev'"
+
+          mkdir -p dist/previous
+          gh release download shishalove-merchant-1.1.51 --pattern 'ShishaLove-Merchant-1.1.51-CURRENT-PHONE-UPDATE.apk' --dir dist/previous
+
+          digest() { "$APKSIGNER" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n1; }
+          PREV="$(digest dist/previous/ShishaLove-Merchant-1.1.51-CURRENT-PHONE-UPDATE.apk)"
+          NEXT="$(digest "$RELEASE")"
+          test -n "$PREV"
+          test "$PREV" = "$NEXT"
+
+          cp "$RELEASE" dist/ShishaLove-Merchant-1.1.52-TEST-CANDIDATE.apk
+          (cd package && zip -qr ../dist/shishalove-app-bridge-1.1.52-RC.zip shishalove-app-bridge)
+          sha256sum dist/ShishaLove-Merchant-1.1.52-TEST-CANDIDATE.apk dist/shishalove-app-bridge-1.1.52-RC.zip > dist/SHA256SUMS.txt
+
+          cat > dist/BUILD-GATE.txt <<EOF
+          SHISHALOVE MERCHANT 1.1.52 — TEST CANDIDATE ONLY
+          Package: eu.shishalove.merchant
+          versionCode: 152
+          versionName: 1.1.52
+          Signing continuity with 1.1.51: PASS
+          Customer JS unchanged from generated 1.1.51: PASS
+          Bridge CSS unchanged from generated 1.1.51: PASS
+          Canonical Merchant data path static validation: PASS
+          Android compile/package validation: PASS
+
+          FINAL RELEASE GATE:
+          Real WooCommerce latest-product test: PENDING LIVE AUTHENTICATED TEST
+          Real WooCommerce stock-change test: PENDING LIVE AUTHENTICATED TEST
+          Existing real order test: PENDING LIVE AUTHENTICATED TEST
+          New/recent order test: PENDING LIVE AUTHENTICATED TEST
+          Live reload/performance measurement: PENDING LIVE AUTHENTICATED TEST
+
+          This workflow intentionally does NOT publish a final GitHub release.
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-merchant-1.1.52-rc
+          path: dist/*
+          if-no-files-found: error
