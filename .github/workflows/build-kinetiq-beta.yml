@@ -3,7 +3,7 @@ name: Build KINETIQ 3.0.3 Safe Beta
 on:
   workflow_dispatch:
   push:
-    branches: [ kinetiq-v303-approved-beta ]
+    branches: [ kinetiq-v303-approved-beta, kinetiq-v303-mockup-beta ]
     paths:
       - 'personal-trainer/android-beta/**'
       - '.github/workflows/build-kinetiq-beta.yml'
