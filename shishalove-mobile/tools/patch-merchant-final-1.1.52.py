@@ -117,7 +117,7 @@ t = replace_java_method(
                 if (enterRequested && pendingOpenOrderId <= 0L) hideLaunchOverlay();
                 view.postDelayed(() -> MainActivity.this.tryOpenPendingOrder(), 90);
                 view.postDelayed(() -> registerBackgroundOrderChannel(view, url), 350);
-                view.postDelayed(this::hideLastSnapshot, 120);
+                view.postDelayed(() -> MainActivity.this.hideLastSnapshot(), 120);
             }'''
 )
 
