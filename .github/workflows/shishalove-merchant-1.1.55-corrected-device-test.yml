@@ -1,0 +1,182 @@
+name: ShishaLove Merchant 1.1.55 Corrected Device Test
+
+on:
+  push:
+    branches: [merchant-post-update-master-fix-1.1.53]
+    paths:
+      - '.github/workflows/shishalove-merchant-1.1.55-corrected-device-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout exact corrected source
+        uses: actions/checkout@v4
+        with:
+          ref: 1cdc15eaee389b591ddbf8f3ad62fee92ffe04cd
+          fetch-depth: 0
+
+      - name: Verify exact fixed source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "1cdc15eaee389b591ddbf8f3ad62fee92ffe04cd"
+          P='shishalove-mobile/merchant/src/main/assets/merchant_phone_polish.js'
+          grep -Fq '__SLM3_FILTER_UI_INSTALLED' "$P"
+          grep -Fq 'MERCHANT_POLISH_LOADED' "$P"
+          grep -Fq 'MERCHANT_POLISH_INIT' "$P"
+          grep -Fq 'TAXONOMY_READY' "$P"
+          grep -Fq 'FILTER_UI_MOUNTED' "$P"
+          grep -Fq 'FILTER_UI_REPLACED' "$P"
+          grep -Fq 'QUICK_EDIT_BOUND' "$P"
+          grep -Fq 'Category / Brand' "$P"
+          grep -Fq 'Quick Edit' "$P"
+          grep -Fq 'STOCK QUANTITY' "$P"
+          grep -Fq 'STOCK STATUS' "$P"
+          grep -Fq '>UPDATE<' "$P"
+          grep -Fq 'function slm3AcceptBootstrapPayload' "$P"
+          grep -Fq "raw.indexOf('merchant/bootstrap')" "$P"
+          ! grep -Fq 'taxonomyRetryAfter' "$P"
+          ! grep -Fq 'function slm3FetchTaxonomy()' "$P"
+          node --check "$P"
+          git diff --quiet
+          git diff --cached --quiet
+
+      - name: Verify no backend or Customer source change in corrected commit
+        run: |
+          set -euo pipefail
+          PARENT="$(git rev-parse HEAD^)"
+          CHANGED="$(git diff --name-only "$PARENT" HEAD)"
+          test "$CHANGED" = "shishalove-mobile/merchant/src/main/assets/merchant_phone_polish.js"
+          ! echo "$CHANGED" | grep -E '^shishalove-wordpress-bridge/'
+          ! echo "$CHANGED" | grep -E 'customer'
+
+      - name: Prepare read-only Android patch input
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slm-bridge-input
+          mkdir -p /tmp/slm-bridge-input/assets
+          cp shishalove-wordpress-bridge/runtime/merchant-approved-beta-1.1.50.js /tmp/slm-bridge-input/assets/merchant.js
+          grep -Fq "var MERCHANT_WORDMARK='data:image/png;base64," /tmp/slm-bridge-input/assets/merchant.js
+
+      - name: Generate update-in-place Android 1.1.55 runtime
+        run: |
+          set -euo pipefail
+          python3 shishalove-mobile/tools/patch-merchant-final-1.1.55.py /tmp/slm-bridge-input
+          G='shishalove-mobile/merchant/build.gradle'
+          M='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+          P='shishalove-mobile/merchant/src/main/assets/merchant_phone_polish.js'
+
+          grep -Fq "applicationId 'eu.shishalove.merchant'" "$G"
+          grep -Fq 'versionCode 155' "$G"
+          grep -Fq "versionName '1.1.55'" "$G"
+          grep -Fq 'build=155' "$M"
+          grep -Fq 'ShishaLoveMerchant/1.1.55' "$M"
+          grep -Fq 'final int expectedBuild = 155;' "$M"
+          grep -Fq 'webView.clearCache(true)' "$M"
+          grep -Fq 'loadFreshStartUrl()' "$M"
+          grep -Fq 'private void applyRuntimeJsOnce(WebView view, String url)' "$M"
+          grep -Fq 'MERCHANT_POLISH_LOADED' "$P"
+          grep -Fq 'FILTER_UI_MOUNTED' "$P"
+          grep -Fq 'QUICK_EDIT_BOUND' "$P"
+          node --check "$P"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build release APK
+        working-directory: shishalove-mobile
+        run: gradle :merchant:assembleRelease --stacktrace
+
+      - name: Verify final APK content, identity, and signing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+
+          test -f "$APK"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='eu.shishalove.merchant' versionCode='155' versionName='1.1.55'"
+
+          unzip -p "$APK" assets/merchant_phone_polish.js > /tmp/packaged-polish.js
+          node --check /tmp/packaged-polish.js
+          grep -Fq 'MERCHANT_POLISH_LOADED' /tmp/packaged-polish.js
+          grep -Fq 'MERCHANT_POLISH_INIT' /tmp/packaged-polish.js
+          grep -Fq 'TAXONOMY_READY' /tmp/packaged-polish.js
+          grep -Fq 'FILTER_UI_MOUNTED' /tmp/packaged-polish.js
+          grep -Fq 'FILTER_UI_REPLACED' /tmp/packaged-polish.js
+          grep -Fq 'QUICK_EDIT_BOUND' /tmp/packaged-polish.js
+          grep -Fq 'Category / Brand' /tmp/packaged-polish.js
+          grep -Fq 'Quick Edit' /tmp/packaged-polish.js
+          grep -Fq 'STOCK QUANTITY' /tmp/packaged-polish.js
+          grep -Fq 'STOCK STATUS' /tmp/packaged-polish.js
+          grep -Fq '>UPDATE<' /tmp/packaged-polish.js
+          grep -Fq 'function slm3AcceptBootstrapPayload' /tmp/packaged-polish.js
+          ! grep -Fq 'taxonomyRetryAfter' /tmp/packaged-polish.js
+          ! grep -Fq 'function slm3FetchTaxonomy()' /tmp/packaged-polish.js
+
+          mkdir -p dist/previous
+          gh release download shishalove-merchant-1.1.51             --pattern 'ShishaLove-Merchant-1.1.51-CURRENT-PHONE-UPDATE.apk'             --dir dist/previous
+
+          digest() {
+            "$APKSIGNER" verify --print-certs "$1" |
+              sed -n 's/^Signer #1 certificate SHA-256 digest: //p' |
+              head -n1
+          }
+
+          PREV="$(digest dist/previous/ShishaLove-Merchant-1.1.51-CURRENT-PHONE-UPDATE.apk)"
+          NEXT="$(digest "$APK")"
+          test -n "$PREV"
+          test -n "$NEXT"
+          test "$PREV" = "$NEXT"
+
+          mkdir -p dist
+          cp "$APK" dist/ShishaLove-Merchant-1.1.55-CORRECTED-DEVICE-TEST.apk
+
+          cat > dist/BUILD-INFO.txt <<EOF
+          SHISHALOVE MERCHANT 1.1.55 — CORRECTED DEVICE TEST
+          Source branch: merchant-post-update-master-fix-1.1.53
+          Source commit: 1cdc15eaee389b591ddbf8f3ad62fee92ffe04cd
+          Package: eu.shishalove.merchant
+          versionCode: 155
+          versionName: 1.1.55
+          Runtime activation fix included: YES
+          3-filter code included: YES
+          Quick Edit code included: YES
+          Signing continuity: PASS
+          WordPress modified: NO
+          Backend modified: NO
+          Customer modified: NO
+          EOF
+
+          sha256sum dist/ShishaLove-Merchant-1.1.55-CORRECTED-DEVICE-TEST.apk > dist/SHA256SUMS.txt
+
+      - name: Upload corrected device-test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-merchant-1.1.55-corrected-device-test
+          path: |
+            dist/ShishaLove-Merchant-1.1.55-CORRECTED-DEVICE-TEST.apk
+            dist/BUILD-INFO.txt
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
