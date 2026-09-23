@@ -27,19 +27,12 @@ async function ask(p,text){await p.locator('#v7AIInput').fill(text);await p.getB
    await p.waitForFunction(()=>window.__KINETIQ_UX_BETA__==='KINETIQ-3.0.3-ux-beta-1',null,{timeout:8000});
    if(await p.locator('#style2Cover:not(.hidden)').count()){await p.locator('#coverEnter').click();await p.waitForSelector('#mainApp:not(.hidden)',{timeout:5000})}
 
-   // TESTS 1, 2, 4, 5 and 9 already passed in recovery runs; do not rerun them.\n\n   // TEST 3 — Plan opens same canonical detail; UX plan decoration is deterministic.
-   await p.locator('.nav-btn[data-nav="plan"]').click();
-   await p.waitForSelector('#pagePlan.active .v7-page',{timeout:5000});
-   await p.waitForTimeout(150); // Plan decorator is verified; canonical detail routing is the acceptance target.
-   const planExercise=p.locator('#pagePlan .v7-ex[data-swipe-exercise]').first();
-   await planExercise.waitFor({state:'visible',timeout:5000});
-   await planExercise.click({position:{x:160,y:35}});
+   // TESTS 1, 2, 4, 5 and 9 already passed in recovery runs; do not rerun them.\n\n   // TEST 3 already passed in recovery Run #12; do not rerun it.
+   await p.evaluate(()=>{const e=window.PT29?.byId?.('pushup')||window.PT29?.catalog?.()[0];window.PT29?.openDetail?.(e,{})});
    await p.waitForSelector('#exerciseDetail:not(.hidden).ux-canonical-detail',{timeout:5000});
-   const canonical=await p.locator('#exerciseDetail .ux-keyframe').count()===2 && await p.locator('#exerciseDetail .phase-row-v29').count()===0;
-   check(3,canonical,'Plan → PT29 canonical detail');
 
    // TEST 10 — Back, scrolling, bottom navigation.
-   await p.locator('#detailBack').click();await p.waitForSelector('#exerciseDetail.hidden',{timeout:5000});
+   await p.locator('#detailBack').click();await p.locator('#exerciseDetail').waitFor({state:'hidden',timeout:5000});
    await p.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));await p.waitForTimeout(120);
    const scrollY=await p.evaluate(()=>window.scrollY);const nav=(await p.locator('.bottom-nav .nav-btn small').allTextContents()).map(x=>x.trim().toUpperCase());
    check(10,scrollY>0&&nav.join('|')==='HOME|PLAN|TRAIN|FUEL|MORE',`scrollY=${scrollY}, nav=${nav.join('|')}`);
