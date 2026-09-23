@@ -215,7 +215,8 @@ function loadOrders(force,allowNotify){
     if(state.view==='orders')render();
   }
   return fetchOrdersPage(page,allowNotify);
-}''')
+}
+var dashboardStats=null,dashboardStatsLoading=false;''')
 
 t = replace_func(t, 'refresh', r'''function refresh(){
   if(state.orderDetail&&state.orderDetail.id){openOrder(state.orderDetail.id,true);return;}
