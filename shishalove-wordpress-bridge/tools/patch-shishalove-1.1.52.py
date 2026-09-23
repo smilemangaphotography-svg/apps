@@ -120,9 +120,24 @@ t = replace_func(t, 'buildProductUrl', r'''function buildProductUrl(stock,page,p
   return url;
 }''')
 
+t = replace_func(t, 'loadExactSearch', r'''function loadExactSearch(stock,force){
+  var name=stock?'stock':'products',requested=String(state.query||'').trim(),seq=++merchantSearchRequest,key=productCacheKey(stock),cached=cget(key,0);
+  if(cached&&!force){state.productsByView[name]=cached;if(state.view===name)renderKeepingProductSearchFocus();}
+  var url=buildProductUrl(stock,state.page,state.per);
+  return apiOnce('product-search|'+url,url,{cache:'no-store'}).then(function(d){
+    if(seq!==merchantSearchRequest||requested!==String(state.query||'').trim()||state.view!==name)return d;
+    state.searchPools[name]=null;d._syncedAt=Date.now();state.productsByView[name]=d;cset(key,d);merchantSyncErrors.products=null;renderKeepingProductSearchFocus();return d;
+  },function(err){
+    if(seq!==merchantSearchRequest||requested!==String(state.query||'').trim()||state.view!==name)return null;
+    merchantSyncErrors.products={message:String(err&&err.message||err),status:err&&err.status||0,time:Date.now()};
+    if(!state.productsByView[name])state.productsByView[name]={items:[],page:1,per_page:state.per,total:0,pages:1,_loadError:true};
+    renderKeepingProductSearchFocus();return null;
+  });
+}''')
+
 t = replace_func(t, 'loadProducts', r'''function loadProducts(stock,force){
   var key=productCacheKey(stock),cached=cget(key,0),name=stock?'stock':'products';
-  if(String(state.query||'').trim()!==''){loadExactSearch(stock,force);return Promise.resolve(null);}
+  if(String(state.query||'').trim()!=='')return loadExactSearch(stock,force);
   state.searchPools[name]=null;
   if(cached){
     state.productsByView[name]=cached;
@@ -148,6 +163,24 @@ t = replace_func(t, 'loadProducts', r'''function loadProducts(stock,force){
     }else{restoreMerchantScroll(true);}
     return null;
   });
+}''')
+
+t = replace_func(t, 'saveProduct', r'''function saveProduct(){
+  if(!state.editor||state.editor._mediaBusy)return;
+  var brandIds=[];root.querySelectorAll('[data-brand-check]:checked').forEach(function(e){brandIds.push(Number(e.dataset.brandCheck));});
+  var ms=document.getElementById('slm-manage-stock'),manage=true;if(ms)ms.checked=true;
+  var body={name:val('slm-name'),sku:val('slm-sku'),status:val('slm-status'),visibility:val('slm-visibility'),catalog_visibility:val('slm-catalog'),regular_price:val('slm-price'),sale_price:val('slm-sale'),stock_status:val('slm-stock'),manage_stock:manage,stock_quantity:manage?val('slm-stock-qty'):'',short_description:val('slm-desc'),category_ids:state.selectedCats.slice(),brand_ids:brandIds,ensure_artwork:true,image_id:Number(state.editor.image_id)||0,gallery_ids:Array.isArray(state.editor.gallery_ids)?state.editor.gallery_ids.map(Number).filter(function(id){return id>0;}):[]};
+  var btn=document.querySelector('[data-act="save-product"]');if(btn){btn.disabled=true;btn.textContent='SAVING…';}
+  var path=state.editor.id?'merchant/product/'+state.editor.id:'merchant/product';
+  api(path,{method:'POST',body:JSON.stringify(body)}).then(function(saved){
+    var stockView=state.view==='stock',activeName=stockView?'stock':'products',activeData=state.productsByView[activeName]||cget(productCacheKey(stockView),0);
+    state.page=1;state.query='';state.categoryId=0;state.stockStatus='all';
+    cdelPrefix('slm-products-');state.searchPools={products:null,stock:null};state.productsByView={products:null,stock:null};
+    if(activeData)state.productsByView[activeName]=activeData;
+    state.editor=null;state.catSearch='';render();window.scrollTo(0,0);
+    loadProducts(stockView,true);
+    if(saved&&saved.permalink){try{navigator.clipboard&&navigator.clipboard.writeText(saved.permalink);}catch(e){}}
+  }).catch(function(){if(btn){btn.disabled=false;btn.textContent=state.editor&&state.editor.id?'UPDATE':'CREATE';}alert('Could not save product.');});
 }''')
 
 t = replace_func(t, 'ordersKey', r'''function ordersKey(page){return vkey('slm-orders-'+String(page||state.page||1));}''')
