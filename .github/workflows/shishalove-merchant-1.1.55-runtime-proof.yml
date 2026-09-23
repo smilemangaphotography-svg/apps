@@ -1,0 +1,140 @@
+name: ShishaLove Merchant 1.1.55 Android Runtime Proof
+
+on:
+  push:
+    branches: [merchant-post-update-master-fix-1.1.53]
+    paths:
+      - '.github/workflows/shishalove-merchant-1.1.55-runtime-proof.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-runtime-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dbebfa8fda7138c7b7b878af338178068c029fc9
+          fetch-depth: 0
+
+      - name: Verify source commit
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "dbebfa8fda7138c7b7b878af338178068c029fc9"
+          grep -Fq 'function slm3FetchTaxonomy()' shishalove-mobile/merchant/src/main/assets/merchant_phone_polish.js
+          grep -Fq "return t?t.name:'Main Category'" shishalove-mobile/merchant/src/main/assets/merchant_phone_polish.js
+          grep -Fq 'slmq-panel' shishalove-mobile/merchant/src/main/assets/merchant_phone_polish.js
+
+      - name: Prepare read-only Android patch input
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/slm-bridge-input
+          mkdir -p /tmp/slm-bridge-input/assets
+          cp shishalove-wordpress-bridge/runtime/merchant-approved-beta-1.1.50.js /tmp/slm-bridge-input/assets/merchant.js
+
+      - name: Generate exact Android 1.1.55 runtime
+        run: |
+          set -euo pipefail
+          python3 shishalove-mobile/tools/patch-merchant-final-1.1.55.py /tmp/slm-bridge-input
+          grep -Fq 'versionCode 155' shishalove-mobile/merchant/build.gradle
+          grep -Fq "versionName '1.1.55'" shishalove-mobile/merchant/build.gradle
+          grep -Fq 'final int expectedBuild = 155;' shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java
+
+      - name: Add ephemeral Android WebView verification host
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          main = Path('shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java')
+          text = main.read_text(encoding='utf-8')
+          old = 'private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=155";'
+          new = 'private static final String START_URL = "file:///android_asset/runtime_proof.html";'
+          if old not in text:
+              raise SystemExit('1.1.55 START_URL anchor missing')
+          main.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          html = r'''<!doctype html>
+          <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+          <style>
+          body{margin:0;font-family:Arial,sans-serif;background:#fff;color:#111}.slm-app{padding:16px 18px 86px}.slm-top{height:72px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee}.slm-top b{font-size:18px}.slm-page h1{font-size:30px;margin:24px 0 2px}.slm-muted{color:#777}.slm-search{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:8px;margin:20px 0 0}.slm-search input,.slm-search button,select{height:48px;border:1px solid #ddd;border-radius:14px;background:#fff;padding:0 12px;font-size:14px;box-sizing:border-box}.slm-search button{background:#111;color:#fff;font-weight:700}.native-filters{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.slm-product-row{display:grid;grid-template-columns:58px 1fr 32px;gap:10px;align-items:center;padding:13px 0;border-bottom:1px solid #eee}.slm-product-row img{width:54px;height:54px;object-fit:contain}.slm-product-row h3{font-size:15px;margin:0 0 5px}.slm-product-row p{margin:3px 0}.slm-green{color:#11965d}.slm-more{border:0;background:none;font-size:25px}.slm-bottom{position:fixed;left:0;right:0;bottom:0;height:68px;background:#fff;border-top:1px solid #eee;display:grid;grid-template-columns:repeat(5,1fr);place-items:center;font-size:11px}.slm-filter-tabs{display:flex;gap:14px;margin:8px 0}.slm-filter-tabs button{border:0;background:none;padding:8px 0}
+          </style></head>
+          <body class="slb-merchant"><div id="slb-root"><div class="slm-app">
+          <header class="slm-top"><span>☰</span><b>SHISHALOVE MERCHANT</b><span>↻</span></header>
+          <main class="slm-page"><div class="slm-head"><div><h1>Stock</h1><div class="slm-muted">2340 matching products</div></div></div>
+          <div class="slm-search"><input id="slm-product-search" placeholder="Search product name or SKU"><button data-act="search-products">Search</button></div>
+          <div class="native-filters"><select id="slm-category-filter"><option value="0">All categories</option><option value="1">Hookah</option><option value="2">Darkside</option><option value="3">Bowls</option><option value="4">Phunnel</option></select><select id="slm-stock-filter"><option value="all">Filter · All</option><option value="instock">In stock</option><option value="outofstock">Out of stock</option></select></div>
+          <div class="slm-filter-tabs"><button>All</button><button>Hookah</button><button>Bowls</button><button>Accessories</button></div>
+          <section id="slm-product-list"><article class="slm-product-row" data-edit="101"><div style="width:54px;height:54px;border-radius:8px;background:#eee"></div><div><h3>Darkside Hermes</h3><p>€30.00</p><p class="slm-green">● In stock</p></div><button class="slm-more" aria-label="Edit">⋮</button></article></section>
+          </main><nav class="slm-bottom"><span>Dashboard</span><span>Orders</span><span>Products</span><span>Stock</span><span>More</span></nav>
+          </div></div>
+          <script>
+          window.SHISHALOVE_BRIDGE={rest:'https://runtime-proof.invalid/wp-json/shishalove/v1/',restNonce:'proof'};
+          function proofResponse(obj,status){status=status||200;return Promise.resolve({ok:status>=200&&status<300,status:status,text:function(){return Promise.resolve(JSON.stringify(obj));},json:function(){return Promise.resolve(obj);},clone:function(){return this;}});}
+          window.fetch=function(url,opts){url=String(url);
+            if(url.indexOf('merchant/bootstrap')>=0)return new Promise(function(resolve){setTimeout(function(){resolve({ok:true,status:200,json:function(){return Promise.resolve({categories:{all:[{id:1,name:'Hookah',slug:'hookah',count:128,parent:0,image:''},{id:2,name:'Darkside',slug:'darkside',count:24,parent:1,image:''},{id:3,name:'Bowls',slug:'bowls',count:52,parent:0,image:''},{id:4,name:'Phunnel',slug:'phunnel',count:20,parent:3,image:''}]}});},text:function(){return Promise.resolve('{}');},clone:function(){return this;}});},2500);});
+            if(url.indexOf('merchant/product/101')>=0&&(!opts||!opts.method||opts.method==='GET'))return proofResponse({id:101,name:'Darkside Hermes',sku:'DS-HERMES',type:'simple',price:'30',regular_price:'30',sale_price:'',manage_stock:true,stock_quantity:1,stock_status:'instock'});
+            if(url.indexOf('merchant/products')>=0)return proofResponse({items:[],total:0,pages:1,page:1});
+            return proofResponse({});
+          };
+          setTimeout(function(){var b=document.querySelector('.slm-more');if(b)b.click();},7000);
+          </script></body></html>'''
+          Path('shishalove-mobile/merchant/src/main/assets/runtime_proof.html').write_text(html,encoding='utf-8')
+          PY
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build verification-only APK
+        working-directory: shishalove-mobile
+        run: gradle :merchant:assembleRelease --stacktrace
+
+      - name: Prove exact packaged JS markers
+        run: |
+          set -euo pipefail
+          APK='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          unzip -p "$APK" assets/merchant_phone_polish.js > /tmp/packaged-polish.js
+          grep -Fq 'function slm3FetchTaxonomy()' /tmp/packaged-polish.js
+          grep -Fq "return t?t.name:'Main Category'" /tmp/packaged-polish.js
+          grep -Fq 'slmq-panel' /tmp/packaged-polish.js
+          grep -Fq 'Quick Edit' /tmp/packaged-polish.js
+
+      - name: Android WebView runtime screenshots
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            set -e
+            mkdir -p proof
+            adb shell wm size 360x800
+            adb shell wm density 160
+            adb install -r shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk
+            adb shell am force-stop eu.shishalove.merchant
+            adb shell am start -n eu.shishalove.merchant/.MerchantActivityV121
+            sleep 5
+            adb exec-out screencap -p > proof/runtime-stock.png
+            sleep 4
+            adb exec-out screencap -p > proof/runtime-quick-edit.png
+
+      - name: Upload runtime proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-merchant-1.1.55-android-runtime-proof
+          path: proof/*.png
+          if-no-files-found: error
