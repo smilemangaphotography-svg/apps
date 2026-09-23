@@ -450,20 +450,27 @@ function slmQPatchRow(item,parentId){
 function slmQFetchFreshParent(parent){
   return slmQFindParentWithVariations(parent).then(function(fresh){return fresh||parent;});
 }
+function slmQShowError(message){
+  slmQState.error=String(message||'');
+  var er=document.getElementById('slmq-error');if(er){er.textContent=slmQState.error;er.classList.add('show');}
+}
+function slmQSetBusy(busy){
+  slmQState.busy=!!busy;var btn=document.querySelector('[data-slmq="update"]');if(btn){btn.disabled=!!busy;btn.textContent=busy?'UPDATING…':'UPDATE';}
+}
 function slmQSubmit(){
   var p=slmQState.parent,t=slmQCurrentTarget();if(!p||!t||slmQState.busy||slmQState.loadFailed)return;
   var price=document.getElementById('slmq-price'),qty=document.getElementById('slmq-qty'),status=document.getElementById('slmq-status'),body={};
   var variableParent=String(p.type||'')==='variable'&&Number(t.id)===Number(p.id);
   if(price&&!price.disabled&&!variableParent){
-    var v=String(price.value||'').trim();if(v===''){slmQState.error='Enter a valid price.';slmQRender();return;}
-    var n=Number(v);if(!Number.isFinite(n)||n<0){slmQState.error='Enter a valid price.';slmQRender();return;}
+    var v=String(price.value||'').trim();if(v===''){slmQShowError('Enter a valid price.');return;}
+    var n=Number(v);if(!Number.isFinite(n)||n<0){slmQShowError('Enter a valid price.');return;}
     var originalPrice=Number(slmQPriceValue(t));
     if(!Number.isFinite(originalPrice)||n!==originalPrice){
       if(String(t.sale_price==null?'':t.sale_price).trim()!=='')body.sale_price=String(n);else body.regular_price=String(n);
     }
   }
   if(qty&&!qty.disabled&&t.manage_stock){
-    var q=Number(qty.value);if(!Number.isFinite(q)||q<0||Math.floor(q)!==q){slmQState.error='Enter a whole stock quantity.';slmQRender();return;}
+    var q=Number(qty.value);if(!Number.isFinite(q)||q<0||Math.floor(q)!==q){slmQShowError('Enter a whole stock quantity.');return;}
     var originalQty=t.stock_quantity==null?null:Number(t.stock_quantity);
     if(originalQty===null||q!==originalQty)body.stock_quantity=String(q);
   }
@@ -471,8 +478,8 @@ function slmQSubmit(){
     var nextStatus=String(status.value||t.stock_status||'instock');
     if(nextStatus!==String(t.stock_status||''))body.stock_status=nextStatus;
   }
-  if(!Object.keys(body).length){slmQState.error='No changes to update.';slmQRender();return;}
-  slmQState.busy=true;slmQState.error='';slmQRender();
+  if(!Object.keys(body).length){slmQShowError('No changes to update.');return;}
+  slmQState.error='';var er=document.getElementById('slmq-error');if(er){er.textContent='';er.classList.remove('show');}slmQSetBusy(true);
   slmQApi(t.id,'POST',body).then(function(saved){
     if(!slmQState.open)return;
     var isParent=Number(t.id)===Number(p.id);
@@ -482,7 +489,7 @@ function slmQSubmit(){
       slmQFetchFreshParent(p).then(function(fresh){slmQUpdateCache(p.id,fresh);slmQPatchRow(fresh,p.id);slmQClose();});
     }
   }).catch(function(err){
-    slmQState.busy=false;slmQState.error='Update failed: '+String(err&&err.message||err||'Unknown error');slmQRender();
+    slmQSetBusy(false);slmQShowError('Update failed: '+String(err&&err.message||err||'Unknown error'));
   });
 }
 function slmQFullEdit(){
