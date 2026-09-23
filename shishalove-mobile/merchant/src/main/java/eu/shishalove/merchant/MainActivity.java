@@ -368,10 +368,23 @@ public class MainActivity extends Activity {
         super.onPause();
     }
 
-    @Override
-    public void onBackPressed() {
+    private void performDefaultMerchantBack() {
         if (webView != null && webView.canGoBack()) webView.goBack();
         else super.onBackPressed();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (webView == null) {
+            super.onBackPressed();
+            return;
+        }
+        webView.evaluateJavascript(
+                "(function(){try{return !!(window.__SLM_FILTER_CLOSE_OPEN&&window.__SLM_FILTER_CLOSE_OPEN());}catch(e){return false;}})();",
+                value -> {
+                    if (!"true".equals(value)) performDefaultMerchantBack();
+                }
+        );
     }
 
     @Override
