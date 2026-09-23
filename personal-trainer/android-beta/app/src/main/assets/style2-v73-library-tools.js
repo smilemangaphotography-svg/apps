@@ -128,7 +128,6 @@ function toggleExercise(id){
  const next=!S.v73ManualDisabled[id];
  S.v73ManualDisabled[id]=next;
  applyAvailability(true);openEquipmentManager();
- toast73(next?`${e.name} removed from your library`:`${e.name} restored`);
 }
 let swipeClickLockUntil=0;
 function swipeRemove(id){
@@ -142,7 +141,6 @@ function swipeRemove(id){
   if($('#pageTrain.active'))filterTrainLibrary();
   bindSwipeGestures();
  },20);
- toast73(`${e.name} removed · restore anytime in Equipment & Exercise Library`);
 }
 function bindSwipeGestures(root=document){
  root.querySelectorAll('[data-swipe-exercise]').forEach(row=>{
