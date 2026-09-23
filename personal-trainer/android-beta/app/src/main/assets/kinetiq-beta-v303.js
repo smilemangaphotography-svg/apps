@@ -100,7 +100,7 @@ function patchDates(){
 }
 function stabiliseDateStrip(){
   const box=$('.v7-days');if(!box)return;
-  const cards=$('.v7-day',box),ordered=[...cards].sort((a,b)=>String(a.dataset.v7Date).localeCompare(String(b.dataset.v7Date)));
+  const cards=Array.from(box.querySelectorAll('.v7-day')),ordered=[...cards].sort((a,b)=>String(a.dataset.v7Date).localeCompare(String(b.dataset.v7Date)));
   if(cards.length===ordered.length&&cards.every((x,i)=>x===ordered[i]))return;
   ordered.forEach(x=>box.appendChild(x));
 }
