@@ -71,9 +71,9 @@ jobs:
           # Canonical WooCommerce callbacks: products, variations, stock and HPOS-safe orders.
           grep -Fq 'function slb_sync_merchant_products_152' "$MAIN"
           grep -Fq 'function slb_sync_merchant_orders_152' "$MAIN"
-          grep -Fq "'stock_quantity' => $product->get_stock_quantity()" "$MAIN"
-          grep -Fq "'variations' => $variations" "$MAIN"
-          grep -Fq "'status' => $statuses" "$MAIN"
+          grep -Fq "'stock_quantity' => \\$product->get_stock_quantity()" "$MAIN"
+          grep -Fq "'variations' => \\$variations" "$MAIN"
+          grep -Fq "'status' => \\$statuses" "$MAIN"
           grep -Fq "wc_get_orders(array(" "$MAIN"
           grep -Fq "'Cache-Control', 'private, no-store, no-cache, must-revalidate, max-age=0'" "$MAIN"
           grep -Fq "register_rest_route('shishalove/v1', '/merchant/products'" "$MAIN"
