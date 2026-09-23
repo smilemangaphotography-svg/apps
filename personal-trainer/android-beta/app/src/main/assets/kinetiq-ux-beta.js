@@ -46,8 +46,27 @@ function sendAI(){const v=V(),p=v.pending;if(!p)return;const first=p.rows[0]?.da
 function cancelAI(){const v=V();v.pending=null;saveState();window.PT29?.closeSheet?.()}
 function wireAI(){const api=window.ILIA_V7;if(!api)return;api.openAI=openAI;api.fillAI=fillAI;api.askAI=askAI;api.sendAI=sendAI;api.cancelAI=cancelAI;api.replace=silentReplace;api.add=silentAdd;api.applyRecommended=()=>applyTab('recommended');api.applyAI=()=>applyTab('ai');const fab=$('#v7AiFab');if(fab){fab.innerHTML='<span>✦</span><b>AI</b><small>Coach</small>';fab.onclick=openAI;const p=$('.page.active')?.dataset.page;fab.classList.toggle('hidden',!(p==='home'||p==='plan'||p==='train'))}}
 function decorate(){restoreBottomNav();wireAI();enhanceLibrary();decoratePlan();suppressSuccessBars();installCanonicalDetail()}
-function observe(){if(observer)return;observer=new MutationObserver(()=>setTimeout(decorate,0));observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']})}
-function init(){if(!window.PT29||!window.ILIA_V7||!window.__KINETIQ_BETA303__){setTimeout(init,120);return}decorate();observe();window.__KINETIQ_UX_BETA__=VERSION;document.documentElement.dataset.kinetiqUxBeta='ready'}
+let decorateBusy=false,decorateTimer=null;
+const observerOptions={subtree:true,childList:true,attributes:true,attributeFilter:['class']};
+function runDecorate(){
+ if(decorateBusy)return;
+ decorateBusy=true;
+ if(observer)observer.disconnect();
+ try{decorate()}finally{
+  decorateBusy=false;
+  if(observer)observer.observe(document.body,observerOptions);
+ }
+}
+function observe(){
+ if(observer)return;
+ observer=new MutationObserver(()=>{
+  if(decorateBusy)return;
+  clearTimeout(decorateTimer);
+  decorateTimer=setTimeout(runDecorate,24);
+ });
+ observer.observe(document.body,observerOptions);
+}
+function init(){if(!window.PT29||!window.ILIA_V7||!window.__KINETIQ_BETA303__){setTimeout(init,120);return}runDecorate();observe();window.__KINETIQ_UX_BETA__=VERSION;document.documentElement.dataset.kinetiqUxBeta='ready'}
 window.KINETIQUX={version:VERSION,openAI,fillAI,askAI,sendAI,cancelAI,aiProposal,decoratePlan,enhanceLibrary,upgradeCanonicalDetail};
 setTimeout(init,1150);
 })();
