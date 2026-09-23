@@ -161,14 +161,15 @@ public class MainActivity extends Activity {
                 "var f=window.__ILIA_MASTER_FIX__||'missing';" +
                 "var v=window.__ILIA_V7__||'missing';" +
                 "var b=window.__KINETIQ_BETA303__||'missing';" +
-                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.3-runtime-ready'&&v==='3.0.3-calendar-ai-ready'&&b==='KINETIQ-3.0.3-approved-beta-1')?'ready':(p+'|'+s+'|'+m+'|'+f+'|'+v+'|'+b);" +
+                "var u=window.__KINETIQ_UX_BETA__||'missing';" +
+                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.3-runtime-ready'&&v==='3.0.3-calendar-ai-ready'&&b==='KINETIQ-3.0.3-approved-beta-1'&&u==='KINETIQ-3.0.3-ux-beta-1')?'ready':(p+'|'+s+'|'+m+'|'+f+'|'+v+'|'+b+'|'+u);" +
                 "}catch(e){return 'error';}})()";
         view.evaluateJavascript(probe, value -> {
             if ("\"ready\"".equals(value)) return;
             if (attempt + 1 < RUNTIME_MAX_ATTEMPTS) {
                 view.postDelayed(() -> verifyRuntimeReady(view, attempt + 1), RUNTIME_RETRY_MS);
             } else {
-                Toast.makeText(MainActivity.this, "KINETIQ BETA 3.0.3 runtime failed to initialize", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.this, "KINETIQ UX BETA 3.0.3 runtime failed to initialize", Toast.LENGTH_LONG).show();
             }
         });
     }
