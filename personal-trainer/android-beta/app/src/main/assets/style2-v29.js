@@ -95,9 +95,11 @@ function attachMotion(stage,e){
  if(S.animationEnabled[e.id]===false){playBtn.textContent='OFF';playBtn.disabled=true;return}
  const builtin=motionSrc(e);
  const load=async()=>{
-   let customPoster='';
-   if(window.PT29Admin?.posterUrlForExercise){customPoster=await window.PT29Admin.posterUrlForExercise(e.id);if(customPoster){let img=$('img',stage);if(!img){img=document.createElement('img');stage.insertBefore(img,ui)}img.src=customPoster;img.alt=e.name||'';img.className='detail-poster-v29';stage.classList.add('custom-image-stage-v29')}}
-   let customAnimation='';if(window.PT29Admin?.urlForExercise)customAnimation=await window.PT29Admin.urlForExercise(e.id);
+   const bounded=async p=>{try{return await Promise.race([Promise.resolve(p),new Promise(r=>setTimeout(()=>r(''),350))])||''}catch(_){return''}};
+   const posterTask=window.PT29Admin?.posterUrlForExercise?bounded(window.PT29Admin.posterUrlForExercise(e.id)):Promise.resolve('');
+   const animationTask=window.PT29Admin?.urlForExercise?bounded(window.PT29Admin.urlForExercise(e.id)):Promise.resolve('');
+   const [customPoster,customAnimation]=await Promise.all([posterTask,animationTask]);
+   if(customPoster){let img=$('img',stage);if(!img){img=document.createElement('img');stage.insertBefore(img,ui)}img.src=customPoster;img.alt=e.name||'';img.className='detail-poster-v29';stage.classList.add('custom-image-stage-v29')}
    const sources=[customAnimation,builtin].filter((x,i,a)=>x&&a.indexOf(x)===i);if(!sources.length){showFallback();return}
    const img=$('img',stage),v=document.createElement('video');v.className='motion-video-v29';v.muted=true;v.loop=true;v.playsInline=true;v.autoplay=true;v.preload='auto';v.controls=false;if(customPoster||canonicalPoster)v.poster=customPoster||canonicalPoster;if(img)img.replaceWith(v);else stage.insertBefore(v,ui);
    let sourceIndex=0,userPaused=false,playPending=false;
