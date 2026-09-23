@@ -221,7 +221,7 @@ function slm3RestoreSharedState(){
   setTimeout(function(){restoreRunning=false;},120);
 }
 
-function slm3MainLabel(){var t=taxonomyMap[ui.mainId];return t?t.name:'All';}
+function slm3MainLabel(){var t=taxonomyMap[ui.mainId];return t?t.name:'Main Category';}
 function slm3SubLabel(){var t=taxonomyMap[ui.subId];return t?t.name:'Category / Brand';}
 function slm3FilterLabel(){return ui.mode==='instock'?'Filter · In stock':ui.mode==='outofstock'?'Filter · Out of stock':ui.mode==='newest'?'Newest first':ui.mode==='oldest'?'Oldest first':'Filter · All';}
 function slm3Option(value,label,selected,key){return '<button type="button" class="slm3-option '+(selected?'selected':'')+'" data-slm3-kind="'+key+'" data-slm3-value="'+slm3Esc(value)+'"><span>'+slm3Esc(label)+'</span><span class="slm3-check">'+(selected?'✓':'')+'</span></button>';}
