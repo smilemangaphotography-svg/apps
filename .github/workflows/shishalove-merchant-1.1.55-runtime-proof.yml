@@ -127,6 +127,14 @@ jobs:
           script: |
             set -e
             mkdir -p proof
+            echo "Waiting for Android package manager..."
+            for i in $(seq 1 90); do
+              if adb shell service check package 2>/dev/null | grep -qi 'found'; then
+                break
+              fi
+              sleep 2
+            done
+            adb shell service check package | grep -qi 'found'
             adb shell wm size 360x800
             adb shell wm density 160
             adb install -r shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk
