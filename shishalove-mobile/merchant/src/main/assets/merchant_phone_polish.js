@@ -40,6 +40,17 @@ fix();setTimeout(fix,80);setTimeout(fix,260);if(!window.__slm115obs){var q=false
 'use strict';
 if(window.__SLM3_FILTER_UI_INSTALLED)return;
 window.__SLM3_FILTER_UI_INSTALLED=true;
+window.__SLM_RUNTIME_DIAGNOSTICS=window.__SLM_RUNTIME_DIAGNOSTICS||[];
+function slmDiag(marker,detail){
+  try{
+    var row={marker:String(marker),detail:detail==null?'':String(detail),time:Date.now()};
+    window.__SLM_RUNTIME_DIAGNOSTICS.push(row);
+    if(window.__SLM_RUNTIME_DIAGNOSTICS.length>80)window.__SLM_RUNTIME_DIAGNOSTICS.shift();
+    if(window.console&&console.log)console.log('[SLM_RUNTIME]',row.marker,row.detail);
+  }catch(e){}
+}
+slmDiag('MERCHANT_POLISH_LOADED','document='+String(location.href||''));
+slmDiag('MERCHANT_POLISH_INIT','readyState='+String(document.readyState||''));
 
 var STORAGE='slm3-shared-filter-v1';
 var STYLE_ID='slm3-filter-style';
@@ -47,9 +58,10 @@ var ROW_ID='slm3-filter-row';
 var openKey='';
 var taxonomy=null;
 var taxonomyMap={};
-var taxonomyPromise=null;
-var taxonomyRetryAfter=0;
 var lastProductView='';
+var slm3MountedOnce=false;
+var slm3LastDomMarker='';
+var lastTaxonomyWaitLog=0;
 var restoreRunning=false;
 var initialStateHandled=false;
 var savedExists=false;
@@ -101,40 +113,23 @@ function slm3SetTaxonomy(rows){
   taxonomy=(rows||[]).map(function(x){return{id:Number(x.id)||0,name:String(x.name||''),slug:String(x.slug||''),count:Number(x.count||0),parent:Number(x.parent)||0,image:String(x.image||'')};}).filter(function(x){return x.id>0;});
   taxonomyMap={};taxonomy.forEach(function(x){taxonomyMap[x.id]=x;});
   slm3ValidateState();
+  if(taxonomy.length)slmDiag('TAXONOMY_READY','terms='+taxonomy.length);
   return taxonomy;
-}
-function slm3ScheduleTaxonomyRetry(){
-  var wait=Math.max(250,taxonomyRetryAfter-Date.now()+40);
-  clearTimeout(slm3ScheduleTaxonomyRetry._t);
-  slm3ScheduleTaxonomyRetry._t=setTimeout(function(){taxonomyPromise=null;slm3Mount();},wait);
-}
-function slm3FetchTaxonomy(){
-  var cfg=window.SHISHALOVE_BRIDGE||{},base=String(cfg.rest||location.origin+'/wp-json/shishalove/v1/');
-  var headers={'Cache-Control':'no-cache','Pragma':'no-cache'};
-  if(cfg.restNonce)headers['X-WP-Nonce']=cfg.restNonce;
-  return nativeFetch(base+'merchant/bootstrap?_slm_ui='+Date.now(),{
-    method:'GET',credentials:'same-origin',cache:'no-store',headers:headers
-  }).then(function(r){
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    return r.json();
-  }).then(function(d){
-    var rows=d&&d.categories&&Array.isArray(d.categories.all)?d.categories.all:[];
-    if(!rows.length)throw new Error('Merchant taxonomy unavailable');
-    return rows;
-  });
 }
 function slm3EnsureTaxonomy(){
   if(taxonomy&&taxonomy.length)return Promise.resolve(taxonomy);
   var cached=slm3ReadTaxonomyCache();
-  if(cached)return Promise.resolve(slm3SetTaxonomy(cached));
-  if(taxonomyPromise)return taxonomyPromise;
-  if(Date.now()<taxonomyRetryAfter){slm3ScheduleTaxonomyRetry();return Promise.resolve([]);}
-  taxonomyPromise=slm3FetchTaxonomy().then(function(rows){
-    taxonomyPromise=null;taxonomyRetryAfter=0;return slm3SetTaxonomy(rows);
-  },function(){
-    taxonomyPromise=null;taxonomyRetryAfter=Date.now()+650;slm3ScheduleTaxonomyRetry();return [];
-  });
-  return taxonomyPromise;
+  if(cached&&cached.length)return Promise.resolve(slm3SetTaxonomy(cached));
+  return Promise.resolve([]);
+}
+function slm3AcceptBootstrapPayload(data){
+  try{
+    var rows=data&&data.categories&&Array.isArray(data.categories.all)?data.categories.all:null;
+    if(rows&&rows.length){
+      slm3SetTaxonomy(rows);
+      slm3Schedule();
+    }
+  }catch(e){slmDiag('INIT_ERROR','bootstrap payload: '+String(e&&e.message||e));}
 }
 function slm3TermAvailable(id){
   id=Number(id)||0;var t=taxonomyMap[id];if(!t)return false;if(Number(t.count||0)>0)return true;
@@ -184,12 +179,22 @@ function slm3FlushProductBatch(){
     var n=b.waiters.length;b.waiters.forEach(function(w,i){try{w.resolve(i===n-1?resp:resp.clone());}catch(e){w.reject(e);}});
   }).catch(function(err){b.waiters.forEach(function(w){w.reject(err);});});
 }
+function slm3ObserveBootstrap(input,promise){
+  var raw=typeof input==='string'?input:(input&&input.url)||String(input||'');
+  if(raw.indexOf('merchant/bootstrap')<0)return promise;
+  return promise.then(function(resp){
+    try{
+      resp.clone().json().then(slm3AcceptBootstrapPayload).catch(function(){});
+    }catch(e){}
+    return resp;
+  });
+}
 window.fetch=function(input,init){
   var rewritten=slm3RewriteProductUrl(input);
   if(productBatch&&slm3IsProductRequest(rewritten)){
     return new Promise(function(resolve,reject){productBatch.input=rewritten;productBatch.init=init;productBatch.waiters.push({resolve:resolve,reject:reject});clearTimeout(productBatch.timer);productBatch.timer=setTimeout(slm3FlushProductBatch,36);});
   }
-  return nativeFetch(rewritten,init);
+  return slm3ObserveBootstrap(rewritten,nativeFetch(rewritten,init));
 };
 function slm3BeginProductBatch(){if(productBatch)return;productBatch={input:null,init:null,waiters:[],timer:null};}
 
@@ -252,6 +257,7 @@ function slm3RenderControls(){
   var row=document.createElement('div');row.id=ROW_ID;
   row.innerHTML=slm3Control('main',slm3MainLabel(),slm3MainMenu(),false)+slm3Control('sub',slm3SubLabel(),slm3SubMenu(),!ui.mainId)+slm3Control('filter',slm3FilterLabel(),slm3FilterMenu(),false);
   search.insertAdjacentElement('afterend',row);slm3HideNativeAndTabs();slm3BindRow(row);slm3PositionOpenMenu();
+  slm3MountedOnce=true;slmDiag('FILTER_UI_MOUNTED',page);
 }
 function slm3BindRow(row){
   row.addEventListener('click',function(ev){
@@ -275,16 +281,25 @@ function slm3NeedsNativeRestore(){
     String(n.search.value||'')!==String(ui.search||'');
 }
 function slm3Mount(){
-  slm3InstallStyle();var page=slm3PageName();
-  if(!page){openKey='';lastProductView='';return;}
-  slm3EnsureTaxonomy().then(function(rows){
-    if(!rows.length)return;
-    if(!initialStateHandled){initialStateHandled=true;if(!savedExists)slm3DeriveFromNative();else slm3RestoreSharedState();}
-    else if((lastProductView&&lastProductView!==page&&savedExists)||slm3NeedsNativeRestore())slm3RestoreSharedState();
-    lastProductView=page;
-    if(document.getElementById(ROW_ID)){slm3HideNativeAndTabs();slm3AttachSearchState();return;}
-    slm3RenderControls();slm3AttachSearchState();
-  });
+  try{
+    slm3InstallStyle();var page=slm3PageName();
+    if(!page){openKey='';lastProductView='';return;}
+    if(slm3LastDomMarker!==page){slm3LastDomMarker=page;slmDiag(page==='Stock'?'STOCK_DOM_FOUND':'PRODUCTS_DOM_FOUND','');}
+    slm3EnsureTaxonomy().then(function(rows){
+      try{
+        if(!rows.length){
+          if(Date.now()-lastTaxonomyWaitLog>1000){lastTaxonomyWaitLog=Date.now();slmDiag('TAXONOMY_WAITING','real bootstrap/cache not ready');}
+          return;
+        }
+        if(!initialStateHandled){initialStateHandled=true;if(!savedExists)slm3DeriveFromNative();else slm3RestoreSharedState();}
+        else if((lastProductView&&lastProductView!==page&&savedExists)||slm3NeedsNativeRestore())slm3RestoreSharedState();
+        lastProductView=page;
+        if(document.getElementById(ROW_ID)){slm3HideNativeAndTabs();slm3AttachSearchState();return;}
+        if(slm3MountedOnce)slmDiag('FILTER_UI_REPLACED',page+' remote render replaced custom row');
+        slm3RenderControls();slm3AttachSearchState();
+      }catch(e){slmDiag('INIT_ERROR','mount async: '+String(e&&e.stack||e&&e.message||e));}
+    });
+  }catch(e){slmDiag('INIT_ERROR','mount: '+String(e&&e.stack||e&&e.message||e));}
 }
 function slm3CloseOpen(){if(!openKey)return false;openKey='';slm3RenderControls();return true;}
 window.__SLM_FILTER_CLOSE_OPEN=slm3CloseOpen;
@@ -522,12 +537,27 @@ document.addEventListener('click',function(ev){
   if(a==='close')slmQClose();else if(a==='update')slmQSubmit();else if(a==='full')slmQFullEdit();
 },true);
 document.addEventListener('click',function(ev){if(slmQState.open&&ev.target&&ev.target.id==='slmq-root')slmQClose();},false);
+slmDiag('QUICK_EDIT_BOUND','document capture listener active');
 
 var slm3CloseOpenBase=slm3CloseOpen;
 window.__SLM_FILTER_CLOSE_OPEN=function(){if(slmQState.open){slmQClose();return true;}return slm3CloseOpenBase();};
 
 var slm3Queued=false;
-function slm3Schedule(){if(slm3Queued)return;slm3Queued=true;setTimeout(function(){slm3Queued=false;slm3Mount();},45);}
-slm3Mount();setTimeout(slm3Mount,120);setTimeout(slm3Mount,360);
-if(document.documentElement){new MutationObserver(slm3Schedule).observe(document.documentElement,{childList:true,subtree:true});}
+function slm3Schedule(){
+  if(slm3Queued)return;
+  slm3Queued=true;
+  Promise.resolve().then(function(){slm3Queued=false;slm3Mount();});
+}
+function slm3InitLifecycle(){
+  slmDiag('MERCHANT_POLISH_INIT','lifecycle attached');
+  slm3Mount();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',slm3Mount,{once:true});
+  if(document.documentElement){
+    new MutationObserver(function(){
+      if(slm3MountedOnce&&slm3PageName()&&!document.getElementById(ROW_ID))slmDiag('FILTER_UI_REPLACED',slm3PageName()+' DOM replaced');
+      slm3Schedule();
+    }).observe(document.documentElement,{childList:true,subtree:true});
+  }
+}
+slm3InitLifecycle();
 })();
