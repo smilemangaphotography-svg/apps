@@ -276,7 +276,7 @@ window.addEventListener('resize',function(){if(openKey)slm3CloseOpen();});
 window.addEventListener('scroll',function(){if(openKey)slm3CloseOpen();},{passive:true});
 
 
-var slmQState={open:false,row:null,parent:null,parentId:0,target:null,targetId:0,variations:[],busy:false,error:'',statusTouched:false};
+var slmQState={open:false,row:null,parent:null,parentId:0,target:null,targetId:0,variations:[],busy:false,error:'',statusTouched:false,loadFailed:false};
 
 function slmQInstallStyle(){
   if(document.getElementById('slm-quick-edit-style')||!document.head)return;
@@ -353,6 +353,11 @@ function slmQSetTarget(id){
 function slmQPanelMarkup(){
   if(!slmQState.parent)return '<div class="slmq-loading">Loading product…</div>';
   var p=slmQState.parent,t=slmQState.target||slmQCurrentTarget(),isVariable=String(p.type||'')==='variable',vars=slmQState.variations||[];
+  if(slmQState.loadFailed){
+    return '<div class="slmq-context"><strong>'+slm3Esc(p.name||('Product #'+slmQState.parentId))+'</strong><small>Quick Edit unavailable</small></div>'+
+      '<div class="slmq-error show">'+slm3Esc(slmQState.error||'Could not load current WooCommerce values.')+'</div>'+
+      '<div class="slmq-actions"><button type="button" class="slmq-full" data-slmq="full">FULL EDIT</button><button type="button" class="slmq-update" disabled>UPDATE</button></div>';
+  }
   var selector='';
   if(isVariable){
     var opts='<option value="">Select variation</option>';
@@ -397,7 +402,7 @@ function slmQRender(){
 }
 function slmQClose(){slmQState.open=false;slmQState.busy=false;slmQState.error='';slmQRender();}
 function slmQOpen(row,id){
-  openKey='';slm3RenderControls();slmQState={open:true,row:row,parent:null,parentId:Number(id)||0,target:null,targetId:0,variations:[],busy:false,error:'',statusTouched:false};slmQRender();
+  openKey='';slm3RenderControls();slmQState={open:true,row:row,parent:null,parentId:Number(id)||0,target:null,targetId:0,variations:[],busy:false,error:'',statusTouched:false,loadFailed:false};slmQRender();
   slmQApi(id,'GET').then(function(parent){
     if(!slmQState.open||Number(slmQState.parentId)!==Number(id))return;
     slmQState.parent=parent;slmQState.parentId=Number(parent.id)||Number(id);
@@ -410,7 +415,10 @@ function slmQOpen(row,id){
     }
     slmQState.targetId=Number(parent.id);slmQState.target=parent;slmQRender();
   }).catch(function(err){
-    if(!slmQState.open)return;slmQState.error=String(err&&err.message||err||'Could not load product');slmQState.parent={id:Number(id),name:'Product #'+id,type:'simple',manage_stock:false,stock_status:'instock'};slmQState.targetId=Number(id);slmQState.target=slmQState.parent;slmQRender();
+    if(!slmQState.open)return;
+    slmQState.error='Could not load current WooCommerce values: '+String(err&&err.message||err||'Unknown error');
+    slmQState.parent={id:Number(id),name:'Product #'+id,type:'unknown'};
+    slmQState.targetId=0;slmQState.target=null;slmQState.loadFailed=true;slmQRender();
   });
 }
 function slmQUpdateCache(parentId,saved){
@@ -443,19 +451,27 @@ function slmQFetchFreshParent(parent){
   return slmQFindParentWithVariations(parent).then(function(fresh){return fresh||parent;});
 }
 function slmQSubmit(){
-  var p=slmQState.parent,t=slmQCurrentTarget();if(!p||!t||slmQState.busy)return;
+  var p=slmQState.parent,t=slmQCurrentTarget();if(!p||!t||slmQState.busy||slmQState.loadFailed)return;
   var price=document.getElementById('slmq-price'),qty=document.getElementById('slmq-qty'),status=document.getElementById('slmq-status'),body={};
   var variableParent=String(p.type||'')==='variable'&&Number(t.id)===Number(p.id);
   if(price&&!price.disabled&&!variableParent){
     var v=String(price.value||'').trim();if(v===''){slmQState.error='Enter a valid price.';slmQRender();return;}
     var n=Number(v);if(!Number.isFinite(n)||n<0){slmQState.error='Enter a valid price.';slmQRender();return;}
-    if(String(t.sale_price==null?'':t.sale_price).trim()!=='')body.sale_price=String(n);else body.regular_price=String(n);
+    var originalPrice=Number(slmQPriceValue(t));
+    if(!Number.isFinite(originalPrice)||n!==originalPrice){
+      if(String(t.sale_price==null?'':t.sale_price).trim()!=='')body.sale_price=String(n);else body.regular_price=String(n);
+    }
   }
   if(qty&&!qty.disabled&&t.manage_stock){
-    var q=Number(qty.value);if(!Number.isFinite(q)||q<0||Math.floor(q)!==q){slmQState.error='Enter a whole stock quantity.';slmQRender();return;}body.stock_quantity=String(q);
+    var q=Number(qty.value);if(!Number.isFinite(q)||q<0||Math.floor(q)!==q){slmQState.error='Enter a whole stock quantity.';slmQRender();return;}
+    var originalQty=t.stock_quantity==null?null:Number(t.stock_quantity);
+    if(originalQty===null||q!==originalQty)body.stock_quantity=String(q);
   }
-  if(status)body.stock_status=String(status.value||t.stock_status||'instock');
-  if(!Object.keys(body).length){slmQState.error='No quick-edit field is available for this item.';slmQRender();return;}
+  if(status){
+    var nextStatus=String(status.value||t.stock_status||'instock');
+    if(nextStatus!==String(t.stock_status||''))body.stock_status=nextStatus;
+  }
+  if(!Object.keys(body).length){slmQState.error='No changes to update.';slmQRender();return;}
   slmQState.busy=true;slmQState.error='';slmQRender();
   slmQApi(t.id,'POST',body).then(function(saved){
     if(!slmQState.open)return;
@@ -470,7 +486,8 @@ function slmQSubmit(){
   });
 }
 function slmQFullEdit(){
-  var row=slmQState.row;slmQClose();setTimeout(function(){if(row&&document.documentElement.contains(row))row.click();},0);
+  var id=Number(slmQState.parentId)||0,row=slmQState.row;slmQClose();
+  setTimeout(function(){if(!row||!document.documentElement.contains(row))row=document.querySelector('.slm-product-row[data-edit="'+id+'"]');if(row)row.click();},0);
 }
 document.addEventListener('click',function(ev){
   var more=ev.target.closest&&ev.target.closest('.slm-product-row .slm-more');
