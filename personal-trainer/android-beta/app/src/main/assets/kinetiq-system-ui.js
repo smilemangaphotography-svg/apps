@@ -243,9 +243,12 @@ function applyAI(){
 function keepCurrent(){const v=V();v.pending=null;saveState();window.PT29?.closeSheet?.();if($('.page.active')?.dataset.page==='plan')renderSystemPlan()}
 function applySelectedAI(){const v=V(),k=v.selectedDate,src=v.aiPlans[k];if(!src)return;v.myPlans[k]=clone(src);v.planTab='my';syncLegacy();saveState();renderSystemPlan()}
 function startExerciseFromDetail(id,opt={}){
- const s=state(),v=V(),e=window.PT29?.byId?.(id);if(!e)return;const date=opt.date||v.selectedDate||ymd(today()),map=opt.planTab==='ai'?v.aiPlans:v.myPlans,p=map[date];syncLegacy();let offset=Math.round((new Date(date+'T12:00:00')-today())/86400000);if(offset<0||offset>6)offset=0;
- if(p?.ids?.length){s.program[offset]={type:p.type==='Run'?'run':p.type==='Recovery'?'rehab':'strength',name:p.name,duration:p.duration||v.duration||45,ids:[...p.ids],programIndex:offset};s.currentDay=offset}else{s.program[0]={type:'strength',name:e.name,duration:v.duration||45,ids:[id],programIndex:0};s.currentDay=0;offset=0}
- const index=Math.max(0,(s.program[offset].ids||[]).indexOf(id));saveState();$('#exerciseDetail')?.classList.add('hidden');window.startWorkout?.(index,offset)
+ const st=state(),v=V(),e=window.PT29?.byId?.(id);if(!e)return;
+ const date=opt.date||v.selectedDate||ymd(today()),usePlan=opt.source==='plan'||opt.source==='ai-recommended',map=opt.planTab==='ai'?v.aiPlans:v.myPlans,p=usePlan?map[date]:null;
+ syncLegacy();let offset=Math.round((new Date(date+'T12:00:00')-today())/86400000);if(offset<0||offset>6)offset=0;
+ if(p?.ids?.length&&p.ids.includes(id)){st.program[offset]={type:p.type==='Run'?'run':p.type==='Recovery'?'rehab':'strength',name:p.name,duration:p.duration||v.duration||45,ids:[...p.ids],programIndex:offset};st.currentDay=offset}
+ else{offset=0;st.program[0]={type:'strength',name:e.name,duration:v.duration||45,ids:[id],programIndex:0};st.currentDay=0}
+ const index=Math.max(0,(st.program[offset].ids||[]).indexOf(id));saveState();$('#exerciseDetail')?.classList.add('hidden');window.startWorkout?.(index,offset)
 }
 function resumeWorkout(){if(state().activeWorkout?.active){if(window.restoreWorkoutState?.())return;$('#workoutOverlay')?.classList.remove('hidden');window.renderWorkout?.()}}
 function openDevices(){const gps=window.PTNative?.hasLocationPermission?.()?'Ready':'Permission required',sensor=state().lastSensor||{},garmin=state().connected?.garmin||state().garmin||null;window.PT29?.sheet?.('Devices / Garmin',`<div class="medical-note"><b>PHONE GPS</b>${esc(gps)}. Running Coach uses location only during an active run.</div><div class="profile-row-v29"><span>Garmin</span><b>${garmin?'Connected / data available':'Not connected'}</b></div><div class="profile-row-v29"><span>Heart rate</span><b>${sensor.hr?esc(sensor.hr+' bpm'):'Awaiting sensor data'}</b></div><div class="profile-row-v29"><span>Cadence</span><b>${sensor.cadence?esc(sensor.cadence+' spm'):'Awaiting sensor data'}</b></div><div class="block-note">KINETIQ displays external metrics only when supplied by the device/native integration.</div>`)}
