@@ -19,7 +19,7 @@ const pass=(name,ok,detail='')=>{if(!ok)throw new Error(name+' FAIL'+(detail?': 
   await page.waitForSelector('#mainApp:not(.hidden)',{timeout:4000});
 
   const scripts=await page.evaluate(()=>[...document.scripts].map(s=>s.getAttribute('src')).filter(Boolean));
-  pass('SYSTEM ENTRYPOINT',location.pathname.endsWith('/system.html'),'system.html');
+  const pathname=await page.evaluate(()=>location.pathname);pass('SYSTEM ENTRYPOINT',pathname.endsWith('/system.html'),'system.html');
   pass('OLD PRESENTATION DISABLED',!scripts.some(x=>/kinetiq-ux-beta|style2-v29-master-mockup|style2-v29-master-fix|style2-v7-final-fix/.test(x)),scripts.join('|'));
 
   const nav=(await page.locator('.system-nav .nav-btn small').allTextContents()).map(x=>x.trim());
@@ -41,7 +41,7 @@ const pass=(name,ok,detail='')=>{if(!ok)throw new Error(name+' FAIL'+(detail?': 
   pass('TRAIN',cards>5,'approved Exercise Library cards='+cards);
   pass('OLD TRAIN NOT PRIMARY',await page.locator('#pageTrain .train-tabs-v29,#pageTrain .ux-page-heading').count()===0,'system library owns Train');
 
-  const firstMotion=page.locator('#pageTrain .system-library-card').filter({has:page.locator('video')}).first();
+  const firstMotion=page.locator('#pageTrain .system-library-card:has(video)').first();
   await firstMotion.click();
   await page.waitForSelector('#exerciseDetail:not(.hidden).ux-canonical-detail',{timeout:4000});
   pass('CANONICAL EXERCISE DETAIL',await page.locator('#exerciseDetail #motionStage29').count()===1&&await page.locator('#exerciseDetail .phase-row-v29').count()===0,'canonical PT29 detail');
@@ -71,7 +71,7 @@ const pass=(name,ok,detail='')=>{if(!ok)throw new Error(name+' FAIL'+(detail?': 
   pass('SYSTEM BUILD MARKER',marker&&marker!=='DEV',marker);
 
   const shell=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,iw:innerWidth,nav:document.querySelector('.system-nav')?.getBoundingClientRect()}));
-  pass('A54 SAFE AREAS',shell.sw<=shell.iw+1&&shell.nav&&shell.nav.bottom<=innerHeight,'412×915 no horizontal overflow');
+  pass('A54 SAFE AREAS',shell.sw<=shell.iw+1&&shell.nav&&shell.nav.bottom<=shell.ih,'412×915 no horizontal overflow');
   if(errors.length)throw new Error('Runtime page errors: '+errors.join(' | '));
   await page.screenshot({path:path.join(out,'system-ui-proof.png'),fullPage:false,timeout:5000});
   fs.writeFileSync(path.join(out,'system-ui-proof.json'),JSON.stringify({scripts,nav,marker},null,2));
