@@ -105,62 +105,121 @@ function authoritativeShell(){
 }
 
 function currentContext(){
- const s=state(),v=V(),hist=(s.history||[]).slice(-3),todayKey=ymd(today()),tomorrowKey=ymd(addDays(today(),1));
- return {todayPlan:v.myPlans[todayKey]||null,tomorrowPlan:v.myPlans[tomorrowKey]||null,recent:hist.map(x=>x.name||s.program?.[x.day]?.name||'Workout'),equipment:s.equipment||'Full Gym',duration:v.duration||s.minutes||45,recovery:s.recoveryProfiles||{}};
+ const s=state(),v=V(),todayKey=ymd(today()),tomorrowKey=ymd(addDays(today(),1)),hist=(s.history||[]).slice(-8);
+ const latest=hist.length?hist[hist.length-1]:null;
+ return {
+   todayPlan:v.myPlans[todayKey]||null,
+   tomorrowPlan:v.myPlans[tomorrowKey]||null,
+   recent:hist.map(x=>({name:x.name||s.program?.[x.day]?.name||'Workout',date:x.date||0,day:x.day,type:x.type||''})),
+   latest,
+   equipment:s.equipment||'Full Gym',
+   duration:v.duration||s.minutes||45,
+   recovery:s.recoveryProfiles||{},
+   schedule:s.schedule||{},
+   completed:s.completed||{}
+ };
 }
+function bodyFromWords(t){return /full\s*body/.test(t)?'full':/(upper body|chest|back|shoulders|arms)/.test(t)?'upper':/(lower body|legs|quads|glutes|hamstrings|calves)/.test(t)?'lower':/(recovery|mobility|easy day)/.test(t)?'recovery':null}
 function parseIntent(text){
- const t=String(text||'').toLowerCase().replace(/[’]/g,"'").replace(/\s+/g,' ').trim();const ctx=currentContext();
+ const raw=String(text||'').replace(/[’]/g,"'").replace(/\s+/g,' ').trim(),t=raw.toLowerCase(),ctx=currentContext();
  const minutesMatch=t.match(/(\d{2,3})\s*(?:min|minute)/),minutes=minutesMatch?Math.max(10,Math.min(120,+minutesMatch[1])):(/half\s*hour/.test(t)?30:null);
- const body=/full\s*body/.test(t)?'full':/(upper body|chest|back|shoulders|arms)/.test(t)?'upper':/(lower body|legs|quads|glutes|hamstrings)/.test(t)?'lower':/recovery|mobility|easy day/.test(t)?'recovery':null;
- const place=/(home|no gym|without (?:the )?gym|can't .*gym|cannot .*gym|don't have time .*gym)/.test(t)?'home':/(outdoor|outside|park)/.test(t)?'outdoor':/gym/.test(t)?'gym':null;
- const trained=/(trained|did|worked|hit|completed)/.test(t),missed=/(missed|skipped|couldn't train|could not train)/.test(t);
- const day=/tomorrow/.test(t)?'tomorrow':/yesterday/.test(t)?'yesterday':/today/.test(t)?'today':'today';
+ const completedMatch=t.match(/(?:i\s+)?(?:trained|did|worked|hit|completed)\s+(?:my\s+)?([^.!?]+?)(?:\s+(today|yesterday))?(?=[.!?]|$)/i);
+ const trainedBody=completedMatch?bodyFromWords(completedMatch[1].toLowerCase()):null;
+ const trainedDay=completedMatch?(completedMatch[2]?.toLowerCase()||(/\byesterday\b/.test(t)?'yesterday':/\btoday\b/.test(t)?'today':null)):null;
+ const requestMatch=t.match(/(?:i\s+)?(?:want|need|give me|suggest|recommend|do|train)\s+(?:to\s+)?(?:a\s+)?([^.!?]+?)(?=\s+(?:today|tomorrow|at home|at the gym|in the gym|home|gym)|[.!?]|$)/i);
+ let requestedBody=requestMatch?bodyFromWords(requestMatch[1]):null;
+ if(!requestedBody&&/(?:want|need|give me|suggest|recommend).*(upper body|lower body|full body|legs|recovery|mobility)/.test(t))requestedBody=bodyFromWords(t.replace(/(?:trained|did|worked|hit|completed)[^.!?]*/g,''));
+ const requestedDay=/\btomorrow\b/.test(t)?'tomorrow':/\btoday\b/.test(t)?'today':trainedDay==='yesterday'?'today':'today';
+ const place=/(home|no gym|without (?:the )?gym|can't .*gym|cannot .*gym|don't .*gym|do not .*gym)/.test(t)?'home':/(outdoor|outside|park)/.test(t)?'outdoor':/(at (?:the )?gym|in (?:the )?gym|\bgym\b)/.test(t)?'gym':null;
+ const missed=/(missed|skipped|couldn't train|could not train)/.test(t),adjust=/(adjust|change|move|rearrange|update|what should i do|what do i do)/.test(t);
  const equipment=[];if(/band/.test(t))equipment.push('band');if(/dumbbell/.test(t))equipment.push('dumbbells');if(/bodyweight|no equipment|minimal equipment/.test(t))equipment.push('bodyweight');
- const run=/run|running|tempo|interval|long run|easy run/.test(t),adjust=/adjust|change|move|rearrange|update/.test(t);
- return {raw:t,ctx,minutes,body,place,trained,missed,day,equipment,run,adjust};
+ const run=/\b(run|running|tempo|interval|long run|easy run)\b/.test(t);
+ const gymDays=[['thursday',4],['friday',5],['monday',1],['tuesday',2],['wednesday',3],['saturday',6],['sunday',0]].filter(([n])=>new RegExp('\\b'+n+'\\b').test(t)).map(x=>x[1]);
+ return {raw:t,ctx,minutes,trainedBody,trainedDay,requestedBody,requestedDay,place,missed,adjust,equipment,run,gymDays};
 }
-function homeUpper(minutes,equipment=[]){const text=[{name:'Pike Push-Up',prescription:'3 × 8–12',muscles:'Shoulders + Triceps'},{name:'Chair Dips',prescription:'3 × 10–15',muscles:'Triceps + Chest'}];if(equipment.includes('band')||!equipment.length)text.push({name:'Band Row',prescription:'3 × 12–15',muscles:'Back + Biceps'});else text.push({name:'Prone W Raise',prescription:'3 × 10–15',muscles:'Upper Back'});return plan('Home','AI Home Upper Body',['pushup','sideplank'],text,minutes||30,{location:'Home'})}
-function homeLower(minutes){return plan('Home','AI Home Lower Body',['sideplank'],[{name:'Chair Squat',prescription:'3 × 10–15',muscles:'Quads + Glutes'},{name:'Glute Bridge',prescription:'3 × 12–15',muscles:'Glutes + Hamstrings'},{name:'Supported Reverse Lunge',prescription:'3 × 8 / side',muscles:'Quads + Glutes'},{name:'Calf Raise',prescription:'3 × 12–20',muscles:'Calves'}],minutes||30,{location:'Home'})}
-function homeFull(minutes){return plan('Home','AI Home Full Body',['pushup','sideplank'],[{name:'Chair Squat',prescription:'3 × 12',muscles:'Lower Body'},{name:'Glute Bridge',prescription:'3 × 15',muscles:'Glutes'},{name:'Pike Push-Up',prescription:'3 × 8–12',muscles:'Shoulders'},{name:'Dead Bug',prescription:'3 × 8 / side',muscles:'Core'}],minutes||30,{location:'Home'})}
-const gymUpper=minutes=>plan('Upper','AI Upper Strength',['machinepress','row','lat','shoulderpress','facepull'],[],minutes||40,{location:'Gym'});
-const gymLower=minutes=>plan('Legs','AI Lower Strength',['legpress','stepup','hipthrust','hamcurl','seatedcalf'],[],minutes||45,{location:'Gym'});
-const gymFull=minutes=>plan('Full Body','AI Full Body Strength',['legpress','machinepress','row','hipthrust','pallof'],[],minutes||45,{location:'Gym'});
-const recoveryPlan=minutes=>plan('Recovery','AI Recovery / Mobility',['sideplank','pallof'],[{name:'Easy Mobility',prescription:`${minutes||20} min`,muscles:'Full Body'}],minutes||20,{location:'Flexible'});
+function homeUpper(minutes,equipment=[]){const text=[{name:'Pike Push-Up',prescription:'3 × 8–12',muscles:'Shoulders + Triceps'},{name:'Chair Dips',prescription:'3 × 10–15',muscles:'Triceps + Chest'}];if(equipment.includes('band')||!equipment.length)text.push({name:'Band Row',prescription:'3 × 12–15',muscles:'Back + Biceps'});else text.push({name:'Prone W Raise',prescription:'3 × 10–15',muscles:'Upper Back'});return plan('Upper','AI Home Upper Body',['pushup','sideplank'],text,minutes||30,{location:'Home',intensity:'Moderate'})}
+function homeLower(minutes){return plan('Legs','AI Home Lower Body',['sideplank'],[{name:'Chair Squat',prescription:'3 × 10–15',muscles:'Quads + Glutes'},{name:'Glute Bridge',prescription:'3 × 12–15',muscles:'Glutes + Hamstrings'},{name:'Supported Reverse Lunge',prescription:'3 × 8 / side',muscles:'Quads + Glutes'},{name:'Calf Raise',prescription:'3 × 12–20',muscles:'Calves'}],minutes||30,{location:'Home',intensity:'Moderate'})}
+function homeFull(minutes){return plan('Full Body','AI Home Full Body',['pushup','sideplank'],[{name:'Chair Squat',prescription:'3 × 12',muscles:'Lower Body'},{name:'Glute Bridge',prescription:'3 × 15',muscles:'Glutes'},{name:'Pike Push-Up',prescription:'3 × 8–12',muscles:'Shoulders'},{name:'Dead Bug',prescription:'3 × 8 / side',muscles:'Core'}],minutes||30,{location:'Home',intensity:'Moderate'})}
+const gymUpper=minutes=>plan('Upper','AI Upper Strength',['machinepress','row','lat','shoulderpress','facepull'],[],minutes||40,{location:'Gym',intensity:'Moderate'});
+const gymLower=minutes=>plan('Legs','AI Lower Strength',['legpress','stepup','hipthrust','hamcurl','seatedcalf'],[],minutes||45,{location:'Gym',intensity:'Moderate'});
+const gymFull=minutes=>plan('Full Body','AI Full Body Strength',['legpress','machinepress','row','hipthrust','pallof'],[],minutes||45,{location:'Gym',intensity:'Moderate'});
+const recoveryPlan=minutes=>plan('Recovery','AI Recovery / Mobility',['sideplank','pallof'],[{name:'Easy Mobility',prescription:`${minutes||20} min`,muscles:'Full Body'}],minutes||20,{location:'Flexible',intensity:'Easy'});
 function weekdayDate(wd){const d=today(),delta=(wd-d.getDay()+7)%7;return addDays(d,delta===0?7:delta)}
-function runPlan(name,kind,distance,duration){return {type:'Run',name,ids:[],textExercises:[],duration:duration||40,run:{kind,distance},location:'Outdoor'}}
-function aiProposal(text){
- const i=parseIntent(text),v=V(),d=today();let rows=[],reason='',decision='';const target=i.day==='tomorrow'?addDays(d,1):d;
- const trainedUpper=i.trained&&i.body==='upper',trainedLower=i.trained&&i.body==='lower';
- if(i.missed&&/thursday|friday|saturday|sunday/.test(i.raw)){
-   rows=[{date:weekdayDate(4),plan:gymUpper(45),note:'Gym · Upper Strength'},{date:weekdayDate(5),plan:gymLower(45),note:'Gym · Lower Strength'},{date:weekdayDate(6),plan:runPlan('AI Easy Run','Easy Run','5K',30),note:'Outdoor · Easy Run'},{date:weekdayDate(0),plan:runPlan('AI Long Run','Long Run',v.run?.distance||'10K',60),note:'Outdoor · Long Run'}];decision='Rebuild the remaining week';reason='You missed today and limited gym access to Thursday and Friday, so strength moves to those days while Saturday and Sunday stay available for running.';
- }else if(trainedLower&&i.day==='yesterday'){
-   rows=[{date:d,plan:gymUpper(i.minutes||40),note:'Today · Upper body while legs recover'}];decision='Upper body today';reason='Legs were trained yesterday. Upper body maintains strength work without stacking another heavy lower-body session.';
- }else if(trainedUpper&&i.day==='today'&&i.adjust){
-   const next=i.place==='home'?homeLower(i.minutes||30):gymLower(i.minutes||45);rows=[{date:addDays(d,1),plan:next,note:'Tomorrow · moves away from today’s upper-body load'}];decision='Change tomorrow';reason='You completed upper body today, so tomorrow shifts away from another upper session to preserve balance and recovery.';
- }else if(i.place==='home'){
-   const p=i.body==='lower'?homeLower(i.minutes):i.body==='full'?homeFull(i.minutes):homeUpper(i.minutes,i.equipment);rows=[{date:target,plan:p,note:`${p.duration} min · Home`}];decision=`${p.name}`;reason='Your request requires a home session, so KINETIQ uses home-appropriate movements and keeps valid text-only exercises when motion media is unavailable.';
- }else if(i.body==='recovery'){
-   const p=recoveryPlan(i.minutes);rows=[{date:target,plan:p,note:`${p.duration} min · Recovery`}];decision='Recovery session';reason='You asked for recovery, so load is reduced and the session prioritizes tolerance, mobility and recovery rather than hard training.';
- }else if(i.run||i.place==='outdoor'){
-   const kind=/interval/.test(i.raw)?'Intervals':/tempo/.test(i.raw)?'Tempo Run':/long/.test(i.raw)?'Long Run':'Easy Run';const p=runPlan(`AI ${kind}`,kind,kind==='Long Run'?(v.run?.distance||'10K'):'5K',i.minutes||40);rows=[{date:target,plan:p,note:`Outdoor · ${kind}`}];decision=kind;reason='You asked for running/outdoor training, so the recommendation uses the Running Coach path and your configured pace target.';
- }else if(i.body==='lower'){
-   const p=gymLower(i.minutes);rows=[{date:target,plan:p,note:'Gym · Lower Strength'}];decision=p.name;reason='You asked for lower-body gym work, so KINETIQ builds a lower-body strength session using available equipment and exercises.';
- }else if(i.body==='full'){
-   const p=gymFull(i.minutes);rows=[{date:target,plan:p,note:'Gym · Full Body'}];decision=p.name;reason='You asked for full-body training, so the session balances upper, lower and trunk work inside your available time.';
- }else{
-   const p=gymUpper(i.minutes);rows=[{date:target,plan:p,note:'Gym · Upper Strength'}];decision=p.name;reason='KINETIQ selected a balanced upper-body strength session using your current plan, available exercise library and recovery context.';
+function runPlan(name,kind,distance,duration){return {type:'Run',name,ids:[],textExercises:[],duration:duration||40,run:{kind,distance},location:'Outdoor',intensity:/easy/i.test(kind)?'Easy':/long/i.test(kind)?'Steady':'Moderate'}}
+function planBody(p){if(!p)return null;const x=((p.type||'')+' '+(p.name||'')).toLowerCase();return /upper/.test(x)?'upper':/(legs|lower)/.test(x)?'lower':/run/.test(x)?'run':/recovery/.test(x)?'recovery':/full/.test(x)?'full':null}
+function chooseCompatible(i,targetDate){
+ const before=i.ctx?.tomorrowPlan&&i.requestedDay==='tomorrow'?i.ctx.tomorrowPlan:i.ctx?.todayPlan;
+ const recent=i.trainedBody;
+ if(i.requestedBody==='recovery')return recoveryPlan(i.minutes);
+ if(i.run||i.place==='outdoor')return runPlan('AI Easy Run','Easy Run','5K',i.minutes||35);
+ if(i.requestedBody==='upper')return i.place==='home'?homeUpper(i.minutes,i.equipment):gymUpper(i.minutes);
+ if(i.requestedBody==='lower')return i.place==='home'?homeLower(i.minutes):gymLower(i.minutes);
+ if(i.requestedBody==='full')return i.place==='home'?homeFull(i.minutes):gymFull(i.minutes);
+ if(recent==='lower'){
+   if(planBody(before)==='run')return runPlan('AI Easy Run','Easy Run','5K',i.minutes||35);
+   return i.place==='home'?homeUpper(i.minutes,i.equipment):gymUpper(i.minutes||40);
  }
- rows=rows.map(r=>({...r,before:clone(v.myPlans[ymd(r.date)]||{type:'Recovery',name:'No session',ids:[],duration:20})}));return {decision,rows,reason,request:text,intent:i};
+ if(recent==='upper'){
+   if(planBody(before)==='run')return runPlan('AI Easy Run','Easy Run','5K',i.minutes||35);
+   return i.place==='home'?homeLower(i.minutes):gymLower(i.minutes||45);
+ }
+ if(planBody(before)==='lower')return gymUpper(i.minutes||40);
+ if(planBody(before)==='upper')return gymLower(i.minutes||45);
+ return i.place==='home'?homeFull(i.minutes):gymUpper(i.minutes||40)
 }
-function exercisePreview(p){const rows=[];(p.ids||[]).forEach(id=>{const e=window.PT29?.byId?.(id);if(e)rows.push(`<div class="ux-ai-ex"><span>${window.PT29?.motionSrc?.(e)?'↻':'•'}</span><b>${esc(e.name)}</b><small>${esc(e.muscles||e.cat||'')}</small></div>`)});(p.textExercises||[]).forEach(x=>rows.push(`<div class="ux-ai-ex text"><span>TEXT</span><b>${esc(x.name)}</b><small>${esc(x.prescription||x.muscles||'')}</small></div>`));return rows.join('')}
-function pendingHtml(){const p=V().pending;if(!p)return'';const rows=p.rows.map(r=>{const before=r.before||{},changed=before.name!==r.plan.name;return `<section class="ux-ai-decision"><div class="ux-ai-date">${new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'numeric',month:'short'}).format(r.date)}</div>${changed?`<div class="ux-before"><small>BEFORE</small><b>${esc(before.name||'No session')}</b></div>`:''}<div class="ux-after"><small>${changed?'AFTER':'RECOMMENDED SESSION'}</small><b>${esc(r.plan.name)}</b><span>${esc(r.note||'')}</span></div>${r.plan.run?'':`<div class="ux-ai-exercises">${exercisePreview(r.plan)}</div>`}</section>`}).join('');return `<div class="v7-ai-result ux-ai-result"><div class="v7-kicker">KINETIQ COACH</div><h3>DECISION · ${esc(p.decision||'Plan adjustment')}</h3><p class="ux-ai-why"><b>WHY</b><span>${esc(p.reason)}</span></p><div class="v7-kicker">PROPOSED CHANGE</div>${rows}<div class="v7-ai-actions"><button class="v7-primary" onclick="KINETIQSystem.applyAI()">APPLY TO PLAN</button><button class="v7-secondary" onclick="KINETIQSystem.keepCurrent()">KEEP CURRENT PLAN</button></div></div>`}
-function openAI(){const v=V(),recent=(v.aiHistory||[]).slice(-4).filter(x=>x.role==='user').map(x=>`<div class="ux-ai-recent"><small>YOU</small><span>${esc(x.text)}</span></div>`).join('');window.PT29?.sheet?.('KINETIQ Coach',`<div class="v7-ai-sheet ux-ai-coach"><div class="ux-ai-intro"><small>ADAPTIVE PERSONAL TRAINER</small><h2>AI Coach</h2><p>Tell KINETIQ what you trained, missed, where you can train, the equipment you have, the time available, or what needs to change.</p></div><textarea id="v7AIInput" placeholder="Example: I trained legs yesterday. What should I do today?">${esc(v.lastAI||'')}</textarea><div class="v7-prompts"><button onclick="KINETIQSystem.fillAI('I trained legs yesterday. What should I do today?')">LEGS YESTERDAY</button><button onclick="KINETIQSystem.fillAI('I don’t have time for the gym today. Give me a home workout.')">HOME TODAY</button><button onclick="KINETIQSystem.fillAI('I did upper body at home today. Adjust tomorrow.')">ADJUST TOMORROW</button><button onclick="KINETIQSystem.fillAI('I missed today’s workout. I only have Thursday and Friday for gym and Saturday and Sunday for running. Adjust my week.')">ADJUST WEEK</button></div><button class="v7-primary" onclick="KINETIQSystem.askAI()">BUILD COACHING DECISION</button>${pendingHtml()}${recent?`<div class="ux-ai-history"><div class="v7-kicker">RECENT REQUESTS</div>${recent}</div>`:''}</div>`);$('#sheet')?.classList.add('ux-ai-coach-sheet')}
+function aiProposal(text){
+ const i=parseIntent(text),v=V(),d=today(),target=i.requestedDay==='tomorrow'?addDays(d,1):d;let rows=[],reason='',decision='';
+ if(i.missed&&/thursday|friday/.test(i.raw)){
+   const th=weekdayDate(4),fr=weekdayDate(5),sa=weekdayDate(6),su=weekdayDate(0);
+   rows=[{date:th,plan:gymUpper(45),note:'Gym · Upper Strength'},{date:fr,plan:gymLower(45),note:'Gym · Lower Strength'},{date:sa,plan:runPlan('AI Easy Run','Easy Run','5K',35),note:'Outdoor · Easy Run'},{date:su,plan:runPlan('AI Long Run','Long Run',v.run?.distance||'10K',60),note:'Outdoor · Long Run'}];
+   decision='Rebuild the remaining week';reason='The missed session is redistributed around your stated gym and running availability without stacking demanding lower-body work before both runs.';
+ }else if(i.missed){
+   const before=v.myPlans[ymd(target)]||null,p=chooseCompatible(i,target);rows=[{date:target,plan:p,note:'Rescheduled from missed session'}];decision='Move the missed session';reason=`The missed workout is moved into the next compatible slot instead of being duplicated. ${before?.name?'The current plan is considered before the change.':''}`;
+ }else{
+   const p=chooseCompatible(i,target),trained=i.trainedBody,when=i.trainedDay;
+   rows=[{date:target,plan:p,note:`${p.location||p.type} · ${p.intensity||'Moderate'}`}];
+   if(trained==='lower'&&when==='today'){decision='Protect lower-body recovery';reason='You trained legs today. Tomorrow shifts away from another lower-body strength session and uses the surrounding plan to choose a compatible upper, easy-run or recovery option.'}
+   else if(trained==='lower'&&when==='yesterday'){decision='Avoid consecutive lower-body loading';reason='Legs were trained yesterday. The next session moves away from heavy lower-body work unless you explicitly request another leg session.'}
+   else if(trained==='upper'&&when==='today'){decision='Balance tomorrow’s load';reason='You completed upper body today. Tomorrow moves away from another upper session while respecting your requested location and current calendar.'}
+   else if(i.requestedBody){decision=`${p.name}`;reason=`You explicitly requested ${i.requestedBody.replace('lower','lower body').replace('upper','upper body')} ${i.place==='home'?'at home':i.place==='gym'?'at the gym':''}. KINETIQ keeps that request while filtering against available exercises and the real calendar.`}
+   else if(i.place==='home'){decision=p.name;reason='You cannot use the gym for this session, so KINETIQ switches to a home-compatible workout and preserves text-only movements where no motion asset exists.'}
+   else{decision=p.name;reason='KINETIQ selected the next compatible session from your current calendar, recent training context, available equipment and recovery spacing.'}
+ }
+ rows=rows.map(r=>({...r,before:clone(v.myPlans[ymd(r.date)]||{type:'Recovery',name:'No session',ids:[],duration:20})}));
+ return {decision,rows,reason,request:text,intent:i,createdAt:Date.now()};
+}
+function rxLabel(e){try{const r=window.PT29?.rx?.(e)||{};return {sets:r.sets||e?.sets||3,reps:r.reps||e?.reps||'8–12',rest:r.rest||e?.rest||60}}catch(_){return {sets:e?.sets||3,reps:e?.reps||'8–12',rest:e?.rest||60}}}
+function exercisePreview(p){
+ const rows=[];
+ (p.ids||[]).forEach(id=>{const e=window.PT29?.byId?.(id);if(!e)return;const r=rxLabel(e),motion=!!window.PT29?.motionSrc?.(e);rows.push(`<div class="coach-ex-row"><span class="coach-ex-status ${motion?'motion':'text'}">${motion?'↻':'TEXT'}</span><span class="coach-ex-copy"><b>${esc(e.name)}</b><small>${esc(e.muscles||e.cat||'')} · ${esc(r.sets)} × ${esc(r.reps)} · ${esc(r.rest)}s rest</small></span></div>`)});
+ (p.textExercises||[]).forEach(x=>rows.push(`<div class="coach-ex-row"><span class="coach-ex-status text">TEXT</span><span class="coach-ex-copy"><b>${esc(x.name)}</b><small>${esc(x.muscles||'Guided exercise')} · ${esc(x.prescription||'Coach prescribed')}</small></span></div>`));
+ return rows.join('')
+}
+function pendingHtml(){
+ const p=V().pending;if(!p)return'';
+ const rows=p.rows.map(r=>{const before=r.before||{},changed=(before.name||'')!==(r.plan.name||'');return `<article class="coach-plan-card"><div class="coach-plan-date">${esc(new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'short'}).format(r.date).toUpperCase())}</div>${changed?`<div class="coach-diff"><div><small>BEFORE</small><b>${esc(before.name||'No session')}</b></div><span>→</span><div><small>AFTER</small><b>${esc(r.plan.name)}</b></div></div>`:''}<div class="coach-session-head"><div><small>RECOMMENDED SESSION</small><h3>${esc(r.plan.name)}</h3></div><span>${esc(r.plan.location||r.plan.type||'Flexible')}</span></div><div class="coach-session-meta"><span>${esc(r.plan.duration||45)} MIN</span><span>${esc(r.plan.intensity||'MODERATE').toUpperCase()}</span><span>${esc((r.plan.type||'TRAINING').toUpperCase())}</span></div>${r.plan.run?`<div class="coach-run-summary"><b>${esc(r.plan.run.kind||'Run')}</b><span>${esc(r.plan.run.distance||'')}</span></div>`:`<div class="coach-exercise-list">${exercisePreview(r.plan)}</div>`}</article>`}).join('');
+ return `<section class="coach-response"><div class="coach-response-brand"><span>✦</span><div><small>KINETIQ COACH</small><b>${esc(p.decision||'Coaching decision')}</b></div></div><div class="coach-why"><small>WHY</small><p>${esc(p.reason)}</p></div><div class="coach-change-label">PROPOSED CHANGE</div>${rows}<div class="coach-actions"><button class="apply" onclick="KINETIQSystem.applyAI()">APPLY TO PLAN</button><button class="keep" onclick="KINETIQSystem.keepCurrent()">KEEP CURRENT PLAN</button></div></section>`
+}
+function openAI(){
+ const v=V(),pending=!!v.pending;
+ window.PT29?.sheet?.('KINETIQ Coach',`<div class="system-coach"><div class="coach-intro"><span class="coach-orb">✦</span><div><small>ADAPTIVE PERSONAL TRAINER</small><h2>What changed?</h2><p>Tell KINETIQ what you trained, missed, where you can train, how much time you have, or what you want adjusted.</p></div></div><div class="coach-user"><label for="v7AIInput">YOUR MESSAGE</label><textarea id="v7AIInput" rows="3" placeholder="I trained legs today. What should I do tomorrow?">${esc(v.lastAI||'')}</textarea><div class="coach-prompts"><button onclick="KINETIQSystem.fillAI('I trained legs today. What should I do tomorrow?')">LEGS TODAY</button><button onclick="KINETIQSystem.fillAI('I cannot go to the gym today. Give me a home workout.')">HOME TODAY</button><button onclick="KINETIQSystem.fillAI('I missed today’s workout. I only have Thursday and Friday for gym and Saturday and Sunday for running. Adjust my week.')">ADJUST WEEK</button></div><button class="coach-build" onclick="KINETIQSystem.askAI()">BUILD COACHING DECISION →</button></div>${pendingHtml()}</div>`);
+ $('#sheet')?.classList.add('system-coach-sheet')
+}
 function fillAI(t){const a=$('#v7AIInput');if(a){a.value=t;a.focus()}}
-function askAI(){const a=$('#v7AIInput'),text=(a?.value||'').trim();if(!text){window.toast?.('Tell KINETIQ what changed first');return}const v=V();v.lastAI=text;v.pending=aiProposal(text);v.aiHistory.push({role:'user',text},{role:'coach',text:v.pending.reason});v.pending.rows.forEach(r=>v.aiPlans[ymd(r.date)]=clone(r.plan));saveState();openAI()}
-function applyAI(){const v=V(),p=v.pending;if(!p)return;const first=p.rows[0]?.date||today();p.rows.forEach(r=>{const k=ymd(r.date);v.aiPlans[k]=clone(r.plan);v.myPlans[k]=clone(r.plan)});v.pending=null;v.planTab='my';v.selectedDate=ymd(first);syncLegacy();saveState();window.PT29?.closeSheet?.();showPage('plan')}
+function askAI(){
+ const a=$('#v7AIInput'),text=(a?.value||'').trim();if(!text){window.toast?.('Tell KINETIQ what changed first');return}
+ const v=V();v.lastAI=text;v.pending=aiProposal(text);v.aiHistory.push({role:'user',text,at:Date.now()});if(v.aiHistory.length>20)v.aiHistory=v.aiHistory.slice(-20);
+ v.aiMeta=v.aiMeta||{};
+ v.pending.rows.forEach(r=>{const k=ymd(r.date);v.aiPlans[k]=clone(r.plan);v.aiMeta[k]={reason:v.pending.reason,decision:v.pending.decision,request:text,createdAt:Date.now()}});
+ saveState();openAI()
+}
+function applyAI(){
+ const v=V(),p=v.pending;if(!p)return;const first=p.rows[0]?.date||today();
+ p.rows.forEach(r=>{const k=ymd(r.date);v.aiPlans[k]=clone(r.plan);v.myPlans[k]=clone(r.plan)});
+ v.pending=null;v.planTab='my';v.selectedDate=ymd(first);syncLegacy();saveState();window.PT29?.closeSheet?.();showPage('plan')
+}
 function keepCurrent(){const v=V();v.pending=null;saveState();window.PT29?.closeSheet?.();if($('.page.active')?.dataset.page==='plan')renderSystemPlan()}
-function applySelectedAI(){const v=V(),k=v.selectedDate,src=v.aiPlans[k];if(!src)return;v.myPlans[k]=clone(src);v.planTab='my';syncLegacy();saveState();window.ILIA_V7?.renderPlan?.()}
-
+function applySelectedAI(){const v=V(),k=v.selectedDate,src=v.aiPlans[k];if(!src)return;v.myPlans[k]=clone(src);v.planTab='my';syncLegacy();saveState();renderSystemPlan()}
 function startExerciseFromDetail(id,opt={}){
  const s=state(),v=V(),e=window.PT29?.byId?.(id);if(!e)return;const date=opt.date||v.selectedDate||ymd(today()),map=opt.planTab==='ai'?v.aiPlans:v.myPlans,p=map[date];syncLegacy();let offset=Math.round((new Date(date+'T12:00:00')-today())/86400000);if(offset<0||offset>6)offset=0;
  if(p?.ids?.length){s.program[offset]={type:p.type==='Run'?'run':p.type==='Recovery'?'rehab':'strength',name:p.name,duration:p.duration||v.duration||45,ids:[...p.ids],programIndex:offset};s.currentDay=offset}else{s.program[0]={type:'strength',name:e.name,duration:v.duration||45,ids:[id],programIndex:0};s.currentDay=0;offset=0}
