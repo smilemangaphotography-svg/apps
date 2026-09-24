@@ -14,7 +14,26 @@ const pass=(name,ok,detail='')=>{if(!ok)throw new Error(name+' FAIL'+(detail?': 
  const errors=[];page.on('pageerror',e=>errors.push(String(e)));
  try{
   await page.goto('http://127.0.0.1:8765/system.html',{waitUntil:'domcontentloaded',timeout:15000});
-  await page.waitForFunction(()=>window.__KINETIQ_SYSTEM_UI__==='KINETIQ-SYSTEM-UI-2'&&window.__KINETIQ_SYSTEM_BETA__==='KINETIQ-3.0.3-system-beta-2',null,{timeout:7000});
+  try{
+    await page.waitForFunction(()=>window.__KINETIQ_SYSTEM_UI__==='KINETIQ-SYSTEM-UI-2'&&window.__KINETIQ_SYSTEM_BETA__==='KINETIQ-3.0.3-system-beta-2',null,{timeout:7000});
+  }catch(e){
+    const diag=await page.evaluate(()=>({
+      preflight:window.__ILIA_RUNTIME_PREFLIGHT__||null,
+      pt29:window.__PT_STYLE29__||null,
+      v7:window.__ILIA_V7__||null,
+      v73:window.__ILIA_V73_LIBRARY_TOOLS__||null,
+      hasPT29:!!window.PT29,
+      hasPT29Admin:!!window.PT29Admin,
+      hasILIA_V7:!!window.ILIA_V7,
+      hasILIA_V73:!!window.ILIA_V73,
+      beta303:window.__KINETIQ_BETA303__||null,
+      systemBeta:window.__KINETIQ_SYSTEM_BETA__||null,
+      systemUI:window.__KINETIQ_SYSTEM_UI__||null,
+      hasS:!!window.S,
+      active:document.querySelector('.page.active')?.dataset.page||null
+    }));
+    throw new Error('SYSTEM_STARTUP_DIAG '+JSON.stringify(diag)+' PAGE_ERRORS '+JSON.stringify(errors)+' ORIGINAL '+e.message);
+  }
   if(await page.locator('#style2Cover:not(.hidden)').count())await page.locator('#coverEnter').click();
   await page.waitForSelector('#mainApp:not(.hidden)',{timeout:4000});
 
