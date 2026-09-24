@@ -405,7 +405,7 @@ function selectSlide(select){
   if(r){const old=beta().selectedRouteId;beta().selectedRouteId=r.id;updateMap();beta().selectedRouteId=old}
 }
 function enhanceRunPage(){
-  const page=$('#pageMore');if(!page||!page.classList.contains('active')||!$('.v7-run-shell',page))return;
+  const page=$('#pageRun')||$('#pageMore');if(!page||!page.classList.contains('active')||!$('.v7-run-shell',page))return;
   const shell=$('.v7-run-shell',page);
   if(!$('#betaRunMap',shell)){const mapDiv=document.createElement('div');mapDiv.id='betaRunMap';const grid=$('.v7-run-grid',shell);grid?.insertAdjacentElement('afterend',mapDiv)}
   initMap();renderRouteSection();
