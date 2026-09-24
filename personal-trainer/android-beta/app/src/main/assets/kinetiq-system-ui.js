@@ -184,8 +184,8 @@ function chooseCompatible(i,targetDate){
    if(planBody(before)==='run')return runPlan('AI Easy Run','Easy Run','5K',i.minutes||35);
    return i.place==='home'?homeLower(i.minutes):gymLower(i.minutes||45);
  }
- if(planBody(before)==='lower')return gymUpper(i.minutes||40);
- if(planBody(before)==='upper')return gymLower(i.minutes||45);
+ if(planBody(before)==='lower')return i.place==='home'?homeUpper(i.minutes,i.equipment):gymUpper(i.minutes||40);
+ if(planBody(before)==='upper')return i.place==='home'?homeLower(i.minutes):gymLower(i.minutes||45);
  return i.place==='home'?homeFull(i.minutes):gymUpper(i.minutes||40)
 }
 function aiProposal(text){
