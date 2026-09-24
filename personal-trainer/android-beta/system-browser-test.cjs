@@ -89,7 +89,7 @@ const pass=(name,ok,detail='')=>{if(!ok)throw new Error(name+' FAIL'+(detail?': 
   const marker=(await page.locator('#systemBuildId').textContent()||'').trim();
   pass('SYSTEM BUILD MARKER',marker&&marker!=='DEV',marker);
 
-  const shell=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,iw:innerWidth,nav:document.querySelector('.system-nav')?.getBoundingClientRect()}));
+  const shell=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,iw:innerWidth,ih:innerHeight,nav:document.querySelector('.system-nav')?.getBoundingClientRect()}));
   pass('A54 SAFE AREAS',shell.sw<=shell.iw+1&&shell.nav&&shell.nav.bottom<=shell.ih,'412×915 no horizontal overflow');
   if(errors.length)throw new Error('Runtime page errors: '+errors.join(' | '));
   await page.screenshot({path:path.join(out,'system-ui-proof.png'),fullPage:false,timeout:5000});
