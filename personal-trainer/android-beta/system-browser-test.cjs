@@ -97,7 +97,7 @@ const shot=async(page,name,full=false)=>page.screenshot({path:path.join(out,name
    pass('APPLY TO PLAN',applied.location==='Home',applied.name);
    const tabs=(await page.locator('#pagePlan .system-tabs button').allTextContents()).map(x=>x.trim());
    pass('PLAN',tabs.join('|')==='MY PLAN|AI RECOMMENDED',tabs.join('|'));
-   pass('PLAN NO LEGACY MODES',!/MONTHLY|WEEKLY|2-WEEK|RECOMMENDED(?!ED)/i.test(await page.locator('#pagePlan').innerText()),'only final plan tabs');
+   pass('PLAN NO LEGACY MODES',!/MONTHLY|WEEKLY|2-WEEK BLOCKS/i.test(await page.locator('#pagePlan').innerText())&&await page.locator('#pagePlan .system-tabs button').count()===2,'only final plan tabs');
    await shot(page,'03-plan-my.png',true);
 
    await page.locator('[data-system-tab="ai"]').click();
@@ -168,8 +168,8 @@ const shot=async(page,name,full=false)=>page.screenshot({path:path.join(out,name
    pass('SYSTEM BUILD MARKER',marker&&marker!=='DEV',marker);
    await shot(page,'09-more.png',true);
 
-   const back=await page.evaluate(()=>ptHandleBack());
-   pass('ANDROID BACK',back==='handled'&&document.querySelector('#pageHome')?.classList.contains('active'),'More returns to Home');
+   const back=await page.evaluate(()=>{const result=ptHandleBack();return {result,home:document.querySelector('#pageHome')?.classList.contains('active')}});
+   pass('ANDROID BACK',back.result==='handled'&&back.home,'More returns to Home');
 
    const shell=await page.evaluate(()=>({
      sw:document.documentElement.scrollWidth,iw:innerWidth,ih:innerHeight,
