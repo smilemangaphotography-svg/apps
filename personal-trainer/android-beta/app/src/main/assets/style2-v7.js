@@ -6,7 +6,7 @@ const $$v=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 let baseShowMain=null;
-let runState={active:false,start:0,elapsed:0,distance:0,currentPace:0,target:310,lastVoice:0,lastLoc:null,timer:null};
+let runState={active:false,paused:false,start:0,elapsed:0,distance:0,currentPace:0,target:310,lastVoice:0,lastLoc:null,timer:null,paceSamples:[],lapPace:0,lapStartDistance:0,lapStartElapsed:0,hr:null,cadence:null,kind:'Easy Run',intervalPhase:'',intervalIndex:-1,summary:null};
 const SCORE={
  pushup:[8.4,'good'],incline:[8.9,'good'],lat:[9.0,'good'],rdl:[8.9,'good','hard'],
  row:[9.2,'good'],goblet:[8.7,'good'],legpress:[9.6,'good'],calf:[8.1,'good'],
@@ -56,21 +56,12 @@ function raceDistance(){
 }
 function seedV7(){
  if(!S.v7||typeof S.v7!=='object')S.v7={};
- const V=S.v7;
- V.version=VERSION;
- V.planTab=V.planTab||'my';
- V.selectedDate=V.selectedDate||ymd(today0());
- V.myPlans=V.myPlans||{};
- V.recommendedPlans=V.recommendedPlans||{};
- V.aiPlans=V.aiPlans||{};
- V.aiHistory=V.aiHistory||[];
- V.pending=V.pending||null;
- V.lastAI=V.lastAI||'';
- V.body=V.body||inferBodyPriority();
- V.duration=V.duration||S.minutes||45;
- V.run=V.run||{distance:raceDistance(),customKm:10,paceMin:5,paceSec:10,frequency:Math.max(1,S.schedule?.runningDays||1),priority:V.body.Running||'Secondary'};
- ensureCalendarPlans();
- saveAll();
+ const V=S.v7;V.version=VERSION;
+ if(V.planTab==='recommended')V.planTab='ai';if(!['my','ai'].includes(V.planTab))V.planTab='my';
+ V.selectedDate=V.selectedDate||ymd(today0());V.myPlans=V.myPlans||{};V.aiPlans=V.aiPlans||{};delete V.recommendedPlans;
+ V.aiHistory=V.aiHistory||[];V.pending=V.pending||null;V.lastAI=V.lastAI||'';V.body=V.body||inferBodyPriority();V.duration=V.duration||S.minutes||45;
+ V.run=Object.assign({distance:raceDistance(),customKm:10,paceMin:5,paceSec:10,frequency:Math.max(1,S.schedule?.runningDays||1),priority:V.body.Running||'Secondary',kind:'Easy Run'},V.run||{});
+ ensureCalendarPlans();saveAll();
 }
 function templateFor(wd,kind='my'){
  const legsA=['legpress','goblet','hipthrust','hamcurl','seatedcalf'];
@@ -105,16 +96,10 @@ function sanitizePlan(p){
  return p;
 }
 function ensureCalendarPlans(){
- const V=S.v7;
- calendarDates().forEach(d=>{
-  const k=ymd(d),wd=d.getDay();
-  V.myPlans[k]=sanitizePlan(V.myPlans[k]||templateFor(wd,'my'));
-  V.recommendedPlans[k]=sanitizePlan(V.recommendedPlans[k]||templateFor(wd,'recommended'));
-  V.aiPlans[k]=sanitizePlan(V.aiPlans[k]||clone(V.recommendedPlans[k]));
- });
+ const V=S.v7;calendarDates().forEach(d=>{const k=ymd(d),wd=d.getDay();V.myPlans[k]=sanitizePlan(V.myPlans[k]||templateFor(wd,'my'));if(!V.aiPlans[k])V.aiPlans[k]=clone(V.myPlans[k]);else V.aiPlans[k]=sanitizePlan(V.aiPlans[k])});
  if(!V.myPlans[V.selectedDate])V.selectedDate=ymd(today0());
 }
-function planMap(tab=S.v7.planTab){return tab==='my'?S.v7.myPlans:tab==='recommended'?S.v7.recommendedPlans:S.v7.aiPlans}
+function planMap(tab=S.v7.planTab){return tab==='ai'?S.v7.aiPlans:S.v7.myPlans}
 function selectedPlan(){ensureCalendarPlans();return planMap()[S.v7.selectedDate]}
 function selectedDate(){return parseYmd(S.v7.selectedDate)}
 function scoreOf(e){
@@ -137,13 +122,8 @@ function motionHtml(e,small=true){
  return `<div class="v7-motion ${small?'small':''}"><video autoplay loop muted playsinline preload="metadata" poster="${esc(poster)}"><source src="${esc(src)}" type="video/mp4"></video></div>`;
 }
 function exerciseHtml(id){
- const e=byId(id); if(!e)return'';
- const r=scoreOf(e);
- return `<article class="v7-ex" data-swipe-exercise="${esc(e.id)}" data-swipe-mode="replace">
-   ${motionHtml(e,true)}
-   <div class="v7-ex-main"><b>${esc(e.name)}</b><small>${esc(e.muscles||e.cat||'')}</small><div class="v7-badges">${ratingHtml(e,true)}</div></div>
-   <strong class="v7-score">${r.score}/10</strong>
- </article>`;
+ const e=byId(id);if(!e)return'';const r=scoreOf(e);
+ return `<article class="v7-ex" tabindex="0" role="button" aria-label="${esc(e.name)}. Open exercise detail." data-swipe-exercise="${esc(e.id)}" data-swipe-mode="replace" onclick="ILIA_V7.openExercise('${esc(e.id)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();ILIA_V7.openExercise('${esc(e.id)}')}">${motionHtml(e,true)}<div class="v7-ex-main"><b>${esc(e.name)}</b><small>${esc(e.muscles||e.cat||'')}</small><div class="v7-badges">${ratingHtml(e,true)}</div></div><strong class="v7-score">${r.score}/10</strong></article>`;
 }
 function textExercisesHtml(p){
  const list=Array.isArray(p?.textExercises)?p.textExercises:[];
@@ -168,33 +148,11 @@ function dateStrip(){
 function centerDate(){
  const box=$v('.v7-days'),a=$v('.v7-day.active');if(!box||!a)return;const left=a.offsetLeft-(box.clientWidth-a.offsetWidth)/2;box.scrollLeft=Math.max(0,left);
 }
-function tabs(){
- return `<div class="v7-tabs">
-  <button class="${S.v7.planTab==='my'?'active':''}" onclick="ILIA_V7.tab('my')">MY PLAN</button>
-  <button class="${S.v7.planTab==='recommended'?'active':''}" onclick="ILIA_V7.tab('recommended')">RECOMMENDED</button>
-  <button class="${S.v7.planTab==='ai'?'active':''}" onclick="ILIA_V7.tab('ai')">AI RECOMMENDED</button>
- </div>`;
-}
+function tabs(){return `<div class="v7-tabs"><button class="${S.v7.planTab==='my'?'active':''}" onclick="ILIA_V7.tab('my')">MY PLAN</button><button class="${S.v7.planTab==='ai'?'active':''}" onclick="ILIA_V7.tab('ai')">AI RECOMMENDED</button></div>`}
 function renderPlanV7(){
- seedV7();
- const root=$v('#pagePlan');if(!root)return;
- const p=selectedPlan(),d=selectedDate();
- const meta=S.v7.planTab==='my'?'YOUR PLAN':S.v7.planTab==='recommended'?'COACH RECOMMENDED':'AI RECOMMENDED';
- root.innerHTML=`<div class="v7-page">
-  ${tabs()}${dateStrip()}
-  <section class="v7-plan-card">
-   <div class="v7-kicker">${meta} · ${esc(fullDate(d).toUpperCase())}</div>
-   <h1>${esc(p?.name||'No session')}</h1>
-   <p>${S.v7.duration} min · ${esc(p?.type||'Rest')}</p>
-   <div class="v7-ex-list">${planExercisesHtml(p)}</div>
-   ${S.v7.planTab==='recommended'?'<button class="v7-primary" onclick="ILIA_V7.applyRecommended()">APPLY THIS DAY TO MY PLAN →</button>':''}
-   ${S.v7.planTab==='ai'?'<button class="v7-primary" onclick="ILIA_V7.applyAI()">SEND THIS AI DAY TO MY PLAN →</button>':''}
-  </section>
-  <section class="v7-coach-card"><div class="v7-kicker">COACH SUGGESTION</div><h2>After ${esc(p?.type||'Rest')} → ${esc(recommendedNext(p))}</h2><p>Suggestion only. My Plan stays unchanged until you apply a recommendation.</p></section>
-  <section class="v7-ai-card"><div><div class="v7-kicker">AI COACH</div><h2>Need to rearrange the week?</h2><p>Tell the coach what happened. It uses the real phone calendar.</p></div><button onclick="ILIA_V7.openAI()">ASK AI</button></section>
-  <section class="v7-coach-card"><div class="v7-kicker">PLAN VIEWS</div><div class="seg-v29"><button data-v7-mode="weekly" onclick="ILIA_V7.viewMode('weekly')">WEEKLY</button><button data-v7-mode="monthly" onclick="ILIA_V7.viewMode('monthly')">MONTHLY</button><button data-v7-mode="blocks" onclick="ILIA_V7.viewMode('blocks')">2-WEEK BLOCKS</button></div></section>
- </div>`;
- centerDate();
+ seedV7();const root=$v('#pagePlan');if(!root)return;const p=selectedPlan(),d=selectedDate(),meta=S.v7.planTab==='my'?'MY PLAN':'AI RECOMMENDED';
+ root.innerHTML=`<div class="v7-page"><div class="v7-plan-title"><div class="v7-kicker">PLAN · ${esc(fullDate(d).toUpperCase())}</div><h1>${meta}</h1></div>${tabs()}${dateStrip()}<section class="v7-plan-card"><div class="v7-kicker">${meta} · ${esc(fullDate(d).toUpperCase())}</div><h1>${esc(p?.name||'No session')}</h1><p>${esc(p?.duration||S.v7.duration)} min · ${esc(p?.type||'Rest')}</p><div class="v7-ex-list">${planExercisesHtml(p)}</div>${S.v7.planTab==='ai'?'<button class="v7-primary" onclick="ILIA_V7.applyAI()">APPLY TO MY PLAN →</button>':''}</section><section class="v7-ai-card"><div><div class="v7-kicker">KINETIQ COACH</div><h2>Need to adjust the plan?</h2><p>Tell the coach what changed. Your real My Plan changes only after Apply to Plan.</p></div><button onclick="ILIA_V7.openAI()">AI COACH</button></section></div>`;
+ centerDate();window.KINETIQSystem?.afterRender?.('plan');window.KINETIQBeta303?.enhancePlan?.();
 }
 function recommendedNext(p){
  if(p?.type==='Legs')return'Upper or Run';
@@ -203,30 +161,15 @@ function recommendedNext(p){
  return'Legs';
 }
 function renderHomeV7(){
- seedV7();
- const root=$v('#pageHome');if(!root)return;
- const today=today0(),tom=addDays(today,1),tKey=ymd(today),nKey=ymd(tom);
- const tp=S.v7.myPlans[tKey],np=S.v7.myPlans[nKey];
- root.innerHTML=`<div class="v7-page">
-  <section class="v7-plan-card v7-home-hero"><div class="v7-kicker">TODAY · ${esc(fullDate(today).toUpperCase())}</div>
-   <h1>${esc(tp?.name||'Recovery')}</h1><p>${S.v7.duration} min · ${esc(tp?.type||'Rest')}</p>
-   <div class="v7-metrics"><div><b>${S.v7.duration}</b><small>MIN</small></div><div><b>${tp?.ids?.length||'—'}</b><small>EXERCISES</small></div><div><b>${esc(tp?.type||'REST')}</b><small>TYPE</small></div></div>
-   <button class="v7-primary" onclick="ILIA_V7.openPlanDate('${tKey}','my')">VIEW TODAY →</button>
-  </section>
-  <section class="v7-next" onclick="ILIA_V7.openPlanDate('${nKey}','my')"><div class="v7-kicker">TOMORROW · ${esc(fullDate(tom).toUpperCase())}</div><h2>${esc(np?.name||'Recovery')}</h2><p>${esc(np?.type||'Rest')} · tap to view full plan</p></section>
-  <div class="v7-quick"><button onclick="ILIA_V7.openAI()"><span>AI</span><b>Ask AI Coach</b><small>Adjust your real week</small></button><button onclick="ILIA_V7.openRun()"><span>↗</span><b>Run Coach</b><small>Pace + voice guidance</small></button></div>
- </div>`;
+ seedV7();const root=$v('#pageHome');if(!root)return;const d=today0(),tom=addDays(d,1),tKey=ymd(d),nKey=ymd(tom),tp=S.v7.myPlans[tKey],np=S.v7.myPlans[nKey],aw=S.activeWorkout;
+ root.innerHTML=`<div class="v7-page"><div class="v7-home-date"><small>TODAY</small><b>${esc(fullDate(d))}</b></div>${aw?.active?`<section class="v7-next ux-resume-workout"><div class="v7-kicker">WORKOUT IN PROGRESS</div><h2>${esc((S.program?.[aw.day]||{}).name||'Workout')}</h2><p>Exercise ${(+aw.index||0)+1} · Set ${(+aw.set||0)+1}</p><button class="v7-primary" onclick="KINETIQSystem.resumeWorkout()">RESUME WORKOUT →</button></section>`:''}<section class="v7-plan-card v7-home-hero"><div class="v7-kicker">TODAY · ${esc(fullDate(d).toUpperCase())}</div><h1>${esc(tp?.name||'Recovery')}</h1><p>${esc(tp?.duration||S.v7.duration)} min · ${esc(tp?.type||'Rest')}</p><div class="v7-metrics"><div><b>${esc(tp?.duration||S.v7.duration)}</b><small>MIN</small></div><div><b>${tp?.ids?.length||'—'}</b><small>EXERCISES</small></div><div><b>${esc(tp?.type||'REST')}</b><small>TYPE</small></div></div><button class="v7-primary" onclick="ILIA_V7.openPlanDate('${tKey}','my')">VIEW TODAY →</button></section><section class="v7-next" onclick="ILIA_V7.openPlanDate('${nKey}','my')"><div class="v7-kicker">TOMORROW · ${esc(fullDate(tom).toUpperCase())}</div><h2>${esc(np?.name||'Recovery')}</h2><p>${esc(np?.type||'Rest')} · tap to view full plan</p></section><div class="v7-quick"><button onclick="ILIA_V7.openAI()"><span>AI</span><b>Ask AI Coach</b><small>Context-aware plan changes</small></button><button onclick="ILIA_V7.openRun()"><span>↗</span><b>Run Coach</b><small>GPS · map · pace guidance</small></button></div></div>`;
+ window.KINETIQSystem?.afterRender?.('home');
 }
 function renderRunV7(){
- seedV7();
- const root=$v('#pageMore');if(!root)return;
- root.innerHTML=`<div class="v7-page"><section class="v7-run-shell">
-  <div class="v7-kicker">LIVE RUN COACH</div><h1 id="v7RunCue">${runState.active?'RUNNING':'READY'}</h1>
-  <strong id="v7RunPace">${runState.currentPace?fmtPace(runState.currentPace):`${S.v7.run.paceMin}:${String(S.v7.run.paceSec).padStart(2,'0')}`}</strong><small>/ km · current pace</small>
-  <div class="v7-run-grid"><div><b id="v7RunDist">${runState.distance.toFixed(2)}</b><small>KM</small></div><div><b id="v7RunTime">${fmtElapsed(runState.elapsed)}</b><small>TIME</small></div><div><b>${S.v7.run.paceMin}:${String(S.v7.run.paceSec).padStart(2,'0')}</b><small>TARGET</small></div></div>
-  <button class="v7-primary" onclick="${runState.active?'ILIA_V7.stopRun()':'ILIA_V7.startRun()'}">${runState.active?'END RUN':'START RUN →'}</button>
-  <div class="v7-cues"><button onclick="ILIA_V7.simCue('slow')">SIM SLOW</button><button onclick="ILIA_V7.simCue('on')">SIM ON</button><button onclick="ILIA_V7.simCue('fast')">SIM FAST</button></div>
- </section><section class="v7-coach-card"><div class="v7-kicker">RUN TARGET</div><h2>${esc(runSummary())}</h2><button class="v7-secondary" onclick="ILIA_V7.runSettings()">EDIT RUN SETTINGS</button></section></div>`;
+ seedV7();const root=$v('#pageMore');if(!root)return;
+ if(runState.summary&&!runState.active){const q=runState.summary;root.innerHTML=`<div class="v7-page"><section class="v7-run-shell"><div class="v7-kicker">RUN COMPLETE</div><h1>${esc(q.kind)}</h1><div class="v7-run-grid"><div><b>${q.distance.toFixed(2)}</b><small>KM</small></div><div><b>${fmtElapsed(q.elapsed)}</b><small>TIME</small></div><div><b>${fmtPace(q.avgPace)}</b><small>AVG / KM</small></div><div><b>${q.hr||'--'}</b><small>AVG HR</small></div></div><div id="betaRunMap"></div><button class="v7-secondary" onclick="ILIA_V7.dismissRunSummary()">BACK TO RUN SETUP</button></section></div>`;window.KINETIQBeta303?.enhanceRunPage?.();return}
+ if(!runState.active){root.innerHTML=`<div class="v7-page"><section class="v7-run-shell"><div class="v7-kicker">RUNNING COACH</div><h1>Choose Your Run</h1><div class="ux-run-types">${['Easy Run','Tempo Run','Intervals','Long Run','Custom Run'].map(k=>`<button class="${S.v7.run.kind===k?'active':''}" onclick="ILIA_V7.selectRunKind('${k}')"><b>${k}</b><small>${k==='Intervals'?'Work / recovery cues':k==='Tempo Run'?'Sustained controlled effort':k==='Long Run'?'Endurance':'Controlled pace'}</small></button>`).join('')}</div><section class="v7-coach-card"><div class="v7-kicker">TARGET</div><h2>${esc(runSummary())}</h2><button class="v7-secondary" onclick="ILIA_V7.runSettings()">EDIT SETTINGS</button></section><button class="v7-primary" onclick="ILIA_V7.startRun()">START RUN →</button></section></div>`;window.KINETIQSystem?.afterRender?.('runv7');return}
+ const avg=runState.distance>.05?runState.elapsed/runState.distance:0,hr=runState.hr||'--',cad=runState.cadence||'--';root.innerHTML=`<div class="v7-page"><section class="v7-run-shell"><div class="v7-kicker">LIVE RUN · ${esc(runState.kind.toUpperCase())}</div><h1 id="v7RunCue">${runState.paused?'PAUSED':runState.intervalPhase||'HOLD PACE'}</h1><strong id="v7RunPace">${runState.currentPace?fmtPace(runState.currentPace):'--:--'}</strong><small>/ km · smoothed pace</small><div class="v7-run-grid"><div><b id="v7RunDist">${runState.distance.toFixed(2)}</b><small>KM</small></div><div><b id="v7RunTime">${fmtElapsed(runState.elapsed)}</b><small>TIME</small></div><div><b id="v7RunAvg">${avg?fmtPace(avg):'--:--'}</b><small>AVG / KM</small></div><div><b id="v7RunLap">${runState.lapPace?fmtPace(runState.lapPace):'--:--'}</b><small>LAP / KM</small></div><div><b>${fmtPace(runState.target)}</b><small>TARGET</small></div><div><b id="v7RunHr">${hr}</b><small>HR</small></div><div><b id="v7RunZone">${runState.hr?runHrZone(runState.hr):'--'}</b><small>HR ZONE</small></div><div><b id="v7RunCad">${cad}</b><small>CADENCE</small></div></div><div id="betaRunMap"></div><div class="v7-run-actions"><button class="v7-secondary" onclick="${runState.paused?'ILIA_V7.resumeRun()':'ILIA_V7.pauseRun()'}">${runState.paused?'RESUME':'PAUSE'}</button><button class="v7-primary" onclick="ILIA_V7.stopRun()">FINISH RUN</button></div></section></div>`;window.KINETIQBeta303?.enhanceRunPage?.();window.KINETIQSystem?.afterRender?.('runv7');
 }
 function renderMoreEnhancements(){
  seedV7();
@@ -301,7 +244,7 @@ function syncLegacyProgram(){
  S.currentDay=0; saveAll();
 }
 function distanceKm(v){if(!v)return 5; if(/half/i.test(v))return 21.1;if(/marathon/i.test(v)&&!/half/i.test(v))return 42.2;const n=parseFloat(v);return Number.isFinite(n)?n:S.v7.run.customKm||10}
-function tab(t){S.v7.planTab=t;saveAll();renderPlanV7()}
+function tab(t){S.v7.planTab=t==='ai'?'ai':'my';saveAll();renderPlanV7()}
 function pickDate(k){S.v7.selectedDate=k;saveAll();renderPlanV7()}
 function viewMode(mode){if(!['weekly','monthly','blocks'].includes(mode))return;S.planMode=mode;saveAll();if(typeof renderPlan==='function')renderPlan()}
 function revealPlanV7(){
@@ -313,7 +256,8 @@ function revealPlanV7(){
  renderPlanV7();scrollTo(0,0);
 }
 function openPlanToday(){seedV7();S.v7.selectedDate=ymd(today0());S.v7.planTab='my';saveAll();revealPlanV7()}
-function openPlanDate(k,t='my'){S.v7.selectedDate=k;S.v7.planTab=t;saveAll();revealPlanV7()}
+function openPlanDate(k,t='my'){S.v7.selectedDate=k;S.v7.planTab=t==='ai'?'ai':'my';saveAll();revealPlanV7()}
+function openExercise(id){const e=byId(id);if(!e)return;const p=selectedPlan(),i=(p?.ids||[]).indexOf(id);window.PT29?.openDetail?.(e,{source:'plan',date:S.v7.selectedDate,planTab:S.v7.planTab,planIndex:i})}
 function openAI(){
  seedV7();
  const recent=(S.v7.aiHistory||[]).slice(-6).map(m=>`<div class="v7-bubble ${m.role}">${esc(m.text)}</div>`).join('');
@@ -419,48 +363,42 @@ function coachSetup(){
 function setPriority(k,v){S.v7.body[k]=v;S.v7.run.priority=S.v7.body.Running;saveAll();coachSetup()}
 function setDuration(v){S.v7.duration=+v;S.minutes=+v;saveAll();coachSetup()}
 function runSettings(){
- seedV7();
- showSheet('Running Settings',`<div class="v7-sheet-note">Running can be secondary while Legs remain Priority.</div>
- <div class="v7-setting"><div><b>Priority</b><small>${S.v7.run.priority}</small></div><select onchange="ILIA_V7.setRun('priority',this.value)">${['Off','Maintain','Secondary','Priority'].map(x=>`<option ${S.v7.run.priority===x?'selected':''}>${x}</option>`).join('')}</select></div>
- <div class="v7-setting"><div><b>Distance</b><small>${S.v7.run.distance}</small></div><select onchange="ILIA_V7.setRun('distance',this.value)">${['3K','5K','10K','Half Marathon','Marathon','Custom'].map(x=>`<option ${S.v7.run.distance===x?'selected':''}>${x}</option>`).join('')}</select></div>
- <div class="v7-setting"><div><b>Runs / week</b><small>${S.v7.run.frequency}</small></div><select onchange="ILIA_V7.setRun('frequency',this.value)">${[1,2,3,4].map(x=>`<option ${S.v7.run.frequency===x?'selected':''}>${x}</option>`).join('')}</select></div>
- <div class="v7-setting"><div><b>Target pace / km</b><small>${S.v7.run.paceMin}:${String(S.v7.run.paceSec).padStart(2,'0')}</small></div><div><input id="v7PaceMin" type="number" min="3" max="12" value="${S.v7.run.paceMin}" onchange="ILIA_V7.setRun('paceMin',this.value)"> : <input id="v7PaceSec" type="number" min="0" max="59" value="${S.v7.run.paceSec}" onchange="ILIA_V7.setRun('paceSec',this.value)"></div></div>
- <button class="v7-primary" onclick="PT29.closeSheet()">SAVE RUN SETTINGS</button>`);
+ seedV7();showSheet('Running Settings',`<div class="v7-sheet-note">KINETIQ uses smoothed pace for coaching. Heart rate and cadence display only when a connected/native sensor supplies them.</div><div class="v7-setting"><div><b>Run type</b><small>${esc(S.v7.run.kind)}</small></div><select onchange="ILIA_V7.setRun('kind',this.value)">${['Easy Run','Tempo Run','Intervals','Long Run','Custom Run'].map(x=>`<option ${S.v7.run.kind===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="v7-setting"><div><b>Distance</b><small>${S.v7.run.distance}</small></div><select onchange="ILIA_V7.setRun('distance',this.value)">${['3K','5K','10K','Half Marathon','Marathon','Custom'].map(x=>`<option ${S.v7.run.distance===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="v7-setting"><div><b>Runs / week</b><small>${S.v7.run.frequency}</small></div><select onchange="ILIA_V7.setRun('frequency',this.value)">${[1,2,3,4].map(x=>`<option ${S.v7.run.frequency===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="v7-setting"><div><b>Target pace / km</b><small>${S.v7.run.paceMin}:${String(S.v7.run.paceSec).padStart(2,'0')}</small></div><div><input id="v7PaceMin" type="number" min="3" max="12" value="${S.v7.run.paceMin}" onchange="ILIA_V7.setRun('paceMin',this.value)"> : <input id="v7PaceSec" type="number" min="0" max="59" value="${S.v7.run.paceSec}" onchange="ILIA_V7.setRun('paceSec',this.value)"></div></div><button class="v7-primary" onclick="PT29.closeSheet()">DONE</button>`)
 }
 function setRun(k,v){S.v7.run[k]=['frequency','paceMin','paceSec','customKm'].includes(k)?+v:v;if(k==='priority')S.v7.body.Running=v;saveAll();runSettings()}
-function runSummary(){const d=S.v7.run.distance==='Custom'?`${S.v7.run.customKm}K`:S.v7.run.distance;return `${d} · ${S.v7.run.paceMin}:${String(S.v7.run.paceSec).padStart(2,'0')} / km · ${S.v7.run.frequency} run/week`}
+function runSummary(){const d=S.v7.run.distance==='Custom'?`${S.v7.run.customKm}K`:S.v7.run.distance;return `${S.v7.run.kind} · ${d} · ${S.v7.run.paceMin}:${String(S.v7.run.paceSec).padStart(2,'0')} / km`}
 function fmtPace(sec){if(!sec||!isFinite(sec))return'--:--';return `${Math.floor(sec/60)}:${String(Math.round(sec%60)).padStart(2,'0')}`}
 function fmtElapsed(sec){return `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`}
 function hav(a,b,c,d){const R=6371,p=Math.PI/180,dx=(c-a)*p,dy=(d-b)*p,z=Math.sin(dx/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(dy/2)**2;return 2*R*Math.asin(Math.sqrt(z))}
+function median(a){const x=[...a].sort((a,b)=>a-b),n=x.length;if(!n)return 0;return n%2?x[(n-1)/2]:(x[n/2-1]+x[n/2])/2}
+function runHrZone(hr){const max=190;if(hr<max*.6)return'Z1';if(hr<max*.7)return'Z2';if(hr<max*.8)return'Z3';if(hr<max*.9)return'Z4';return'Z5'}
+function updateIntervalState(){if(!runState.active||!/interval/i.test(runState.kind))return;const cycle=210,pos=Math.max(0,runState.elapsed-180)%cycle;let phase=runState.elapsed<180?'WARM UP':pos<120?'INTERVAL':'RECOVERY';if(phase!==runState.intervalPhase){runState.intervalPhase=phase;if(phase==='INTERVAL')speakCue('interval');if(phase==='RECOVERY')speakCue('recovery')}}
+function persistRunState(){S.activeRun=runState.active?{active:true,paused:runState.paused,start:runState.start,elapsed:runState.elapsed,distance:runState.distance,currentPace:runState.currentPace,target:runState.target,kind:runState.kind,hr:runState.hr,cadence:runState.cadence}:null;saveAll()}
+function selectRunKind(k){S.v7.run.kind=k;saveAll();renderRunV7()}
+function pauseRun(){if(!runState.active)return;runState.paused=true;persistRunState();try{window.KINETIQVoice?.stop?.()}catch(_){}renderRunV7()}
+function resumeRun(){if(!runState.active)return;runState.paused=false;runState.start=Date.now()-runState.elapsed*1000;persistRunState();renderRunV7()}
+function runSensorData(hr,cadence){if(Number.isFinite(+hr)&&+hr>0)runState.hr=Math.round(+hr);if(Number.isFinite(+cadence)&&+cadence>0)runState.cadence=Math.round(+cadence);updateRunUi(paceCue(runState.currentPace,runState.target))}
+function dismissRunSummary(){runState.summary=null;renderRunV7()}
 function handleLoc(lat,lon,speed,accuracy){
- if(!runState.active||accuracy>50)return;
- const now={lat,lon,t:Date.now()};
- if(runState.lastLoc){const km=hav(runState.lastLoc.lat,runState.lastLoc.lon,lat,lon);if(km<.2)runState.distance+=km}
- runState.lastLoc=now;if(speed>.5)runState.currentPace=1000/speed;
- runState.elapsed=Math.floor((Date.now()-runState.start)/1000);
- const cue=paceCue(runState.currentPace,runState.target);
- if(runState.currentPace&&runState.elapsed-runState.lastVoice>=60){runState.lastVoice=runState.elapsed;speakCue(cue)}
- updateRunUi(cue);
+ if(!runState.active||runState.paused||accuracy>35)return;const now={lat,lon,t:Date.now()};
+ if(runState.lastLoc){const km=hav(runState.lastLoc.lat,runState.lastLoc.lon,lat,lon);if(km>0.0005&&km<.12){runState.distance+=km;const lap=Math.floor(runState.distance);if(lap>runState.lapStartDistance){const lapSecs=runState.elapsed-runState.lapStartElapsed;runState.lapPace=lapSecs/Math.max(.01,runState.distance-runState.lapStartDistance);runState.lapStartDistance=lap;runState.lapStartElapsed=runState.elapsed}}}
+ runState.lastLoc=now;if(speed>.65){const raw=1000/speed;if(raw>120&&raw<1200){runState.paceSamples.push(raw);if(runState.paceSamples.length>7)runState.paceSamples.shift();runState.currentPace=median(runState.paceSamples)}}
+ runState.elapsed=Math.floor((Date.now()-runState.start)/1000);updateIntervalState();const cue=paceCue(runState.currentPace,runState.target);if(runState.currentPace&&runState.elapsed-runState.lastVoice>=60){runState.lastVoice=runState.elapsed;speakCue(cue)}updateRunUi(cue);window.KINETIQBeta303?.addRunPoint?.(lat,lon,speed,accuracy,Date.now());
 }
-function paceCue(current,target){if(!current)return'hold';if(current>target+10)return'speed';if(current<target-10)return'slow';return'hold'}
-function speakCue(c){if(S.voiceCoach?.enabled===false||!runState.active)return;const t=c==='speed'?'Speed up slightly.':c==='slow'?'Slow down slightly.':'Perfect pace. Hold this pace.';try{window.KINETIQVoice?.speak?window.KINETIQVoice.speak(t):window.PTNative?.speak(t)}catch(e){}}
+function paceCue(current,target){if(!current)return'hold';if(current>target+12)return'speed';if(current<target-12)return'slow';return'hold'}
+function speakCue(c){if(S.voiceCoach?.enabled===false||!runState.active||runState.paused)return;const t=c==='speed'?'Speed up gradually.':c==='slow'?'Slow down.':c==='interval'?'Interval start.':c==='recovery'?'Recovery start.':'Hold pace.';try{window.KINETIQVoice?.speak?.(t)}catch(e){}}
 function updateRunUi(cue='hold'){
- const a=$v('#v7RunCue'),p=$v('#v7RunPace'),d=$v('#v7RunDist'),t=$v('#v7RunTime');
- if(a)a.textContent=cue==='speed'?'SPEED UP':cue==='slow'?'SLOW DOWN':runState.active?'ON PACE':'READY';
- if(p)p.textContent=runState.currentPace?fmtPace(runState.currentPace):`${S.v7.run.paceMin}:${String(S.v7.run.paceSec).padStart(2,'0')}`;
- if(d)d.textContent=runState.distance.toFixed(2);if(t)t.textContent=fmtElapsed(runState.elapsed);
+ const a=$v('#v7RunCue'),p=$v('#v7RunPace'),d=$v('#v7RunDist'),t=$v('#v7RunTime'),avg=$v('#v7RunAvg'),lap=$v('#v7RunLap');
+ if(a)a.textContent=runState.paused?'PAUSED':runState.intervalPhase|| (cue==='speed'?'SPEED UP GRADUALLY':cue==='slow'?'SLOW DOWN':'HOLD PACE');
+ if(p)p.textContent=runState.currentPace?fmtPace(runState.currentPace):'--:--';if(d)d.textContent=runState.distance.toFixed(2);if(t)t.textContent=fmtElapsed(runState.elapsed);if(avg)avg.textContent=runState.distance>.05?fmtPace(runState.elapsed/runState.distance):'--:--';if(lap)lap.textContent=runState.lapPace?fmtPace(runState.lapPace):'--:--';const hr=$v('#v7RunHr'),z=$v('#v7RunZone'),cad=$v('#v7RunCad');if(hr)hr.textContent=runState.hr||'--';if(z)z.textContent=runState.hr?runHrZone(runState.hr):'--';if(cad)cad.textContent=runState.cadence||'--';
 }
 function startRun(){
- seedV7();runState.active=true;runState.start=Date.now();runState.elapsed=0;runState.distance=0;runState.currentPace=0;runState.target=S.v7.run.paceMin*60+S.v7.run.paceSec;runState.lastVoice=0;runState.lastLoc=null;
- clearInterval(runState.timer);runState.timer=setInterval(()=>{if(runState.active){runState.elapsed=Math.floor((Date.now()-runState.start)/1000);updateRunUi()}},1000);
- try{window.PTNative?.startLocation();if(S.voiceCoach?.enabled!==false)(window.KINETIQVoice?.speak?window.KINETIQVoice.speak('Run started. Settle into your target pace.'):window.PTNative?.speak('Run started. Settle into your target pace.'))}catch(e){}
- renderRunV7();
+ seedV7();runState.active=true;runState.paused=false;runState.start=Date.now();runState.elapsed=0;runState.distance=0;runState.currentPace=0;runState.target=S.v7.run.paceMin*60+S.v7.run.paceSec;runState.lastVoice=0;runState.lastLoc=null;runState.paceSamples=[];runState.lapPace=0;runState.lapStartDistance=0;runState.lapStartElapsed=0;runState.kind=S.v7.run.kind||'Easy Run';runState.intervalPhase='';runState.summary=null;clearInterval(runState.timer);runState.timer=setInterval(()=>{if(runState.active&&!runState.paused){runState.elapsed=Math.floor((Date.now()-runState.start)/1000);updateIntervalState();updateRunUi()}},1000);persistRunState();try{window.PTNative?.startLocation();window.KINETIQVoice?.speak?.('Run started. Settle into your target pace.')}catch(e){}renderRunV7();
 }
 function stopRun(){
- if(!runState.active)return;clearInterval(runState.timer);runState.active=false;try{window.PTNative?.stopLocation();if(S.voiceCoach?.enabled!==false)(window.KINETIQVoice?.speak?window.KINETIQVoice.speak('Run complete. Nice work.'):window.PTNative?.speak('Run complete. Nice work.'))}catch(e){}
- S.runHistory=S.runHistory||[];S.runHistory.push({date:new Date().toISOString(),name:'V7 Run',distance:+runState.distance.toFixed(2),seconds:runState.elapsed});saveAll();renderRunV7();
+ if(!runState.active)return;clearInterval(runState.timer);try{window.PTNative?.stopLocation()}catch(e){}const avg=runState.distance>.05?runState.elapsed/runState.distance:0;const summary={kind:runState.kind,distance:+runState.distance.toFixed(2),elapsed:runState.elapsed,avgPace:avg,hr:runState.hr,cadence:runState.cadence};runState.active=false;runState.paused=false;runState.summary=summary;S.activeRun=null;S.runHistory=S.runHistory||[];S.runHistory.push({date:new Date().toISOString(),name:summary.kind,distance:summary.distance,seconds:summary.elapsed,avgPace:summary.avgPace,hr:summary.hr,cadence:summary.cadence});saveAll();try{window.KINETIQVoice?.stop?.()}catch(_){}renderRunV7();
 }
-function simCue(k){runState.currentPace=k==='slow'?S.v7.run.paceMin*60+S.v7.run.paceSec+18:k==='fast'?S.v7.run.paceMin*60+S.v7.run.paceSec-18:S.v7.run.paceMin*60+S.v7.run.paceSec;const c=paceCue(runState.currentPace,S.v7.run.paceMin*60+S.v7.run.paceSec);updateRunUi(c);speakCue(c)}
+function simCue(k){runState.currentPace=k==='slow'?S.v7.run.paceMin*60+S.v7.run.paceSec+18:k==='fast'?S.v7.run.paceMin*60+S.v7.run.paceSec-18:S.v7.run.paceMin*60+S.v7.run.paceSec;const c=paceCue(runState.currentPace,S.v7.run.paceMin*60+S.v7.run.paceSec);updateRunUi(c)}
 function openRun(){showMain('runv7')}
 function moreEnhanceDelayed(){setTimeout(renderMoreEnhancements,20)}
 function changeNav(){
@@ -469,54 +407,24 @@ function changeNav(){
  fuel.onclick=()=>showMain('runv7');
 }
 function patchShowMain(){
- if(typeof showMain!=='function')return false;
- baseShowMain=showMain;
- showMain=function(page){
-  if(page==='runv7'){
-   baseShowMain('more');
-   const root=$v('#pageMore');if(root){$$v('.page').forEach(p=>p.classList.remove('active'));root.classList.add('active');}
-   $$v('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.nav==='runv7'));
-   const title=$v('#topTitle');if(title)title.textContent='Run Coach';renderRunV7();scrollTo(0,0);return;
-  }
-  if(page==='plan'){openPlanToday();return}
-  baseShowMain(page);
-  if(page==='home')setTimeout(renderHomeV7,10);
-  if(page==='more')moreEnhanceDelayed();
-  if(page==='train')setTimeout(renderTrainBanner,10);
- };
- if(window.PT29)window.PT29.showMain=showMain;
- return true;
+ if(typeof showMain!=='function')return false;baseShowMain=showMain;showMain=function(page){if(page==='runv7'){baseShowMain('more');const root=$v('#pageMore');if(root){$$v('.page').forEach(p=>p.classList.remove('active'));root.classList.add('active')}$$v('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.nav==='runv7'));const title=$v('#topTitle');if(title)title.textContent='Run';renderRunV7();scrollTo(0,0);visibilityFab();return}if(page==='plan'){openPlanToday();visibilityFab();return}baseShowMain(page);if(page==='home')renderHomeV7();if(page==='more')renderMoreEnhancements();if(page==='train')renderTrainBanner();visibilityFab();window.KINETIQSystem?.afterRender?.(page)};if(window.PT29)window.PT29.showMain=showMain;return true
 }
 function injectFab(){
  if($v('#v7AiFab'))return;
  const b=document.createElement('button');b.id='v7AiFab';b.className='v7-ai-fab';b.textContent='AI';b.onclick=openAI;
  $v('#mainApp')?.appendChild(b);
 }
-function visibilityFab(){
- const obs=new MutationObserver(()=>{
-  const b=$v('#v7AiFab');if(!b)return;
-  const page=$v('.page.active')?.dataset.page;b.classList.toggle('hidden',!(page==='home'||page==='plan'));
- });
- obs.observe($v('#mainApp'),{subtree:true,attributes:true,attributeFilter:['class']});
-}
+function visibilityFab(){const b=$v('#v7AiFab');if(!b)return;const page=$v('.page.active')?.dataset.page;b.classList.toggle('hidden',!(page==='home'||page==='plan'||page==='train'))}
 function backHook(){
  const prev=window.ptHandleBack;
  window.ptHandleBack=function(){if(runState.active){toastV7('End the run before leaving');return'handled'}return prev?prev():'exit'};
 }
 function init(){
- if(!window.PT29||typeof S==='undefined'||typeof save!=='function'||typeof showMain!=='function'){setTimeout(init,120);return}
- seedV7();syncLegacyProgram();changeNav();patchShowMain();injectFab();visibilityFab();backHook();
- const prior=window.PT25?.onLocation;
- if(window.PT25)window.PT25.onLocation=function(lat,lon,speed,accuracy,ts){try{prior?.(lat,lon,speed,accuracy,ts)}catch(e){}handleLoc(lat,lon,speed,accuracy)};
- const active=$v('.page.active')?.dataset.page;
- if(active==='home')renderHomeV7();else if(active==='plan')renderPlanV7();else if(active==='more')renderMoreEnhancements();else if(active==='train')renderTrainBanner();
- const label=$v('#topLabel');if(label)label.textContent='KINETIQ';
- window.__ILIA_V7__=READY;
- document.documentElement.dataset.iliaV7='ready';
+ if(!window.PT29||typeof S==='undefined'||typeof save!=='function'||typeof showMain!=='function'){setTimeout(init,120);return}seedV7();syncLegacyProgram();changeNav();patchShowMain();injectFab();visibilityFab();backHook();const prior=window.PT25?.onLocation;if(window.PT25){window.PT25.onLocation=function(lat,lon,speed,accuracy,ts){try{prior?.(lat,lon,speed,accuracy,ts)}catch(e){}handleLoc(lat,lon,speed,accuracy)};window.PT25.onSensorData=runSensorData}const active=$v('.page.active')?.dataset.page;if(active==='home')renderHomeV7();else if(active==='plan')renderPlanV7();else if(active==='more')renderMoreEnhancements();else if(active==='train')renderTrainBanner();const label=$v('#topLabel');if(label)label.textContent='KINETIQ';window.__ILIA_V7__=READY;document.documentElement.dataset.iliaV7='ready'
 }
 window.ILIA_V7={
- tab,pickDate,openPlanDate,better,showAlternatives,replace,addExercise,add,applyRecommended,applyAI,openAI,fillAI,askAI,sendAI,cancelAI,
- coachSetup,setPriority,setDuration,runSettings,setRun,openRun,startRun,stopRun,simCue,viewMode,renderPlan:renderPlanV7,renderHome:renderHomeV7
+ tab,pickDate,openPlanDate,openExercise,better,showAlternatives,replace,addExercise,add,applyAI,openAI,fillAI,askAI,sendAI,cancelAI,
+ coachSetup,setPriority,setDuration,runSettings,setRun,openRun,startRun,stopRun,pauseRun,resumeRun,selectRunKind,dismissRunSummary,runSensorData,simCue,renderPlan:renderPlanV7,renderHome:renderHomeV7,renderRun:renderRunV7
 };
 setTimeout(init,380);
 })();
