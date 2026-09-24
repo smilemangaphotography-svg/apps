@@ -22,7 +22,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const pageErrors=[];page.on('pageerror',e=>pageErrors.push(String(e)));
  try{
    await page.goto('http://127.0.0.1:8765/index29.html',{waitUntil:'domcontentloaded',timeout:15000});
-   await page.waitForFunction(()=>window.__KINETIQ_SYSTEM_BETA__==='KINETIQ-3.0.3-system-beta-1',null,{timeout:7000});
+   try{await page.waitForFunction(()=>window.__KINETIQ_SYSTEM_BETA__==='KINETIQ-3.0.3-system-beta-1',null,{timeout:7000})}catch(e){const diag=await page.evaluate(()=>({system:window.__KINETIQ_SYSTEM_BETA__||null,beta:window.__KINETIQ_BETA303__||null,v7:window.__ILIA_V7__||null,v73:window.__ILIA_V73_LIBRARY_TOOLS__||null,pt29:window.__PT_STYLE29__||null,admin:!!window.PT29Admin,S:!!window.S,ready:document.documentElement.dataset.kinetiqSystemBeta||null}));throw new Error('STARTUP_DIAG '+JSON.stringify(diag)+' PAGE_ERRORS '+JSON.stringify(pageErrors)+' ORIGINAL '+e.message)}
    if(await page.locator('#style2Cover:not(.hidden)').count()){await page.locator('#coverEnter').click();await page.waitForSelector('#mainApp:not(.hidden)',{timeout:4000})}
 
    // 1) HOME + date + A54 shell.
