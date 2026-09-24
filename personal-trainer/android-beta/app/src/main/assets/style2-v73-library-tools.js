@@ -118,30 +118,10 @@ function applyAvailability(rebuild=true){
  save73();
 }
 
-function setEquipment(name,on){
- ensureState();S.v73Equipment[name]=on;applyAvailability(true);openEquipmentManager();
- toast73(on?`${name} available`:`${name} removed from available equipment`);
-}
-function toggleExercise(id){
- ensureState();
- const e=byId(id);if(!e)return;
- const next=!S.v73ManualDisabled[id];
- S.v73ManualDisabled[id]=next;
- applyAvailability(true);openEquipmentManager();
-}
+function setEquipment(name,on){ensureState();S.v73Equipment[name]=on;applyAvailability(true);openEquipmentManager();window.KINETIQSystem?.afterEquipmentChange?.()}
+function toggleExercise(id){ensureState();const e=byId(id);if(!e)return;S.v73ManualDisabled[id]=!S.v73ManualDisabled[id];applyAvailability(true);openEquipmentManager();window.KINETIQSystem?.afterEquipmentChange?.()}
 let swipeClickLockUntil=0;
-function swipeRemove(id){
- ensureState();
- const e=byId(id);if(!e)return;
- S.v73ManualDisabled[id]=true;
- applyAvailability(true);
- setTimeout(()=>{
-  filterV7Sheet();
-  if($('#pagePlan.active'))window.ILIA_V7?.renderPlan?.();
-  if($('#pageTrain.active'))filterTrainLibrary();
-  bindSwipeGestures();
- },20);
-}
+function swipeRemove(id){ensureState();const e=byId(id);if(!e)return;S.v73ManualDisabled[id]=true;applyAvailability(true);filterV7Sheet();if($('#pagePlan.active'))window.ILIA_V7?.renderPlan?.();if($('#pageTrain.active'))filterTrainLibrary();bindSwipeGestures();window.KINETIQSystem?.afterEquipmentChange?.()}
 function bindSwipeGestures(root=document){
  root.querySelectorAll('[data-swipe-exercise]').forEach(row=>{
   if(row.dataset.v73SwipeBound==='1')return;
@@ -204,12 +184,8 @@ if(!window.__ILIA_V73_SWIPE_CLICK_GUARD__){
  window.__ILIA_V73_SWIPE_CLICK_GUARD__=true;
 }
 
-function assignEquipment(id,value){
- ensureState();
- if(!value)delete S.v73ExerciseEquipment[id];else S.v73ExerciseEquipment[id]=[value];
- applyAvailability(true);openEquipmentManager();
-}
-function fullGym(){EQUIPMENT.forEach(x=>S.v73Equipment[x]=true);applyAvailability(true);openEquipmentManager();toast73('All equipment enabled')}
+function assignEquipment(id,value){ensureState();if(!value)delete S.v73ExerciseEquipment[id];else S.v73ExerciseEquipment[id]=[value];applyAvailability(true);openEquipmentManager();window.KINETIQSystem?.afterEquipmentChange?.()}
+function fullGym(){EQUIPMENT.forEach(x=>S.v73Equipment[x]=true);applyAvailability(true);openEquipmentManager();window.KINETIQSystem?.afterEquipmentChange?.()}
 
 function equipmentButtons(){return EQUIPMENT.map(eq=>`<button class="v73-eq ${S.v73Equipment[eq]!==false?'active':''}" onclick="ILIA_V73.setEquipment('${esc(eq)}',${S.v73Equipment[eq]===false?'true':'false'})"><span>${S.v73Equipment[eq]!==false?'✓':'×'}</span>${esc(eq)}</button>`).join('')}
 function exerciseRows(){
@@ -221,7 +197,7 @@ function exerciseRows(){
 function openEquipmentManager(){
  ensureState();
  const disabled=catalog().filter(e=>e.cat!=='Running'&&!isAvailable(e)).length;
- window.PT29?.sheet?.('Equipment & Exercise Library',`<div class="v73-note"><b>YOUR AVAILABLE EQUIPMENT</b><br>Turn off anything your gym/home setup does not have. Matching exercises are automatically removed from My Plan, Recommended, AI Recommended and generated workouts.</div><div class="v73-eq-grid">${equipmentButtons()}</div><button class="v73-reset" onclick="ILIA_V73.fullGym()">RESET TO FULL GYM</button><div class="v73-section"><b>EXERCISE LIBRARY</b><span>${disabled} unavailable / removed</span></div><div class="v73-ex-list">${exerciseRows()}</div>`);
+ window.PT29?.sheet?.('Equipment & Exercise Library',`<div class="v73-note"><b>YOUR AVAILABLE EQUIPMENT</b><br>Turn off anything your gym/home setup does not have. Matching exercises are automatically removed from My Plan, AI Recommended and generated workouts.</div><div class="v73-eq-grid">${equipmentButtons()}</div><button class="v73-reset" onclick="ILIA_V73.fullGym()">RESET TO FULL GYM</button><div class="v73-section"><b>EXERCISE LIBRARY</b><span>${disabled} unavailable / removed</span></div><div class="v73-ex-list">${exerciseRows()}</div>`);
 }
 
 function uploadExercise(){
@@ -263,13 +239,7 @@ function patchV7Sheets(){
  if(typeof oldBetter==='function')window.ILIA_V7.better=function(){oldBetter.apply(this,arguments);setTimeout(filterV7Sheet,20)};
  window.ILIA_V7.__v73patched=true;
 }
-function patchShowMain(){
- if(window.__ILIA_V73_SHOW_PATCHED__)return;
- if(typeof showMain!=='function')return;
- const old=showMain;
- showMain=function(page){syncPlanAvailability();const r=old.apply(this,arguments);setTimeout(()=>{addTrainTools();filterTrainLibrary()},20);return r};
- window.__ILIA_V73_SHOW_PATCHED__=true;
-}
+function patchShowMain(){window.__ILIA_V73_SHOW_PATCHED__='delegated-to-system'}
 function injectMoreShortcut(){
  const root=$('#pageMore');if(!root||$('#v73MoreTools',root))return;
  const host=$('.v7-more-card',root)||root;
@@ -281,13 +251,7 @@ function repair(){
  addTrainTools();filterTrainLibrary();injectMoreShortcut();bindSwipeGestures();
  const label=$('#topLabel');if(label)label.textContent='KINETIQ';
 }
-function init(){
- if(!window.PT29||!window.ILIA_V7||!window.PT29Admin||!window.S){setTimeout(init,120);return}
- ensureState();applyAvailability(false);patchV7Sheets();patchShowMain();repair();
- const main=$('#mainApp');if(main)new MutationObserver(()=>setTimeout(repair,0)).observe(main,{subtree:true,childList:true});
- window.__ILIA_V73_LIBRARY_TOOLS__=VERSION;
- document.documentElement.dataset.iliaV73='ready';
-}
-window.ILIA_V73={uploadExercise,openEquipmentManager,setEquipment,toggleExercise,swipeRemove,bindSwipeGestures,assignEquipment,fullGym,isAvailable,requirementLabel,syncPlanAvailability};
+function init(){if(!window.PT29||!window.ILIA_V7||!window.PT29Admin||!window.S){setTimeout(init,120);return}ensureState();applyAvailability(false);patchV7Sheets();patchShowMain();repair();window.__ILIA_V73_LIBRARY_TOOLS__=VERSION;document.documentElement.dataset.iliaV73='ready'}
+window.ILIA_V73={uploadExercise,openEquipmentManager,setEquipment,toggleExercise,swipeRemove,bindSwipeGestures,assignEquipment,fullGym,isAvailable,requirementLabel,syncPlanAvailability,repair,filterTrainLibrary};
 setTimeout(init,760);
 })();
