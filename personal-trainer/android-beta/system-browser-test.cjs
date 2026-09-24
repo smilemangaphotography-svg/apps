@@ -144,7 +144,7 @@ const shot=async(page,name,full=false)=>page.screenshot({path:path.join(out,name
    if(await motion.evaluate(v=>v.paused)){const p=page.locator('#motionStage29 .motion-play-v29');if(await p.count())await p.click()}
    const t1=await motion.evaluate(v=>v.currentTime);await page.waitForTimeout(500);const t2=await motion.evaluate(v=>v.currentTime);
    pass('REAL MOTION',t2>t1,'motion '+t1.toFixed(2)+' -> '+t2.toFixed(2));
-   await shot(page,'06-exercise-detail.png',true);
+   await shot(page,'06-exercise-detail.png');
 
    await page.locator('#detailStart29').click();
    await page.waitForSelector('#workoutOverlay:not(.hidden)');
@@ -155,7 +155,7 @@ const shot=async(page,name,full=false)=>page.screenshot({path:path.join(out,name
    await page.waitForTimeout(80);
    const speechActive=await page.evaluate(()=>window.__nativeSpeech.length);
    pass('VOICE ACTIVE CONTEXT',speechActive>speechBefore,'voice allowed during active workout');
-   await shot(page,'07-workout.png',true);
+   await shot(page,'07-workout.png');
 
    await page.locator('#completeSet').click();
    await page.waitForSelector('#restOverlay:not(.hidden)',{timeout:3000});
@@ -189,12 +189,14 @@ const shot=async(page,name,full=false)=>page.screenshot({path:path.join(out,name
    const back=await page.evaluate(()=>{const result=ptHandleBack();return {result,home:document.querySelector('#pageHome')?.classList.contains('active')}});
    pass('ANDROID BACK',back.result==='handled'&&back.home,'More returns to Home');
 
-   const shell=await page.evaluate(()=>({
-     sw:document.documentElement.scrollWidth,iw:innerWidth,ih:innerHeight,
-     nav:document.querySelector('.system-nav')?.getBoundingClientRect(),
-     fab:document.querySelector('#systemAiFab')?.getBoundingClientRect()
-   }));
-   pass('A54 SAFE AREAS',shell.sw<=shell.iw+1&&shell.nav&&shell.nav.bottom<=shell.ih&&shell.nav.left>=0&&shell.nav.right<=shell.iw+1,'412x915 no horizontal/safe-area overflow');
+   const shell=await page.evaluate(()=>{
+     const nr=document.querySelector('.system-nav')?.getBoundingClientRect(),fr=document.querySelector('#systemAiFab')?.getBoundingClientRect();
+     return {sw:document.documentElement.scrollWidth,iw:innerWidth,ih:innerHeight,
+       nav:nr?{left:nr.left,right:nr.right,top:nr.top,bottom:nr.bottom,width:nr.width,height:nr.height}:null,
+       fab:fr?{left:fr.left,right:fr.right,top:fr.top,bottom:fr.bottom,width:fr.width,height:fr.height}:null};
+   });
+   const safe=!!shell.nav&&shell.sw<=shell.iw+1&&shell.nav.bottom<=shell.ih&&shell.nav.left>=0&&shell.nav.right<=shell.iw+1&&(!shell.fab||shell.fab.bottom<=shell.nav.top-8);
+   pass('A54 SAFE AREAS',safe,JSON.stringify(shell));
    if(errors.length)throw new Error('Runtime page errors: '+errors.join(' | '));
    fs.writeFileSync(path.join(out,'system-final-results.json'),JSON.stringify({passed,errors,nav,marker},null,2));
    console.log('KINETIQ_FINAL_SYSTEM_MOCKUP_IMPLEMENTATION_PASS');
