@@ -149,7 +149,7 @@ public class MainActivity extends Activity {
             }
         });
 
-        webView.loadUrl("file:///android_asset/index29.html");
+        webView.loadUrl("file:///android_asset/system.html");
     }
 
     private void verifyRuntimeReady(WebView view, int attempt) {
@@ -157,12 +157,12 @@ public class MainActivity extends Activity {
         final String probe = "(function(){try{" +
                 "var p=window.__ILIA_RUNTIME_PREFLIGHT__||'missing';" +
                 "var s=window.__PT_STYLE29__||'missing';" +
-                "var m=window.__ILIA_MASTER_MOCKUP__||'missing';" +
-                "var f=window.__ILIA_MASTER_FIX__||'missing';" +
                 "var v=window.__ILIA_V7__||'missing';" +
+                "var l=window.__ILIA_V73_LIBRARY_TOOLS__||'missing';" +
                 "var b=window.__KINETIQ_BETA303__||'missing';" +
-                "var u=window.__KINETIQ_UX_BETA__||'missing';var y=window.__KINETIQ_SYSTEM_BETA__||'missing';" +
-                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&m==='approved-functional'&&f==='2.9.3-runtime-ready'&&v==='3.0.3-calendar-ai-ready'&&b==='KINETIQ-3.0.3-approved-beta-1'&&u==='KINETIQ-3.0.3-ux-beta-1'&&y==='KINETIQ-3.0.3-system-beta-1')?'ready':(p+'|'+s+'|'+m+'|'+f+'|'+v+'|'+b+'|'+u+'|'+y);" +
+                "var y=window.__KINETIQ_SYSTEM_BETA__||'missing';" +
+                "var ui=window.__KINETIQ_SYSTEM_UI__||'missing';" +
+                "return (p==='ready'&&s==='locked-all-in-one-2.9'&&v==='3.0.3-calendar-ai-ready'&&l&&b==='KINETIQ-3.0.3-approved-beta-1'&&y==='KINETIQ-3.0.3-system-beta-2'&&ui==='KINETIQ-SYSTEM-UI-2')?'ready':(p+'|'+s+'|'+v+'|'+l+'|'+b+'|'+y+'|'+ui);" +
                 "}catch(e){return 'error';}})()";
         view.evaluateJavascript(probe, value -> {
             if ("\"ready\"".equals(value)) return;
