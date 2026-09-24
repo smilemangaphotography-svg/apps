@@ -123,7 +123,7 @@ function renderSystemMore(){
 }
 function authoritativeShell(){
  window.showMain=showPage;if(window.PT29)window.PT29.showMain=showPage;
- $$('.system-nav .nav-btn').forEach(b=>b.onclick=()=>showPage(b.dataset.nav));$('#systemProfile')?.addEventListener('click',()=>showPage('more'));$('#systemAiFab')?.addEventListener('click',openAI);const enter=$('#coverEnter');if(enter)enter.onclick=enterSystem
+ $('.system-nav .nav-btn').forEach(b=>b.onclick=()=>{const page=b.dataset.nav;if(page==='plan'){const v=V();v.selectedDate=ymd(today());saveState()}showPage(page)});$('#systemProfile')?.addEventListener('click',()=>showPage('more'));$('#systemAiFab')?.addEventListener('click',openAI);const enter=$('#coverEnter');if(enter)enter.onclick=enterSystem
 }
 
 function currentContext(){
@@ -228,7 +228,7 @@ function pendingHtml(){
 function openAI(){
  const v=V(),pending=!!v.pending;
  window.PT29?.sheet?.('KINETIQ Coach',`<div class="system-coach"><div class="coach-intro"><span class="coach-orb">✦</span><div><small>ADAPTIVE PERSONAL TRAINER</small><h2>What changed?</h2><p>Tell KINETIQ what you trained, missed, where you can train, how much time you have, or what you want adjusted.</p></div></div><div class="coach-user"><label for="v7AIInput">YOUR MESSAGE</label><textarea id="v7AIInput" rows="3" placeholder="I trained legs today. What should I do tomorrow?">${esc(v.lastAI||'')}</textarea><div class="coach-prompts"><button onclick="KINETIQSystem.fillAI('I trained legs today. What should I do tomorrow?')">LEGS TODAY</button><button onclick="KINETIQSystem.fillAI('I cannot go to the gym today. Give me a home workout.')">HOME TODAY</button><button onclick="KINETIQSystem.fillAI('I missed today’s workout. I only have Thursday and Friday for gym and Saturday and Sunday for running. Adjust my week.')">ADJUST WEEK</button></div><button class="coach-build" onclick="KINETIQSystem.askAI()">BUILD COACHING DECISION →</button></div>${pendingHtml()}</div>`);
- $('#sheet')?.classList.add('system-coach-sheet')
+ const sh=$('#sheet');sh?.classList.add('system-coach-sheet');const close=$('#sheetClose');if(close)close.onclick=()=>{sh.classList.remove('system-coach-sheet');window.PT29?.closeSheet?.()}
 }
 function fillAI(t){const a=$('#v7AIInput');if(a){a.value=t;a.focus()}}
 function askAI(){
@@ -241,9 +241,9 @@ function askAI(){
 function applyAI(){
  const v=V(),p=v.pending;if(!p)return;const first=p.rows[0]?.date||today();
  p.rows.forEach(r=>{const k=ymd(r.date);v.aiPlans[k]=clone(r.plan);v.myPlans[k]=clone(r.plan)});
- v.pending=null;v.planTab='my';v.selectedDate=ymd(first);syncLegacy();saveState();window.PT29?.closeSheet?.();showPage('plan')
+ v.pending=null;v.planTab='my';v.selectedDate=ymd(first);syncLegacy();saveState();$('#sheet')?.classList.remove('system-coach-sheet');window.PT29?.closeSheet?.();showPage('plan')
 }
-function keepCurrent(){const v=V();v.pending=null;saveState();window.PT29?.closeSheet?.();if($('.page.active')?.dataset.page==='plan')renderSystemPlan()}
+function keepCurrent(){const v=V();v.pending=null;saveState();$('#sheet')?.classList.remove('system-coach-sheet');window.PT29?.closeSheet?.();if($('.page.active')?.dataset.page==='plan')renderSystemPlan()}
 function applySelectedAI(){const v=V(),k=v.selectedDate,src=v.aiPlans[k];if(!src)return;v.myPlans[k]=clone(src);v.planTab='my';syncLegacy();saveState();renderSystemPlan()}
 function startExerciseFromDetail(id,opt={}){
  const st=state(),v=V(),e=window.PT29?.byId?.(id);if(!e)return;
