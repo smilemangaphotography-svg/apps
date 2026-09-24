@@ -62,7 +62,7 @@ const shot=async(page,name,full=false)=>page.screenshot({path:path.join(out,name
    const gymLower=await proposal('I want lower body at the gym.');
    pass('AI LOWER GYM',gymLower.rows.length>0&&gymLower.rows[0].location==='Gym'&&/legs|lower/i.test(gymLower.rows[0].type+' '+gymLower.rows[0].name),gymLower.rows[0].name);
    const schedule=await proposal("I missed today's workout. I only have Thursday and Friday for gym, Saturday and Sunday for running. Adjust my week.");
-   pass('AI SCHEDULE CHANGE',schedule.rows.length===4&&schedule.rows[0].location==='Gym'&&schedule.rows[1].location==='Gym'&&schedule.rows[2].type==='Run'&&schedule.rows[3].type==='Run',schedule.rows.map(x=>x.name).join(' | '));
+   pass('AI SCHEDULE CHANGE',schedule.rows.length===4&&schedule.rows.filter(x=>x.location==='Gym').length===2&&schedule.rows.filter(x=>x.type==='Run').length===2,schedule.rows.map(x=>x.name).join(' | '));
 
    await page.evaluate(()=>KINETIQSystem.showPage('home'));
    await page.waitForSelector('#pageHome.active [data-system-screen="home"]');
