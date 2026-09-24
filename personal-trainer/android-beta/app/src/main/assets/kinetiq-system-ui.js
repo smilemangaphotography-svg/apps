@@ -26,9 +26,10 @@ function ensureMotionObserver(){
  motionObserver=new IntersectionObserver(entries=>entries.forEach(x=>{const v=$('video',x.target);if(!v)return;if(x.isIntersecting&&x.intersectionRatio>.15)v.play().catch(()=>{});else v.pause()}),{threshold:[0,.15,.6]});
 }
 function mountMotion(box,id){
- if(!box||box.dataset.systemMotion===id)return;const m=motionMedia(id);if(!m)return;box.dataset.systemMotion=id;box.innerHTML='';
- if(!m.src){box.innerHTML='<div class="ux-text-only-media"><b>TEXT ONLY</b><span>Guidance available in the exercise detail.</span></div>';return}
- const v=document.createElement('video');v.loop=true;v.muted=true;v.playsInline=true;v.preload='metadata';if(m.poster)v.poster=m.poster;v.src=m.src;v.setAttribute('aria-label',`${m.e.name} looping movement`);box.appendChild(v);const chip=document.createElement('span');chip.className='ux-motion-chip';chip.textContent='↻ MOTION';box.appendChild(chip);ensureMotionObserver();if(motionObserver)motionObserver.observe(box);else v.play().catch(()=>{});
+ if(!box||box.dataset.systemMotion===id)return;const m=motionMedia(id);if(!m)return;
+ const overlays=$$('.system-selection-state,.system-card-media-state',box);box.dataset.systemMotion=id;box.innerHTML='';
+ if(!m.src){const empty=document.createElement('div');empty.className='ux-text-only-media';empty.innerHTML='<b>TEXT ONLY</b><span>Guidance available in the exercise detail.</span>';box.appendChild(empty);overlays.forEach(n=>box.appendChild(n));return}
+ const v=document.createElement('video');v.loop=true;v.muted=true;v.playsInline=true;v.preload='metadata';if(m.poster)v.poster=m.poster;v.src=m.src;v.setAttribute('aria-label',(m.e.name||'Exercise')+' looping movement');box.appendChild(v);overlays.forEach(n=>box.appendChild(n));const chip=document.createElement('span');chip.className='ux-motion-chip';chip.textContent='↻ MOTION';box.appendChild(chip);ensureMotionObserver();if(motionObserver)motionObserver.observe(box);else v.play().catch(()=>{});
 }
 function addLibraryHeading(root){if(!root||$('.ux-page-heading',root))return;const h=document.createElement('div');h.className='ux-page-heading';h.innerHTML=`<small>TRAIN BETTER. LONGER.</small><h1>Exercise Library</h1><span>${window.PT29?.catalog?.().length||0}+ EXERCISES</span>`;const anchor=$('.train-tabs-v29',root)||root.firstChild;root.insertBefore(h,anchor)}
 function enhanceLibrary(){const root=$('#pageTrain');if(!root||!root.classList.contains('active'))return;$('#v7TrainBanner',root)?.remove();addLibraryHeading(root);$$('.library-card-v29',root).forEach(card=>{const open=$('[data-open29]',card),id=open?.dataset.open29;if(id)mountMotion($('.media',card),id)});window.ILIA_V73?.repair?.()}
