@@ -169,10 +169,12 @@ const recoveryPlan=minutes=>plan('Recovery','AI Recovery / Mobility',['sideplank
 function weekdayDate(wd){const d=today(),delta=(wd-d.getDay()+7)%7;return addDays(d,delta===0?7:delta)}
 function runPlan(name,kind,distance,duration){return {type:'Run',name,ids:[],textExercises:[],duration:duration||40,run:{kind,distance},location:'Outdoor',intensity:/easy/i.test(kind)?'Easy':/long/i.test(kind)?'Steady':'Moderate'}}
 function planBody(p){if(!p)return null;const x=((p.type||'')+' '+(p.name||'')).toLowerCase();return /upper/.test(x)?'upper':/(legs|lower)/.test(x)?'lower':/run/.test(x)?'run':/recovery/.test(x)?'recovery':/full/.test(x)?'full':null}
+function contextualRecentBody(ctx){const n=String(ctx?.latest?.name||'').toLowerCase();return /upper|chest|back|shoulder|arms/.test(n)?'upper':/leg|lower|glute|hamstring|quad|calf/.test(n)?'lower':null}
+function recoveryLimited(ctx){return Object.values(ctx?.recovery||{}).some(p=>p&&((+p.pain||0)>=6||(+p.fatigue||0)>=8||(p.tolerance!==undefined&&+p.tolerance<=3)))}
 function chooseCompatible(i,targetDate){
  const before=i.ctx?.tomorrowPlan&&i.requestedDay==='tomorrow'?i.ctx.tomorrowPlan:i.ctx?.todayPlan;
- const recent=i.trainedBody;
- if(i.requestedBody==='recovery')return recoveryPlan(i.minutes);
+ const recent=i.trainedBody||contextualRecentBody(i.ctx);
+ if(i.requestedBody==='recovery'||recoveryLimited(i.ctx))return recoveryPlan(i.minutes);
  if(i.run||i.place==='outdoor')return runPlan('AI Easy Run','Easy Run','5K',i.minutes||35);
  if(i.requestedBody==='upper')return i.place==='home'?homeUpper(i.minutes,i.equipment):gymUpper(i.minutes);
  if(i.requestedBody==='lower')return i.place==='home'?homeLower(i.minutes):gymLower(i.minutes);
@@ -192,11 +194,12 @@ function chooseCompatible(i,targetDate){
 function aiProposal(text){
  const i=parseIntent(text),v=V(),d=today(),target=i.requestedDay==='tomorrow'?addDays(d,1):d;let rows=[],reason='',decision='';
  if(i.missed&&/thursday|friday/.test(i.raw)){
-   const th=weekdayDate(4),fr=weekdayDate(5),sa=weekdayDate(6),su=weekdayDate(0);
-   rows=[{date:th,plan:gymUpper(45),note:'Gym · Upper Strength'},{date:fr,plan:gymLower(45),note:'Gym · Lower Strength'},{date:sa,plan:runPlan('AI Easy Run','Easy Run','5K',35),note:'Outdoor · Easy Run'},{date:su,plan:runPlan('AI Long Run','Long Run',v.run?.distance||'10K',60),note:'Outdoor · Long Run'}];
-   decision='Rebuild the remaining week';reason='The missed session is redistributed around your stated gym and running availability without stacking demanding lower-body work before both runs.';
+   const slots=[{date:weekdayDate(4),role:'gym'},{date:weekdayDate(5),role:'gym'},{date:weekdayDate(6),role:'run'},{date:weekdayDate(0),role:'run'}].sort((a,b)=>a.date-b.date);
+   let gymN=0,runN=0;
+   rows=slots.map(x=>{if(x.role==='gym'){gymN++;const p=gymN===1?gymUpper(45):gymLower(45);return {date:x.date,plan:p,note:'Gym · '+(gymN===1?'Upper Strength':'Lower Strength')}}runN++;const p=runN===1?runPlan('AI Easy Run','Easy Run','5K',35):runPlan('AI Long Run','Long Run',v.run?.distance||'10K',60);return {date:x.date,plan:p,note:'Outdoor · '+(runN===1?'Easy Run':'Long Run')}});
+   decision='Rebuild the remaining week';reason='The missed session is redistributed into the next real Thursday/Friday gym and Saturday/Sunday running slots, ordered by the calendar and without stacking demanding lower-body work before both runs.';
  }else if(i.missed){
-   const before=v.myPlans[ymd(target)]||null,p=chooseCompatible(i,target);rows=[{date:target,plan:p,note:'Rescheduled from missed session'}];decision='Move the missed session';reason=`The missed workout is moved into the next compatible slot instead of being duplicated. ${before?.name?'The current plan is considered before the change.':''}`;
+   const next=addDays(d,1),before=v.myPlans[ymd(next)]||null,p=chooseCompatible(i,next);rows=[{date:next,plan:p,note:'Next compatible day · rescheduled from missed session'}];decision='Move the missed session';reason=`The missed workout moves to the next compatible day instead of being duplicated on the day that has already been missed. ${before?.name?'The existing next-day plan is considered before the change.':''}`;
  }else{
    const p=chooseCompatible(i,target),trained=i.trainedBody,when=i.trainedDay;
    rows=[{date:target,plan:p,note:`${p.location||p.type} · ${p.intensity||'Moderate'}`}];
