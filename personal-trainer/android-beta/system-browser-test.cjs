@@ -68,6 +68,12 @@ const shot=async(page,name,full=false)=>page.screenshot({path:path.join(out,name
    await page.waitForSelector('#pageHome.active [data-system-screen="home"]');
    pass('HOME',await page.locator('#pageHome .system-hero').count()===1,'final System Home');
    await shot(page,'01-home.png');
+   await page.evaluate(()=>{S.v7.selectedDate='2020-01-01';save()});
+   await page.locator('.system-nav [data-nav="plan"]').click();
+   await page.waitForSelector('#pagePlan.active [data-system-screen="plan"]');
+   const selectedToday=await page.evaluate(()=>{const d=new Date(),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');return S.v7.selectedDate===k});
+   pass('PLAN OPENS TODAY',selectedToday,'stale selected date is replaced immediately');
+   await page.evaluate(()=>KINETIQSystem.showPage('home'));
 
    const myBefore=await page.evaluate(()=>JSON.stringify(S.v7.myPlans));
    await page.evaluate(()=>KINETIQSystem.openAI());
@@ -83,6 +89,7 @@ const shot=async(page,name,full=false)=>page.screenshot({path:path.join(out,name
    await page.evaluate(()=>KINETIQSystem.keepCurrent());
    const myAfterKeep=await page.evaluate(()=>JSON.stringify(S.v7.myPlans));
    pass('KEEP CURRENT PLAN',myBefore===myAfterKeep,'My Plan unchanged');
+   pass('COACH SHEET STYLE CONTAINED',!await page.locator('#sheet.system-coach-sheet').count(),'Coach styling removed after close');
 
    await page.evaluate(()=>KINETIQSystem.openAI());
    await page.locator('#v7AIInput').fill('I cannot go to the gym today. Give me a home workout.');
