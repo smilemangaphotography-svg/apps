@@ -26,19 +26,24 @@
     <div class="kinetiq-wordmark">KINETI<span>Q</span></div><div class="kinetiq-statement">A HIGHER YOU</div>
   </div>
   <button id="coverEnter" class="kinetiq-enter" aria-label="Enter KINETIQ"><span>Q</span></button>
+  <button id="coverSettings" class="hidden" aria-hidden="true"></button>
 </section>
 <div id="app">
-  <section id="builder" class="builder hidden"><div id="builderBody"></div></section>
+  <section id="builder" class="builder hidden" aria-hidden="true">
+    <div class="builder-progress" id="builderProgress"></div>
+    <div id="builderBody"></div>
+    <div class="builder-footer"><button id="builderBack" class="btn ghost">← BACK</button><button id="builderNext" class="btn lime">CONTINUE →</button></div>
+  </section>
   <main id="mainApp" class="main-app hidden system-shell">
     <header class="system-topbar">
       <div><div class="system-eyebrow">KINETIQ</div><div id="topTitle" class="system-title">Today</div></div>
-      <button id="systemProfile" class="system-icon-btn" aria-label="More">◎</button>
+      <button id="systemProfile" class="system-icon-btn" aria-label="More">◎</button><button id="topProfile" class="hidden" aria-hidden="true"></button>
     </header>
     <section id="pageHome" class="page active" data-page="home"></section>
     <section id="pagePlan" class="page" data-page="plan"></section>
     <section id="pageTrain" class="page" data-page="train"></section>
     <section id="pageRun" class="page" data-page="run"></section>
-    <section id="pageMore" class="page" data-page="more"></section>
+    <section id="pageMore" class="page" data-page="more"></section><section id="pageFuel" class="page hidden" data-page="fuel" aria-hidden="true"></section>
     <nav class="bottom-nav system-nav">
       <button class="nav-btn active" data-nav="home"><span class="nav-icon">⌂</span><small>HOME</small></button>
       <button class="nav-btn" data-nav="plan"><span class="nav-icon">▦</span><small>PLAN</small></button>
