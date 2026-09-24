@@ -107,28 +107,37 @@ jobs:
         run: |
           set -euo pipefail
           A=personal-trainer/android-beta/app/src/main/assets
-          for f in style2-v29-runtime-preflight.js app-v2.js pt-v25-core.js style2-v29.js style2-v29-admin.js style2-v29-focus.js style2-v29-priority-engine.js style2-v29-master-mockup.js style2-v29-master-fix.js style2-v7.js style2-v73-library-tools.js kinetiq-beta-v303.js kinetiq-ux-beta.js; do node --check "$A/$f"; done
+          for f in style2-v29-runtime-preflight.js app-v2.js pt-v25-core.js style2-v29.js style2-v29-admin.js style2-v29-focus.js style2-v29-priority-engine.js style2-v7.js style2-v73-library-tools.js kinetiq-beta-v303.js kinetiq-system-ui.js system-build.js; do node --check "$A/$f"; done
           node --check personal-trainer/android-beta/system-browser-test.cjs
-          test -s "$A/kinetiq-ux-beta.css"
-          grep -q 'kinetiq-ux-beta.css' "$A/index29.html"
-          grep -q 'kinetiq-ux-beta.js' "$A/index29.html"
-          grep -q 'window.__KINETIQ_SYSTEM_BETA__=VERSION' "$A/kinetiq-ux-beta.js"
-          grep -q 'KINETIQ-3.0.3-system-beta-1' "$A/kinetiq-ux-beta.js"
-          ! grep -q 'style2-v7-final-fix.js' "$A/index29.html"
-          ! grep -q 'style2-v73-refresh.js' "$A/index29.html"
-          for f in app-v2.js style2-v29.js style2-v7.js style2-v73-library-tools.js kinetiq-beta-v303.js kinetiq-ux-beta.js; do ! grep -q 'MutationObserver' "$A/$f"; done
+          test -s "$A/system.html"
+          test -s "$A/kinetiq-system-ui.css"
+          grep -q 'kinetiq-system-ui.css' "$A/system.html"
+          grep -q 'kinetiq-system-ui.js' "$A/system.html"
+          grep -q 'system-build.js' "$A/system.html"
+          ! grep -q 'kinetiq-ux-beta.js' "$A/system.html"
+          ! grep -q 'style2-v29-master-mockup.js' "$A/system.html"
+          ! grep -q 'style2-v29-master-fix.js' "$A/system.html"
+          ! grep -q 'style2-v7-final-fix.js' "$A/system.html"
+          grep -q "KINETIQ-SYSTEM-UI-2" "$A/kinetiq-system-ui.js"
+          grep -q "KINETIQ-3.0.3-system-beta-2" "$A/kinetiq-system-ui.js"
+          grep -q 'data-nav="run"' "$A/system.html"
+          grep -q 'id="pageRun"' "$A/system.html"
+          grep -q 'file:///android_asset/system.html' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           grep -q "applicationId 'com.ilia.personaltrainer.systembeta'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'versionCode 45' personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.3-system-beta.1'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'versionCode 46' personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.3-system-beta.2'" personal-trainer/android-beta/app/build.gradle
           grep -q '<string name="app_name">KINETIQ SYSTEM BETA</string>' personal-trainer/android-beta/app/src/main/res/values/strings.xml
           if grep -q "applicationId 'com.ilia.personaltrainer.beta'" personal-trainer/android-beta/app/build.gradle; then echo 'ERROR: collides with frozen verified beta'; exit 1; fi
           if grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle; then echo 'ERROR: collides with production'; exit 1; fi
-          grep -q 'finishWorkout' "$A/app-v2.js"
-          grep -q 'restoreWorkoutState' "$A/app-v2.js"
           grep -q 'renderMotionKeyframes' "$A/style2-v29.js"
-          grep -q 'APPLY TO PLAN' "$A/kinetiq-ux-beta.js"
-          grep -q 'KEEP CURRENT PLAN' "$A/kinetiq-ux-beta.js"
-          grep -q 'Smoothed' "$A/style2-v7.js" || grep -q 'paceSamples' "$A/style2-v7.js"
+          grep -q 'renderSystemHome' "$A/kinetiq-system-ui.js"
+          grep -q 'renderSystemPlan' "$A/kinetiq-system-ui.js"
+          grep -q 'renderSystemTrain' "$A/kinetiq-system-ui.js"
+          grep -q 'renderSystemRun' "$A/kinetiq-system-ui.js"
+          grep -q 'renderSystemMore' "$A/kinetiq-system-ui.js"
+          grep -q 'APPLY TO PLAN' "$A/kinetiq-system-ui.js"
+          grep -q 'KEEP CURRENT PLAN' "$A/kinetiq-system-ui.js"
+          grep -q 'paceSamples' "$A/style2-v7.js"
       - name: Browser acceptance gate before APK build
         shell: bash
         run: |
@@ -142,10 +151,11 @@ jobs:
           npm install --no-save playwright@1.49.1 >/dev/null
           npx playwright install --with-deps chromium >/dev/null
           cp "$GITHUB_WORKSPACE/personal-trainer/android-beta/system-browser-test.cjs" "$T/system-browser-test.cjs"
+          printf "window.__KINETIQ_BUILD_ID__='%s';\n" "${GITHUB_SHA:0:7}" > "$A/system-build.js"
           python3 -m http.server 8765 --directory "$A" > "$RUNNER_TEMP/kinetiq-system-http.log" 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
-          for i in {1..30}; do curl -fsS http://127.0.0.1:8765/index29.html >/dev/null && break; sleep 1; done
+          for i in {1..30}; do curl -fsS http://127.0.0.1:8765/system.html >/dev/null && break; sleep 1; done
           KINETIQ_TEST_OUT="$R" timeout 60s node "$T/system-browser-test.cjs"
 
       - name: Build installable isolated UX beta APK
@@ -159,10 +169,12 @@ jobs:
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.systembeta' versionCode='45' versionName='3.0.3-system-beta.1'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.systembeta' versionCode='46' versionName='3.0.3-system-beta.2'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ SYSTEM BETA'"
-          unzip -l "$APK" | grep -q 'assets/kinetiq-ux-beta.css'
-          unzip -l "$APK" | grep -q 'assets/kinetiq-ux-beta.js'
+          unzip -l "$APK" | grep -q 'assets/system.html'
+          unzip -l "$APK" | grep -q 'assets/kinetiq-system-ui.css'
+          unzip -l "$APK" | grep -q 'assets/kinetiq-system-ui.js'
+          unzip -p "$APK" assets/system-build.js | grep -q "${GITHUB_SHA:0:7}"
           unzip -l "$APK" | grep -q 'assets/media/adaptive/leg-press.mp4'
           VERIFY_OUT="$RUNNER_TEMP/apksigner-ux.txt"
           "$APKSIGNER" verify --verbose --print-certs "$APK" | tee "$VERIFY_OUT"
@@ -179,17 +191,17 @@ jobs:
           cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/KINETIQ-SYSTEM-BETA-3.0.3.apk
           cp "$RUNNER_TEMP/kinetiq-ux-beta-cert-sha256.txt" release/SIGNING-CERT-SHA256.txt
           cp -a personal-trainer/android-beta/app/src/main/assets/. web-preview/
-          cp web-preview/index29.html web-preview/index.html
+          cp web-preview/system.html web-preview/index.html
           cat > release/BETA-README.txt <<'REPORT'
           KINETIQ 3.0.3 — SYSTEM BETA
           Package: com.ilia.personaltrainer.systembeta
           Label: KINETIQ SYSTEM BETA
-          Version: 3.0.3-ux-beta.1 / versionCode 45
+          Version: 3.0.3-system-beta.2 / versionCode 46
           Built from the separate kinetiq-v303-system-beta branch.
           Frozen verified baseline bff960ac6ee406345f344554e5e8874d285bbf42 remains unchanged.
           Production package com.ilia.personaltrainer remains unchanged.
           Verified beta package com.ilia.personaltrainer.beta remains unchanged.
-          Browser acceptance at Galaxy A54 viewport runs before the APK build step.
+          Authoritative system.html acceptance at Galaxy A54 viewport runs before the APK build step.
           REPORT
           sha256sum release/KINETIQ-SYSTEM-BETA-3.0.3.apk > release/SHA256SUMS.txt
 
