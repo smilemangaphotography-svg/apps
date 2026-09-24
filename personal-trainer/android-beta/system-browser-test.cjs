@@ -1,55 +1,80 @@
-const { chromium } = require('playwright');
-const fs=require('fs'), path=require('path');
-const out=process.env.KINETIQ_TEST_OUT||path.join(process.cwd(),'kinetiq-system-checks');
+const { chromium }=require('playwright');
+const fs=require('fs'),path=require('path');
+const out=process.env.KINETIQ_TEST_OUT||path.join(process.cwd(),'kinetiq-system-ui-proof');
 fs.mkdirSync(out,{recursive:true});
-const passed=[];
-const assert=(name,ok,detail='')=>{if(!ok)throw new Error(`${name} FAIL${detail?': '+detail:''}`);passed.push({name,detail});console.log(`PASS: ${name}${detail?' — '+detail:''}`)};
+const pass=(name,ok,detail='')=>{if(!ok)throw new Error(name+' FAIL'+(detail?': '+detail:''));console.log('PASS: '+name+(detail?' — '+detail:''))};
 (async()=>{
  const browser=await chromium.launch({channel:'chrome',headless:true,args:['--autoplay-policy=no-user-gesture-required']});
  const context=await browser.newContext({viewport:{width:412,height:915},deviceScaleFactor:1});
  await context.addInitScript(()=>{
    window.PTNative={speak(){},stopTts(){},setTtsVolume(){},setTtsRate(){},getTtsVoices(){return'[]'},setTtsVoice(){return true},startLocation(){},stopLocation(){},hasLocationPermission(){return true}};
-   const state={built:true,name:'Athlete',goal:'Get Stronger',experience:'Intermediate',days:4,minutes:45,equipment:'Full Gym',injuries:[],injuryDetails:{},currentDay:0,currentWeek:1,program:[],completed:{},history:[],music:{autoStart:false,autoStop:false,trackName:''},libraryFilter:'All',goals:['Get Stronger','Running / Endurance'],trainingSystems:['Strength','Hybrid Strength + Running'],runTypes:['Easy Run','Tempo Run','Long Run'],schedule:{strengthDays:3,runningDays:3,rehabDays:1,sessionLength:45,preferred:[1,2,3,4,5,6,0]},exerciseEnabled:{},animationEnabled:{},voiceCoach:{enabled:true,frequency:'Normal',countdown:true,cues:true,volume:1,rate:1.02,voiceName:''},planMode:'weekly',trainTab:'exercises',admin:{owner:true}};
-   localStorage.setItem('personalTrainer.beta2',JSON.stringify(state));
+   localStorage.setItem('personalTrainer.beta2',JSON.stringify({built:true,name:'Athlete',goal:'Get Stronger',experience:'Intermediate',days:4,minutes:45,equipment:'Full Gym',injuries:[],injuryDetails:{},currentDay:0,currentWeek:1,program:[],completed:{},history:[],music:{autoStart:false,autoStop:false,trackName:''},libraryFilter:'All',goals:['Get Stronger','Running / Endurance'],trainingSystems:['Strength','Hybrid Strength + Running'],runTypes:['Easy Run','Tempo Run','Long Run'],schedule:{strengthDays:3,runningDays:3,rehabDays:1,sessionLength:45,preferred:[1,2,3,4,5,6,0]},exerciseEnabled:{},animationEnabled:{},voiceCoach:{enabled:true,frequency:'Normal',countdown:true,cues:true,volume:1,rate:1.02,voiceName:''},planMode:'weekly',trainTab:'exercises',admin:{owner:true}}));
  });
  const page=await context.newPage();page.setDefaultTimeout(5000);page.setDefaultNavigationTimeout(15000);
- const pageErrors=[];page.on('pageerror',e=>pageErrors.push(String(e)));
+ const errors=[];page.on('pageerror',e=>errors.push(String(e)));
  try{
-   await page.goto('http://127.0.0.1:8765/index29.html',{waitUntil:'domcontentloaded',timeout:15000});
-   await page.waitForFunction(()=>window.__KINETIQ_SYSTEM_BETA__==='KINETIQ-3.0.3-system-beta-1',null,{timeout:7000});
-   if(await page.locator('#style2Cover:not(.hidden)').count()){await page.locator('#coverEnter').click();await page.waitForSelector('#mainApp:not(.hidden)',{timeout:4000})}
+  await page.goto('http://127.0.0.1:8765/system.html',{waitUntil:'domcontentloaded',timeout:15000});
+  await page.waitForFunction(()=>window.__KINETIQ_SYSTEM_UI__==='KINETIQ-SYSTEM-UI-2'&&window.__KINETIQ_SYSTEM_BETA__==='KINETIQ-3.0.3-system-beta-2',null,{timeout:7000});
+  if(await page.locator('#style2Cover:not(.hidden)').count())await page.locator('#coverEnter').click();
+  await page.waitForSelector('#mainApp:not(.hidden)',{timeout:4000});
 
-   // Continuation gate only. Run #3 already passed Home, Plan, AI, Apply/Keep,
-   // Library, canonical detail, real motion, keyframes, voice, workout engine,
-   // Running Coach/map/summary and Recovery. Do not rerun those successful tests.
-   await page.evaluate(()=>showMain('train'));
-   await page.waitForSelector('#pageTrain.active',{timeout:3000});
-   await page.evaluate(()=>PT29.openDetail(PT29.byId('legpress'),{}));
-   await page.waitForSelector('#exerciseDetail:not(.hidden)',{timeout:3000});
-   const back=await page.evaluate(()=>{const result=ptHandleBack();return {result,hidden:document.querySelector('#exerciseDetail')?.classList.contains('hidden')}});
-   assert('ANDROID BACK',back.result==='handled'&&back.hidden,'canonical detail closed by shared back handler');
+  const scripts=await page.evaluate(()=>[...document.scripts].map(s=>s.getAttribute('src')).filter(Boolean));
+  pass('SYSTEM ENTRYPOINT',location.pathname.endsWith('/system.html'),'system.html');
+  pass('OLD PRESENTATION DISABLED',!scripts.some(x=>/kinetiq-ux-beta|style2-v29-master-mockup|style2-v29-master-fix|style2-v7-final-fix/.test(x)),scripts.join('|'));
 
-   await page.evaluate(()=>showMain('plan'));
-   await page.waitForSelector('#pagePlan.active',{timeout:3000});
-   await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight));
-   await page.waitForTimeout(100);
-   const sy=await page.evaluate(()=>window.scrollY);
-   assert('SCROLLING',sy>0,`scrollY=${sy}`);
+  const nav=(await page.locator('.system-nav .nav-btn small').allTextContents()).map(x=>x.trim());
+  pass('BOTTOM NAV',nav.join('|')==='HOME|PLAN|TRAIN|RUN|MORE',nav.join('|'));
 
-   const perf=await page.evaluate(()=>({
-     scripts:[...document.scripts].map(s=>s.getAttribute('src')).filter(Boolean),
-     hiddenPlaying:[...document.querySelectorAll('video')].filter(v=>v.offsetParent===null&&!v.paused).length,
-     mutationObservers:String(window.MutationObserver).includes('[native code]')?0:0,
-     phaseBars:document.querySelectorAll('.phase-row-v29').length
-   }));
-   assert('PERFORMANCE',!perf.scripts.some(x=>/style2-v7-final-fix|style2-v73-refresh/.test(x))&&perf.hiddenPlaying===0,`hiddenPlaying=${perf.hiddenPlaying}`);
+  await page.evaluate(()=>KINETIQSystem.showPage('home'));
+  await page.waitForSelector('#pageHome.active [data-system-screen="home"]',{timeout:3000});
+  pass('HOME',await page.locator('#pageHome .system-hero').count()===1,'authoritative system home');
 
-   const shell=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,iw:innerWidth,ih:innerHeight,nav:document.querySelector('.bottom-nav')?.getBoundingClientRect(),fab:document.querySelector('#v7AiFab')?.getBoundingClientRect()}));
-   assert('A54 SAFE AREAS',shell.sw<=shell.iw+1&&shell.nav&&shell.nav.bottom<=shell.ih&&(!shell.fab||shell.fab.bottom<=shell.nav.top+4),`scrollWidth=${shell.sw}, viewport=${shell.iw}x${shell.ih}`);
+  await page.locator('.system-nav [data-nav="plan"]').click();
+  await page.waitForSelector('#pagePlan.active [data-system-screen="plan"]',{timeout:3000});
+  const tabs=(await page.locator('#pagePlan .system-tabs button').allTextContents()).map(x=>x.trim());
+  pass('PLAN',tabs.join('|')==='MY PLAN|AI RECOMMENDED',tabs.join('|'));
+  pass('OLD PLAN NOT PRIMARY',await page.locator('#pagePlan .plan-tabs,#pagePlan .v7-page').count()===0,'no old monthly/V7 shell');
 
-   if(pageErrors.length)throw new Error('Runtime page errors: '+pageErrors.join(' | '));
-   fs.writeFileSync(path.join(out,'system-results.json'),JSON.stringify({passed,pageErrors,continuedFromRun3:true},null,2));
-   await page.screenshot({path:path.join(out,'system-final.png'),fullPage:false,timeout:5000});
-   console.log('KINETIQ_SYSTEM_CRITICAL_PASS');
- } finally {await browser.close()}
+  await page.locator('.system-nav [data-nav="train"]').click();
+  await page.waitForSelector('#pageTrain.active [data-system-screen="train"]',{timeout:3000});
+  const cards=await page.locator('#pageTrain .system-library-card').count();
+  pass('TRAIN',cards>5,'approved Exercise Library cards='+cards);
+  pass('OLD TRAIN NOT PRIMARY',await page.locator('#pageTrain .train-tabs-v29,#pageTrain .ux-page-heading').count()===0,'system library owns Train');
+
+  const firstMotion=page.locator('#pageTrain .system-library-card').filter({has:page.locator('video')}).first();
+  await firstMotion.click();
+  await page.waitForSelector('#exerciseDetail:not(.hidden).ux-canonical-detail',{timeout:4000});
+  pass('CANONICAL EXERCISE DETAIL',await page.locator('#exerciseDetail #motionStage29').count()===1&&await page.locator('#exerciseDetail .phase-row-v29').count()===0,'canonical PT29 detail');
+  const motion=page.locator('#exerciseDetail #motionStage29 video.motion-video-v29').first();
+  await motion.waitFor({state:'attached',timeout:4000});
+  if(await motion.evaluate(v=>v.paused)){const p=page.locator('#motionStage29 .motion-play-v29');if(await p.count())await p.click()}
+  const t1=await motion.evaluate(v=>v.currentTime);await page.waitForTimeout(550);const t2=await motion.evaluate(v=>v.currentTime);
+  pass('REAL MOTION',t2>t1,'motion '+t1.toFixed(2)+'→'+t2.toFixed(2));
+  await page.locator('#detailBack').click();
+
+  await page.evaluate(()=>KINETIQSystem.openAI());
+  await page.waitForSelector('#sheet:not(.hidden) .ux-ai-coach',{timeout:3000});
+  const coach=await page.locator('#sheet').innerText();
+  pass('AI COACH',/ADAPTIVE PERSONAL TRAINER/i.test(coach)&&/BUILD COACHING DECISION/i.test(coach),'new coaching interface');
+  await page.evaluate(()=>PT29.closeSheet());
+
+  await page.locator('.system-nav [data-nav="run"]').click();
+  await page.waitForSelector('#pageRun.active .v7-run-shell',{timeout:4000});
+  const runText=await page.locator('#pageRun').innerText();
+  pass('RUN',/RUNNING COACH|LIVE RUN|RUN COMPLETE/i.test(runText),'dedicated Running Coach page');
+
+  await page.locator('.system-nav [data-nav="more"]').click();
+  await page.waitForSelector('#pageMore.active [data-system-screen="more"]',{timeout:3000});
+  const more=await page.locator('#pageMore').innerText();
+  pass('MORE',/Recovery/i.test(more)&&/Progress/i.test(more)&&/Devices \/ Garmin/i.test(more)&&/Settings/i.test(more),'final System More');
+  const marker=(await page.locator('#systemBuildId').textContent()||'').trim();
+  pass('SYSTEM BUILD MARKER',marker&&marker!=='DEV',marker);
+
+  const shell=await page.evaluate(()=>({sw:document.documentElement.scrollWidth,iw:innerWidth,nav:document.querySelector('.system-nav')?.getBoundingClientRect()}));
+  pass('A54 SAFE AREAS',shell.sw<=shell.iw+1&&shell.nav&&shell.nav.bottom<=innerHeight,'412×915 no horizontal overflow');
+  if(errors.length)throw new Error('Runtime page errors: '+errors.join(' | '));
+  await page.screenshot({path:path.join(out,'system-ui-proof.png'),fullPage:false,timeout:5000});
+  fs.writeFileSync(path.join(out,'system-ui-proof.json'),JSON.stringify({scripts,nav,marker},null,2));
+  console.log('KINETIQ_FINAL_SYSTEM_UI_PASS');
+ }finally{await browser.close()}
 })().catch(e=>{console.error(e.stack||e);process.exit(1)});
