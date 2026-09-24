@@ -3,7 +3,7 @@ const VERSION='KINETIQ-3.0.3-approved-beta-1';
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 let currentExerciseId=null,undoTimer=null,undoId=null,planBusy=false,detailBusy=false;
 let leafletPromise=null,map=null,mapHost=null,liveLine=null,guideLine=null,liveMarker=null;
-let routeSlide=0,runPatched=false,locationPatched=false,detailPatched=false,datePatched=false;
+let routeSlide=0,runPatched=false,locationPatched=false,detailPatched=false,datePatched=false,workoutPatched=false;
 let voiceTimers=[],restVoiceSeen=new Set();
 
 function S0(){return window.S||null}
@@ -25,7 +25,7 @@ function voiceState(){
   s.voiceCoach=Object.assign({enabled:true,frequency:'Normal',countdown:true,cues:true,volume:1,rate:1.02,voiceName:''},s.voiceCoach||{});return s.voiceCoach;
 }
 function stopNativeVoice(){try{window.PTNative?.stopTts?.()}catch(_){} }
-function voiceContextActive(){return !$('#exerciseDetail')?.classList.contains('hidden')||!$('#workoutOverlay')?.classList.contains('hidden')||!$('#restOverlay')?.classList.contains('hidden')}
+function voiceContextActive(){const b=beta(),s=S0();return !!(s?.activeWorkout?.active||b?.liveRun?.active)}
 function setVoiceEnabled(on){const v=voiceState();if(!v)return;v.enabled=!!on;if(!v.enabled){clearVoiceTimers();stopNativeVoice()}persist();applyVoiceSettings()}
 function persist(){try{save()}catch(e){}}
 function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
@@ -173,12 +173,7 @@ function installSwipeUndo(){
   document.addEventListener('pointerup',()=>{if(!row)return;const id=row.dataset.swipeExercise,wasLeft=dx<-52&&Math.abs(dx)>Math.abs(dy)*1.08;row=null;if(wasLeft)setTimeout(()=>{if(S0()?.v73ManualDisabled?.[id])showUndo(id)},180)},true);
 }
 
-function patchDetail(){
-  if(detailPatched||!window.PT29?.openDetail)return;
-  const old=window.PT29.openDetail;
-  const wrapped=function(e,opt){currentExerciseId=e?.id||null;const out=old.apply(this,arguments);setTimeout(()=>enhanceDetail(e),30);return out};
-  wrapped.__beta303=true;window.PT29.openDetail=wrapped;window.openDetail=wrapped;detailPatched=true;
-}
+function patchDetail(){if(detailPatched||!window.PT29?.openDetail)return;const old=window.PT29.openDetail;const wrapped=function(e,opt){currentExerciseId=e?.id||null;const out=old.apply(this,arguments);enhanceDetail(e);return out};wrapped.__beta303=true;window.PT29.openDetail=wrapped;window.openDetail=wrapped;detailPatched=true}
 function settingsHtml(){
   const v=voiceState();
   return '<div class="beta-voice-settings" id="betaVoiceSettings" hidden>'+
@@ -263,6 +258,14 @@ function enhanceWorkout(){
   }
 }
 
+function patchWorkout(){
+ if(workoutPatched)return;const rw=window.renderWorkout,sr=window.startRest,fr=window.finishRest,fw=window.finishWorkout;
+ if(typeof rw==='function')window.renderWorkout=function(){const out=rw.apply(this,arguments);enhanceWorkout();return out};
+ if(typeof sr==='function')window.startRest=function(){const out=sr.apply(this,arguments);enhanceExistingRest();return out};
+ if(typeof fr==='function')window.finishRest=function(){const out=fr.apply(this,arguments);enhanceWorkout();return out};
+ if(typeof fw==='function')window.finishWorkout=function(){clearVoiceTimers();stopNativeVoice();return fw.apply(this,arguments)};
+ workoutPatched=true;
+}
 function showBetaRest(e,seconds,completedIndex){
   const ov=$('#restOverlay');if(!ov)return;
   let left=seconds,paused=false;clearInterval(window.__betaRestTimer);
@@ -334,28 +337,50 @@ function selectedRoute(){
   const b=beta(),list=routeList();if(!list.length)return null;
   let r=list.find(x=>x.id===b.selectedRouteId);if(!r){r=list[0];b.selectedRouteId=r.id;persist()}return r
 }
+function svgRoutePoints(points,minLat,maxLat,minLon,maxLon,w=320,h=220,pad=22){
+  const dx=Math.max(.000001,maxLon-minLon),dy=Math.max(.000001,maxLat-minLat);
+  return points.map(p=>{const x=pad+((p.lon-minLon)/dx)*(w-pad*2),y=h-pad-((p.lat-minLat)/dy)*(h-pad*2);return x.toFixed(1)+','+y.toFixed(1)}).join(' ')
+}
+function renderFallbackMap(host){
+  if(!host)return;
+  const b=beta(),guide=selectedRoute(),live=b.liveRun?.points||[],g=guide?.points||[],all=[...g,...live];
+  if(!all.length){host.innerHTML='<div class="beta-map-fallback beta-map-live"><div><b>LIVE GPS MAP</b><br><span>Start a run to draw your route.</span><small>GPS route tracking works without map tiles.</small></div></div>';return}
+  const lats=all.map(p=>+p.lat),lons=all.map(p=>+p.lon),minLat=Math.min(...lats),maxLat=Math.max(...lats),minLon=Math.min(...lons),maxLon=Math.max(...lons);
+  const gp=g.length?svgRoutePoints(g,minLat,maxLat,minLon,maxLon):'',lp=live.length?svgRoutePoints(live,minLat,maxLat,minLon,maxLon):'';
+  const last=live[live.length-1]||g[g.length-1],lastPt=last?svgRoutePoints([last],minLat,maxLat,minLon,maxLon).split(','):null;
+  host.innerHTML='<div class="beta-map-svg"><svg viewBox="0 0 320 220" role="img" aria-label="Live GPS route map">'+
+    '<defs><pattern id="betaGrid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(255,255,255,.055)" stroke-width="1"/></pattern></defs>'+
+    '<rect width="320" height="220" fill="#081711"/><rect width="320" height="220" fill="url(#betaGrid)"/>'+
+    (gp?'<polyline points="'+gp+'" fill="none" stroke="#d7d8cf" stroke-width="4" stroke-dasharray="7 8" opacity=".55"/>':'')+
+    (lp?'<polyline points="'+lp+'" fill="none" stroke="#baff24" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>':'')+
+    (lastPt?'<circle cx="'+lastPt[0]+'" cy="'+lastPt[1]+'" r="7" fill="#baff24" stroke="#fff" stroke-width="3"/>':'')+
+    '</svg><div class="beta-map-caption"><b>'+(live.length?'LIVE GPS ROUTE':'SAVED ROUTE')+'</b><span>'+(live.length?live.length+' GPS points':'Offline route preview')+'</span></div></div>';
+}
 function initMap(){
   const host=$('#betaRunMap');if(!host)return;
+  renderFallbackMap(host);
   ensureLeaflet().then(L=>{
+    if(!host.isConnected)return;
     if(map&&mapHost!==host){try{map.remove()}catch(_){ }map=null}
     if(!map){
       mapHost=host;host.innerHTML='';
       map=L.map(host,{zoomControl:false,attributionControl:true});
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(map);
-      map.setView([40,20],4);
+      map.setView([35.1856,33.3823],12);
     }
     updateMap();
-  }).catch(()=>{host.innerHTML='<div class="beta-map-fallback"><div><b>LIVE GPS MAP</b><br>Map tiles need an internet connection.<br>Route recording continues with GPS.</div></div>'});
+  }).catch(()=>renderFallbackMap(host));
 }
 function updateMap(){
-  if(!map||!window.L)return;
+  const host=$('#betaRunMap');
+  if(!map||!window.L){renderFallbackMap(host);return}
   const b=beta(),guide=selectedRoute(),live=b.liveRun?.points||[];
   if(guideLine){guideLine.remove();guideLine=null}if(liveLine){liveLine.remove();liveLine=null}if(liveMarker){liveMarker.remove();liveMarker=null}
   const all=[];
   if(guide?.points?.length){const pts=guide.points.map(p=>[p.lat,p.lon]);guideLine=L.polyline(pts,{color:'#d7d8cf',weight:4,opacity:.55,dashArray:'7 8'}).addTo(map);all.push(...pts)}
   if(live.length){const pts=live.map(p=>[p.lat,p.lon]);liveLine=L.polyline(pts,{color:'#baff24',weight:5,opacity:.95}).addTo(map);all.push(...pts);const p=live[live.length-1];liveMarker=L.circleMarker([p.lat,p.lon],{radius:7,color:'#ffffff',weight:3,fillColor:'#baff24',fillOpacity:1}).addTo(map)}
   if(all.length){const bounds=L.latLngBounds(all);map.fitBounds(bounds.pad(.16),{maxZoom:16,animate:false})}
-  setTimeout(()=>map?.invalidateSize?.(),50);
+  map.invalidateSize(false);
 }
 function routeCardHtml(){
   const list=routeList();if(!list.length)return '<div class="beta-route-empty">No saved routes yet. Finish a GPS run and KINETIQ BETA will save the route here.</div>';
@@ -386,17 +411,10 @@ function enhanceRunPage(){
   initMap();renderRouteSection();
 }
 function patchRun(){
-  if(runPatched||!window.ILIA_V7)return;
-  const start=window.ILIA_V7.startRun,stop=window.ILIA_V7.stopRun,open=window.ILIA_V7.openRun;
-  window.ILIA_V7.startRun=function(){
-    const b=beta();b.liveRun={active:true,startedAt:Date.now(),points:[]};persist();
-    const out=start.apply(this,arguments);setTimeout(enhanceRunPage,40);return out
-  };
-  window.ILIA_V7.stopRun=function(){
-    saveLiveRoute();const out=stop.apply(this,arguments);setTimeout(enhanceRunPage,40);return out
-  };
-  window.ILIA_V7.openRun=function(){const out=open.apply(this,arguments);setTimeout(enhanceRunPage,40);return out};
-  runPatched=true;
+ if(runPatched||!window.ILIA_V7)return;const start=window.ILIA_V7.startRun,stop=window.ILIA_V7.stopRun,open=window.ILIA_V7.openRun;
+ window.ILIA_V7.startRun=function(){const b=beta();b.liveRun={active:true,startedAt:Date.now(),points:[]};persist();const out=start.apply(this,arguments);enhanceRunPage();return out};
+ window.ILIA_V7.stopRun=function(){saveLiveRoute();const out=stop.apply(this,arguments);enhanceRunPage();return out};
+ window.ILIA_V7.openRun=function(){const out=open.apply(this,arguments);enhanceRunPage();return out};runPatched=true;
 }
 function patchLocation(){
   if(locationPatched||!window.PT25)return;
@@ -405,21 +423,13 @@ function patchLocation(){
   locationPatched=true;
 }
 
-function enhanceAll(){
-  installCover();patchDates();patchDetail();patchRun();patchLocation();enhancePlan();enhanceDetail();enhanceWorkout();enhanceExistingRest();enhanceRunPage();
-}
-function observe(){
-  const main=$('#mainApp'),detail=$('#exerciseDetail'),work=$('#workoutOverlay'),rest=$('#restOverlay');
-  const schedule=()=>setTimeout(enhanceAll,0);
-  if(main)new MutationObserver(schedule).observe(main,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
-  if(detail)new MutationObserver(()=>{if(detail.classList.contains('hidden')){clearVoiceTimers();stopNativeVoice();const b=beta();if(b){delete b.activeVoiceSet;persist()}}schedule()}).observe(detail,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
-  if(work)new MutationObserver(schedule).observe(work,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
-  if(rest)new MutationObserver(schedule).observe(rest,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class']});
-}
+function enhanceAll(){installCover();patchDates();patchDetail();patchWorkout();patchRun();enhancePlan();enhanceDetail();enhanceWorkout();enhanceExistingRest();enhanceRunPage()}
+function observe(){return false}
 function init(){
-  if(!window.S||!window.PT29||!window.ILIA_V7||!window.ILIA_V73){setTimeout(init,140);return}
-  beta();voiceState();window.KINETIQVoice={get:voiceState,setEnabled:setVoiceEnabled,speak:t=>{const v=voiceState();if(v?.enabled&&t)try{window.PTNative?.speak(String(t))}catch(_){}},stop:()=>{clearVoiceTimers();stopNativeVoice()}};applyVoiceSettings();installSwipeUndo();enhanceAll();observe();
-  document.documentElement.dataset.kinetiqBeta303='ready';window.__KINETIQ_BETA303__=VERSION;
+ if(!window.S||!window.PT29||!window.ILIA_V7||!window.ILIA_V73){setTimeout(init,140);return}
+ beta();voiceState();window.KINETIQVoice={get:voiceState,setEnabled:setVoiceEnabled,speak:t=>{const v=voiceState();if(v?.enabled&&t&&voiceContextActive())speak(String(t))},stop:()=>{clearVoiceTimers();stopNativeVoice()},active:voiceContextActive};applyVoiceSettings();installSwipeUndo();enhanceAll();
+ window.KINETIQBeta303={enhancePlan,enhanceDetail,enhanceWorkout,enhanceRunPage,enhanceExistingRest,addRunPoint,saveLiveRoute,refresh:enhanceAll};
+ document.documentElement.dataset.kinetiqBeta303='ready';window.__KINETIQ_BETA303__=VERSION;
 }
 setTimeout(init,900);
 })();
