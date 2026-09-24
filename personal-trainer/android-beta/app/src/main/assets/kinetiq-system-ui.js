@@ -252,7 +252,19 @@ function openDevices(){const gps=window.PTNative?.hasLocationPermission?.()?'Rea
 function wireAPI(){
  const api=window.ILIA_V7;if(!api)return;api.openAI=openAI;api.fillAI=fillAI;api.askAI=askAI;api.sendAI=applyAI;api.cancelAI=keepCurrent;api.applyAI=applySelectedAI;
 }
-function patchBack(){if(window.__KINETIQ_SYSTEM_BACK__)return;const prev=window.ptHandleBack;window.ptHandleBack=function(){const w=$('#workoutOverlay');if(w&&!w.classList.contains('hidden')){window.pauseWorkoutSession?.();$('video',w)?.pause();w.classList.add('hidden');return'handled'}return prev?prev():'exit'};window.__KINETIQ_SYSTEM_BACK__=true}
+function patchBack(){
+ if(window.__KINETIQ_SYSTEM_BACK__)return;
+ window.ptHandleBack=function(){
+  const rest=$('#restOverlay');if(rest&&!rest.classList.contains('hidden'))return'handled';
+  const detail=$('#exerciseDetail');if(detail&&!detail.classList.contains('hidden')){$$('video',detail).forEach(v=>v.pause());detail.classList.add('hidden');try{window.KINETIQVoice?.stop?.()}catch(_){}return'handled'}
+  const sheet=$('#sheet');if(sheet&&!sheet.classList.contains('hidden')){window.PT29?.closeSheet?.();return'handled'}
+  const workout=$('#workoutOverlay');if(workout&&!workout.classList.contains('hidden')){window.pauseWorkoutSession?.();$('video',workout)?.pause();workout.classList.add('hidden');return'handled'}
+  if(state().beta303?.liveRun?.active)return'handled';
+  const page=$('.page.active')?.dataset.page;if(page&&page!=='home'){showPage('home');return'handled'}
+  return'exit'
+ };
+ window.__KINETIQ_SYSTEM_BACK__=true
+}
 function init(){
  if(!window.PT29||!window.ILIA_V7||!window.ILIA_V73||!window.__KINETIQ_BETA303__){setTimeout(init,100);return}
  wireAPI();patchBack();syncLegacy();authoritativeShell();window.restoreWorkoutState?.();document.addEventListener('visibilitychange',()=>{if(document.hidden){window.persistWorkoutState?.();try{window.KINETIQVoice?.stop?.()}catch(_){}}});
