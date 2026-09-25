@@ -5,6 +5,7 @@ on:
     branches: [merchant-post-update-master-fix-1.1.53]
     paths:
       - '.github/workflows/shishalove-merchant-unified-search-1.1.68.yml'
+      - 'shishalove-mobile/gradle.properties'
   workflow_dispatch:
 
 permissions:
