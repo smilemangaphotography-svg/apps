@@ -1,14 +1,6 @@
 name: ShishaLove Merchant 1.1.69 Approved Search Lock
 
 on:
-  push:
-    branches: [merchant-post-update-master-fix-1.1.53]
-    paths:
-      - '.github/workflows/shishalove-merchant-approved-search-1.1.69.yml'
-      - 'shishalove-mobile/merchant/build.gradle'
-      - 'shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
-      - 'shishalove-mobile/merchant/src/main/assets/merchant_phone_polish.js'
-      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.69-approved-search-mockup-lock.py'
   workflow_dispatch:
 
 permissions:
