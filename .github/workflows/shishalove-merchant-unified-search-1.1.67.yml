@@ -1,0 +1,87 @@
+name: ShishaLove Merchant 1.1.67 Unified Search
+
+on:
+  push:
+    branches: [merchant-post-update-master-fix-1.1.53]
+    paths:
+      - '.github/workflows/shishalove-merchant-unified-search-1.1.67.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout current unified-search source
+        uses: actions/checkout@v4
+
+      - name: Verify native camera and package locks
+        run: |
+          set -euo pipefail
+          M='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+          G='shishalove-mobile/merchant/build.gradle'
+          X='shishalove-mobile/merchant/src/main/AndroidManifest.xml'
+          P='shishalove-mobile/merchant/src/main/res/xml/merchant_file_paths.xml'
+          grep -Fq 'MediaStore.ACTION_IMAGE_CAPTURE' "$M"
+          grep -Fq 'params.isCaptureEnabled()' "$M"
+          grep -Fq 'FileProvider.getUriForFile' "$M"
+          grep -Fq 'cameraCaptureUri' "$M"
+          grep -Fq 'versionCode 167' "$G"
+          grep -Fq "versionName '1.1.67'" "$G"
+          grep -Fq "applicationId 'eu.shishalove.merchant'" "$G"
+          grep -Fq 'androidx.core:core:1.15.0' "$G"
+          grep -Fq 'androidx.core.content.FileProvider' "$X"
+          test -f "$P"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build release APK
+        working-directory: shishalove-mobile
+        run: gradle :merchant:assembleRelease --stacktrace
+
+      - name: Verify release APK
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APK='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          test -f "$APK"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='eu.shishalove.merchant' versionCode='167' versionName='1.1.67'"
+          mkdir -p dist
+          cp "$APK" dist/ShishaLove-Merchant-1.1.67-UNIFIED-SEARCH.apk
+          sha256sum dist/ShishaLove-Merchant-1.1.67-UNIFIED-SEARCH.apk > dist/SHA256SUMS.txt
+          cat > dist/BUILD-INFO.txt <<EOF
+          SHISHALOVE MERCHANT 1.1.67 — UNIFIED TEXT + CAMERA + GALLERY SEARCH
+          Package: eu.shishalove.merchant
+          versionCode: 167
+          versionName: 1.1.67
+          Direct camera: FileProvider + ACTION_IMAGE_CAPTURE
+          Gallery: existing WebView file chooser
+          Visual Search backend: unchanged
+          Customer: unchanged
+          EOF
+
+      - name: Upload Merchant APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-merchant-1.1.67-unified-search
+          path: |
+            dist/ShishaLove-Merchant-1.1.67-UNIFIED-SEARCH.apk
+            dist/BUILD-INFO.txt
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
