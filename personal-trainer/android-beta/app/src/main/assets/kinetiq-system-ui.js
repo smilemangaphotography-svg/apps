@@ -146,7 +146,8 @@ function currentContext(){
    latest,equipment:s.equipment||'Full Gym',duration:v.duration||s.minutes||45,
    recovery:s.recoveryProfiles||{},maxPain,maxFatigue,schedule:s.schedule||{},completed:s.completed||{},
    goals:[...(s.goals||[])],injuries:[...(s.injuries||[])],injuryDetails:clone(s.injuryDetails||{}),
-   activeWorkout:s.activeWorkout||null,runTomorrow:planBody(tomorrowPlan)==='run'
+   activeWorkout:s.activeWorkout||null,runTomorrow:planBody(tomorrowPlan)==='run',
+   planByDate:Object.fromEntries(Array.from({length:9},(_,n)=>{const d=addDays(today(),n),k=ymd(d);return [k,v.myPlans[k]||null]}))
  };
 }
 function bodyFromWords(t){return /full\s*body/.test(t)?'full':/(upper body|chest|back|shoulders|arms)/.test(t)?'upper':/(lower body|legs|quads|glutes|hamstrings|calves)/.test(t)?'lower':/(recovery|mobility|easy day)/.test(t)?'recovery':null}
@@ -159,19 +160,23 @@ function parseIntent(text){
  const requestMatch=t.match(/(?:i\s+)?(?:want|need|give me|suggest|recommend|do|train)\s+(?:to\s+)?(?:a\s+)?([^.!?]+?)(?=\s+(?:today|tomorrow|at home|at the gym|in the gym|home|gym)|[.!?]|$)/i);
  let requestedBody=requestMatch?bodyFromWords(requestMatch[1]):null;
  if(!requestedBody&&/(?:want|need|give me|suggest|recommend).*(upper body|lower body|full body|legs|recovery|mobility)/.test(t))requestedBody=bodyFromWords(t.replace(/(?:trained|did|worked|hit|completed)[^.!?]*/g,''));
- const requestedDay=/\btomorrow\b/.test(t)?'tomorrow':/\btoday\b/.test(t)?'today':trainedDay==='yesterday'?'today':'today';
+ const tomorrowIsTarget=/(?:what should i do|what do i do|adjust|change|move|schedule|give me|train|do|workout|session)[^.!?]{0,48}\btomorrow\b|\btomorrow(?:'s)?\s+(?:workout|session)/.test(t);
+ const requestedDay=tomorrowIsTarget?'tomorrow':'today';
  const place=/(home|no gym|without (?:the )?gym|can't .*gym|cannot .*gym|don't .*gym|do not .*gym)/.test(t)?'home':/(outdoor|outside|park)/.test(t)?'outdoor':/(at (?:the )?gym|in (?:the )?gym|\bgym\b)/.test(t)?'gym':null;
  const missed=/(missed|skipped|couldn't train|could not train)/.test(t),adjust=/(adjust|change|move|rearrange|update|what should i do|what do i do)/.test(t);
  const equipment=[];if(/band/.test(t))equipment.push('band');if(/dumbbell/.test(t))equipment.push('dumbbells');if(/bodyweight|no equipment|minimal equipment/.test(t))equipment.push('bodyweight');
- const scheduledRunTomorrow=/(?:i\s+have|there(?:'s| is)|scheduled|plan(?:ned)?)\s+(?:an?\s+)?(?:easy\s+|tempo\s+|long\s+|interval\s+)?run\s+tomorrow|run\s+tomorrow\s+(?:is\s+)?scheduled/.test(t);
- const requestRun=!scheduledRunTomorrow&&/(?:give me|want|need|do|go for|schedule).*(?:easy\s+|tempo\s+|long\s+|interval\s+|custom\s+)?run|\b(?:tempo run|intervals|long run|easy run|custom run)\b/.test(t);
+ const statedTomorrowRun=/\b(?:intervals?|interval run|tempo(?: run)?|long run|easy run|run)\s+tomorrow\b|\btomorrow\b[^.!?]*\b(?:intervals?|interval run|tempo(?: run)?|long run|easy run|run)\b/.test(t);
+ const scheduledRunTomorrow=statedTomorrowRun||/(?:i\s+have|there(?:'s| is)|scheduled|plan(?:ned)?)\s+(?:an?\s+)?(?:easy\s+|tempo\s+|long\s+|interval\s+)?run\s+tomorrow|run\s+tomorrow\s+(?:is\s+)?scheduled/.test(t);
+ const upcomingRunKind=/\bintervals?\b/.test(t)?'Intervals':/\btempo\b/.test(t)?'Tempo Run':/\blong run\b/.test(t)?'Long Run':/\beasy run\b/.test(t)?'Easy Run':scheduledRunTomorrow?'Run':null;
+ const weekendRunning=/\bweekend\b[^.!?]*\b(?:run|running)\b|\b(?:run|running)\b[^.!?]*\bweekend\b/.test(t);
+ const requestRun=!scheduledRunTomorrow&&!weekendRunning&&/(?:give me|want|need|do|go for|schedule).*(?:easy\s+|tempo\s+|long\s+|interval\s+|custom\s+)?run|\b(?:tempo run|intervals|long run|easy run|custom run)\b/.test(t);
  const fatigue=/\b(tired|fatigued|fatigue|exhausted|low energy|poor sleep|bad sleep|sleep deprived)\b/.test(t);
  const pain=/(pain|discomfort|irritated|irritation|sore|injur)/.test(t);
  const painArea=/knee/.test(t)?'knee':/hip/.test(t)?'hip':/(ankle|astragalus)/.test(t)?'ankle':/shoulder/.test(t)?'shoulder':/elbow/.test(t)?'elbow':pain?'unspecified':null;
  const moveTodayTomorrow=/move\s+(?:today(?:'s)?\s+)?(?:workout|session)?\s*(?:to|into)\s+tomorrow|move\s+today(?:'s)?\s+(?:workout|session)\s+tomorrow/.test(t);
  const gymDays=[['monday',1],['tuesday',2],['wednesday',3],['thursday',4],['friday',5],['saturday',6],['sunday',0]].filter(([n])=>new RegExp('\\b'+n+'\\b').test(t)).map(x=>x[1]);
  const onlyDays=/(only have|only available|only free|can only)/.test(t);
- return {raw:t,ctx,minutes,trainedBody,trainedDay,requestedBody,requestedDay,place,missed,adjust,equipment,requestRun,scheduledRunTomorrow,fatigue,pain,painArea,moveTodayTomorrow,gymDays,onlyDays};
+ return {raw:t,ctx,minutes,trainedBody,trainedDay,requestedBody,requestedDay,place,missed,adjust,equipment,requestRun,scheduledRunTomorrow,upcomingRunKind,weekendRunning,fatigue,pain,painArea,moveTodayTomorrow,gymDays,onlyDays};
 }
 function homeUpper(minutes,equipment=[]){const text=[{name:'Pike Push-Up',prescription:'3 × 8–12',muscles:'Shoulders + Triceps'},{name:'Chair Dips',prescription:'3 × 10–15',muscles:'Triceps + Chest'}];if(equipment.includes('band')||!equipment.length)text.push({name:'Band Row',prescription:'3 × 12–15',muscles:'Back + Biceps'});else text.push({name:'Prone W Raise',prescription:'3 × 10–15',muscles:'Upper Back'});return plan('Upper','Home Upper Body',['pushup','sideplank'],text,minutes||30,{location:'Home',intensity:'Moderate'})}
 function homeLower(minutes){return plan('Legs','Home Lower Body',['sideplank'],[{name:'Chair Squat',prescription:'3 × 10–15',muscles:'Quads + Glutes'},{name:'Glute Bridge',prescription:'3 × 12–15',muscles:'Glutes + Hamstrings'},{name:'Supported Reverse Lunge',prescription:'3 × 8 / side',muscles:'Quads + Glutes'},{name:'Calf Raise',prescription:'3 × 12–20',muscles:'Calves'}],minutes||30,{location:'Home',intensity:'Moderate'})}
@@ -199,12 +204,13 @@ function fitDuration(p,minutes){
  return q
 }
 function chooseCompatible(i,targetDate){
- const before=i.requestedDay==='tomorrow'?i.ctx?.tomorrowPlan:i.ctx?.todayPlan,recent=i.trainedBody||contextualRecentBody(i.ctx);
+ const targetKey=ymd(targetDate),before=i.ctx?.planByDate?.[targetKey]||(targetKey===ymd(addDays(today(),1))?i.ctx?.tomorrowPlan:i.ctx?.todayPlan),recent=i.trainedBody||contextualRecentBody(i.ctx);
  let p;
  if(i.painArea==='knee')p=kneeConservativePlan(i.minutes);
  else if(i.fatigue||i.requestedBody==='recovery'||recoveryLimited(i.ctx))p=recoveryPlan(i.minutes||25);
  else if(i.requestRun||i.place==='outdoor')p=runPlan('Easy Run','Easy Run','5K',i.minutes||35);
- else if(i.scheduledRunTomorrow&&!i.requestedBody)p=recent==='upper'?recoveryPlan(i.minutes||20):(i.place==='home'?homeUpper(i.minutes,i.equipment):gymUpper(i.minutes||35));
+ else if(i.scheduledRunTomorrow&&!i.requestedBody)p=recent==='upper'||recent==='lower'?recoveryPlan(i.minutes||20):(i.place==='home'?homeUpper(i.minutes,i.equipment):gymUpper(i.minutes||35));
+ else if(i.minutes&&!i.requestedBody&&!i.place&&!recent&&!i.requestRun&&!i.scheduledRunTomorrow&&before)p=clone(before);
  else if(i.requestedDay==='tomorrow'&&planBody(before)==='run'&&!i.requestedBody)p=clone(before);
  else if(i.requestedBody==='upper')p=i.place==='home'?homeUpper(i.minutes,i.equipment):gymUpper(i.minutes);
  else if(i.requestedBody==='lower')p=i.place==='home'?homeLower(i.minutes):gymLower(i.minutes);
@@ -217,50 +223,75 @@ function chooseCompatible(i,targetDate){
  return fitDuration(p,i.minutes)
 }
 function understoodFor(i){
- const out=[];
- if(i.trainedBody)out.push(`${i.trainedBody==='lower'?'Legs':i.trainedBody==='upper'?'Upper body':'Full body'} trained ${i.trainedDay||'recently'}`);
- if(i.missed)out.push('A workout was missed');
- if(i.place)out.push(`Location: ${i.place}`);
- if(i.minutes)out.push(`Available time: ${i.minutes} min`);
- if(i.gymDays.length)out.push(`Available gym days: ${i.gymDays.length}`);
- if(i.scheduledRunTomorrow||i.ctx?.runTomorrow)out.push('Run scheduled tomorrow');
- if(i.fatigue)out.push('Low readiness / fatigue reported');
- if(i.painArea)out.push(`${i.painArea} symptoms reported`);
- if(i.ctx?.equipment)out.push(`Equipment profile: ${i.ctx.equipment}`);
- return out.slice(0,6)
+ const hist=[],avail=[],ready=[],goal=[];
+ if(i.trainedBody)hist.push(`${i.trainedBody==='lower'?'Legs':i.trainedBody==='upper'?'Upper body':'Full body'} trained ${i.trainedDay||'recently'}`);
+ else if(i.ctx?.latest?.name)hist.push(`Recent: ${i.ctx.latest.name}`);
+ if(i.missed)hist.push('A workout was missed');
+ if(i.place)avail.push(`Location: ${i.place}`);
+ if(i.minutes)avail.push(`Available time: ${i.minutes} min`);
+ if(i.gymDays.length)avail.push(`Gym days stated: ${i.gymDays.length}`);
+ if(i.weekendRunning)avail.push('Weekend reserved for running');
+ if(!avail.length)avail.push(`Equipment profile: ${i.ctx?.equipment||'not specified'}`);
+ if(i.fatigue)ready.push('Low readiness / fatigue reported');
+ if(i.painArea)ready.push(`${i.painArea} symptoms reported`);
+ if(!ready.length)ready.push('No new symptom/readiness constraint stated');
+ if(i.scheduledRunTomorrow||i.ctx?.runTomorrow)goal.push(`${i.upcomingRunKind||'Run'} scheduled tomorrow`);
+ if((i.ctx?.goals||[]).length)goal.push(`Goal: ${i.ctx.goals[0]}`);
+ goal.push(`Today plan: ${i.ctx?.todayPlan?.name||'No session'}`);
+ goal.push(`Tomorrow plan: ${i.ctx?.tomorrowPlan?.name||'No session'}`);
+ return {trainingHistory:hist,availability:avail,readiness:ready,goalSchedule:goal.slice(0,4)}
+}
+function nextOpenDate(v,start,exclude=[]){
+ const blocked=new Set(exclude);
+ for(let n=1;n<=8;n++){const d=addDays(start,n),k=ymd(d),p=v.myPlans[k];if(blocked.has(k))continue;if(!p||p.type==='Recovery'||/recovery|rest|off/i.test(p.name||''))return d}
+ return addDays(start,1)
 }
 function aiProposal(text){
- const i=parseIntent(text),v=V(),d=today(),target=i.requestedDay==='tomorrow'?addDays(d,1):d;
+ const i=parseIntent(text),v=V(),d=today(),todayKey=ymd(d),target=i.requestedDay==='tomorrow'?addDays(d,1):d;
+ const currentPlan={today:clone(v.myPlans[todayKey]||{type:'Recovery',name:'No session',ids:[],duration:20}),tomorrow:clone(v.myPlans[ymd(addDays(d,1))]||{type:'Recovery',name:'No session',ids:[],duration:20})};
  let rows=[],reason='',decision='',effect=[];
  if(i.moveTodayTomorrow){
-   const todayKey=ymd(d),tom=addDays(d,1),todayPlan=clone(v.myPlans[todayKey]||{type:'Recovery',name:'Recovery',ids:[],duration:20}),tomorrowBefore=clone(v.myPlans[ymd(tom)]||{type:'Recovery',name:'No session',ids:[],duration:20});
+   const tom=addDays(d,1),tomKey=ymd(tom),todayPlan=clone(currentPlan.today),tomorrowBefore=clone(currentPlan.tomorrow);
    rows=[{date:d,plan:recoveryPlan(20),note:'Today becomes recovery',before:todayPlan},{date:tom,plan:todayPlan,note:'Today’s workout moved to tomorrow',before:tomorrowBefore}];
-   decision='Move today’s workout to tomorrow';reason='Today becomes a recovery slot and the existing session moves to tomorrow. Nothing changes until you apply this proposal.';effect=['Today → Recovery','Tomorrow → '+todayPlan.name];
+   if(tomorrowBefore&&tomorrowBefore.type!=='Recovery'&&!/recovery|rest|off|no session/i.test(tomorrowBefore.name||'')){
+     const displaced=nextOpenDate(v,tom,[todayKey,tomKey]);rows.push({date:displaced,plan:tomorrowBefore,note:'Existing tomorrow session moved to next open slot',before:clone(v.myPlans[ymd(displaced)]||{type:'Recovery',name:'No session',ids:[],duration:20})});
+     effect=[`Today → Recovery`,`Tomorrow → ${todayPlan.name}`,`${compactDate(displaced)} → ${tomorrowBefore.name}`];
+     reason='You asked to move today’s workout to tomorrow. KINETIQ preserves that request and moves the session already on tomorrow to the next open recovery/rest slot instead of silently deleting it.';
+   }else{
+     effect=[`Today → Recovery`,`Tomorrow → ${todayPlan.name}`];
+     reason='You asked to move today’s workout to tomorrow. Today becomes a recovery slot and the current workout moves to tomorrow. Nothing changes until you apply.';
+   }
+   decision='Move today’s workout to tomorrow';
  }else if(i.onlyDays&&i.gymDays.length){
-   const dates=i.gymDays.map(weekdayDate).sort((a,b)=>a-b);let n=0;
-   rows=dates.map(date=>{n++;const p=n%2?gymUpper(i.minutes||40):gymLower(i.minutes||45);return {date,plan:p,note:'Available gym day'}});
-   decision='Fit training to your available gym days';reason='KINETIQ keeps strength work inside the days you said you can reach the gym and spaces upper/lower loading across those slots.';effect=rows.map(r=>`${compactDate(r.date)} → ${r.plan.name}`);
- }else if(i.missed&&/thursday|friday/.test(i.raw)){
-   const slots=[{date:weekdayDate(4),role:'gym'},{date:weekdayDate(5),role:'gym'},{date:weekdayDate(6),role:'run'},{date:weekdayDate(0),role:'run'}].sort((a,b)=>a.date-b.date);
-   let gymN=0,runN=0;
-   rows=slots.map(x=>{if(x.role==='gym'){gymN++;const p=gymN===1?gymUpper(45):gymLower(45);return {date:x.date,plan:p,note:'Gym availability'}}runN++;const p=runN===1?runPlan('Easy Run','Easy Run','5K',35):runPlan('Long Run','Long Run',v.run?.distance||'10K',60);return {date:x.date,plan:p,note:'Running availability'}});
-   decision='Rebuild the remaining week';reason='The missed session is redistributed around your stated gym and running availability without stacking demanding lower-body work before both runs.';effect=rows.map(r=>`${compactDate(r.date)} → ${r.plan.name}`);
+   const slots=i.gymDays.map(day=>({date:weekdayDate(day),role:'gym'}));
+   if(i.weekendRunning){slots.push({date:weekdayDate(6),role:'run'},{date:weekdayDate(0),role:'run'})}
+   slots.sort((a,b)=>a.date-b.date);let gymN=0,runN=0;
+   rows=slots.map(x=>{if(x.role==='gym'){gymN++;const p=gymN%2?gymUpper(i.minutes||40):gymLower(i.minutes||45);return {date:x.date,plan:p,note:'Available gym day'}}runN++;const p=runN===1?runPlan('Easy Run','Easy Run','5K',35):runPlan('Long Run','Long Run',v.run?.distance||'10K',60);return {date:x.date,plan:p,note:'Weekend running availability'}});
+   decision='Fit training to your stated availability';
+   reason=i.weekendRunning?'KINETIQ keeps strength work on your stated gym days and reserves the weekend for running, rather than forcing sessions onto unavailable days.':'KINETIQ keeps strength work inside the gym days you said are available.';
+   effect=rows.map(r=>`${compactDate(r.date)} → ${r.plan.name}`);
  }else if(i.missed){
-   const next=addDays(d,1),p=chooseCompatible(i,next);rows=[{date:next,plan:p,note:'Rescheduled from missed session'}];decision='Move the missed session';reason='The missed workout moves to the next compatible day instead of being duplicated on the day already missed.';effect=[`${compactDate(next)} → ${p.name}`];
+   const missedPlan=clone(currentPlan.today),slot=nextOpenDate(v,d,[todayKey]);
+   rows=[{date:d,plan:recoveryPlan(20),note:'Missed day closes as recovery',before:missedPlan},{date:slot,plan:missedPlan,note:'Missed session moved to next compatible open slot',before:clone(v.myPlans[ymd(slot)]||{type:'Recovery',name:'No session',ids:[],duration:20})}];
+   decision='Reschedule the missed workout';
+   reason='The missed session is not duplicated or discarded. KINETIQ closes the missed day and moves that exact planned session into the next open recovery/rest slot.';
+   effect=[`Today → Recovery`,`${compactDate(slot)} → ${missedPlan.name}`];
  }else{
    const p=chooseCompatible(i,target),trained=i.trainedBody,when=i.trainedDay;
    rows=[{date:target,plan:p,note:`${p.location||p.type} · ${p.intensity||'Moderate'}`}];
    if(i.painArea==='knee'){decision='Reduce knee loading';reason='You reported knee discomfort, so KINETIQ removes heavy knee-dominant loading and uses low-load, pain-limited work. This is training guidance, not a diagnosis.';effect=[`${compactDate(target)} → ${p.name}`,'Heavy knee-dominant work removed'];}
+   else if(i.scheduledRunTomorrow&&i.fatigue){decision=`Recover before tomorrow’s ${i.upcomingRunKind||'run'}`;reason='You reported tired legs/readiness concerns before a scheduled run tomorrow. KINETIQ reduces today’s loading so the run is not preceded by unnecessary fatigue; the run itself is not silently changed.';effect=[`Today → ${p.name}`,`Tomorrow → ${i.upcomingRunKind||currentPlan.tomorrow.name} remains scheduled`];}
    else if(i.fatigue){decision='Protect recovery today';reason='You reported fatigue, so KINETIQ reduces intensity and session density rather than forcing the planned workload.';effect=[`${compactDate(target)} → ${p.name}`];}
-   else if(i.scheduledRunTomorrow){decision='Protect tomorrow’s run';reason='A run is scheduled tomorrow, so today avoids unnecessary lower-body fatigue and favors a compatible upper or recovery session.';effect=[`Today → ${p.name}`,'Tomorrow’s run remains in place'];}
-   else if(trained==='lower'&&when==='today'){decision='Protect lower-body recovery';reason='You trained legs today. Tomorrow shifts away from another lower-body strength session and uses your actual calendar to choose a compatible option.';effect=[`Tomorrow → ${p.name}`];}
-   else if(trained==='upper'&&when==='today'){decision='Balance tomorrow’s load';reason='You completed upper body today. Tomorrow moves away from another upper session while respecting your location and calendar.';effect=[`Tomorrow → ${p.name}`];}
+   else if(i.scheduledRunTomorrow){decision='Protect tomorrow’s run';reason='A run is scheduled tomorrow, so today avoids unnecessary lower-body fatigue and favors a compatible upper or recovery session.';effect=[`Today → ${p.name}`,`Tomorrow’s ${i.upcomingRunKind||'run'} remains in place`];}
+   else if(trained==='lower'&&when==='today'){decision='Protect lower-body recovery';reason='You trained legs today. Tomorrow shifts away from another lower-body strength session and checks the actual tomorrow calendar before recommending an alternative.';effect=[`Tomorrow → ${p.name}`];}
+   else if(trained==='upper'&&(when==='today'||when==='yesterday')){decision='Balance the next training load';reason=`You trained upper body ${when}. KINETIQ avoids blindly repeating the same muscle group and uses the current plan, location and recovery context for the next session.`;effect=[`${compactDate(target)} → ${p.name}`];}
+   else if(i.minutes&&!i.requestedBody&&!i.place){decision=`Fit today’s plan into ${i.minutes} minutes`;reason='You only changed the time available, so KINETIQ keeps the planned session type and trims exercise volume instead of replacing it with an unrelated workout.';effect=[`${compactDate(target)} → ${p.name} · ${i.minutes} min`];}
    else if(i.requestedBody){decision=p.name;reason=`You explicitly requested ${i.requestedBody.replace('lower','lower body').replace('upper','upper body')} ${i.place==='home'?'at home':i.place==='gym'?'at the gym':''}. KINETIQ keeps that request while filtering against available exercises and the real calendar.`;effect=[`${compactDate(target)} → ${p.name}`];}
    else if(i.place==='home'){decision=p.name;reason='You cannot use the gym for this session, so KINETIQ switches to a home-compatible workout and uses text-only exercises where no real motion asset exists.';effect=[`${compactDate(target)} → Home session`];}
-   else{decision=p.name;reason='KINETIQ selected the next compatible session from your plan, recent training, recovery, equipment and workload.';effect=[`${compactDate(target)} → ${p.name}`];}
+   else{decision=p.name;reason='KINETIQ selected the next compatible session from your plan, recent training, recovery, equipment, running load and stated constraints.';effect=[`${compactDate(target)} → ${p.name}`];}
  }
  rows=rows.map(r=>({...r,before:r.before||clone(v.myPlans[ymd(r.date)]||{type:'Recovery',name:'No session',ids:[],duration:20})}));
- return {decision,rows,reason,effect,understood:understoodFor(i),request:text,intent:i,createdAt:Date.now()};
+ return {decision,rows,reason,effect,understood:understoodFor(i),currentPlan,request:text,intent:i,createdAt:Date.now()};
 }
 function rxLabel(e){try{const r=window.PT29?.rx?.(e)||{};return {sets:r.sets||e?.sets||3,reps:r.reps||e?.reps||'8–12',rest:r.rest||e?.rest||60}}catch(_){return {sets:e?.sets||3,reps:e?.reps||'8–12',rest:e?.rest||60}}}
 function exercisePreview(p){
@@ -271,13 +302,14 @@ function exercisePreview(p){
 }
 function pendingHtml(){
  const p=V().pending;if(!p)return'';
- const rows=p.rows.map(r=>`<article class="coach-session-card"><div class="coach-session-date">${esc(compactDate(r.date).toUpperCase())}</div><div class="coach-session-title"><div><small>RECOMMENDED SESSION</small><h3>${esc(r.plan.name)}</h3></div><span>${esc(r.plan.location||r.plan.type||'Flexible')}</span></div><div class="coach-session-meta"><span>${esc(r.plan.duration||45)} MIN</span><span>${esc(r.plan.intensity||'MODERATE').toUpperCase()}</span><span>${esc((r.plan.type||'TRAINING').toUpperCase())}</span></div>${r.plan.run?`<div class="coach-run-summary"><b>${esc(r.plan.run.kind||'Run')}</b><span>${esc(r.plan.run.distance||'')}</span></div>`:`<div class="coach-exercise-list">${exercisePreview(r.plan)}</div>`}${r.plan.safety?`<div class="coach-safety"><b>SAFETY</b><p>${esc(r.plan.safety)}</p></div>`:''}</article>`).join('');
+ const rows=p.rows.map(r=>`<article class="coach-session-card"><div class="coach-session-date">${esc(compactDate(r.date).toUpperCase())}</div><div class="coach-diff"><div><small>BEFORE</small><b>${esc(r.before?.name||'No session')}</b></div><span>→</span><div><small>AFTER</small><b>${esc(r.plan.name)}</b></div></div><div class="coach-session-title"><div><small>RECOMMENDED SESSION</small><h3>${esc(r.plan.name)}</h3></div><span>${esc(r.plan.location||r.plan.type||'Flexible')}</span></div><div class="coach-session-meta"><span>${esc(r.plan.duration||45)} MIN</span><span>${esc(r.plan.intensity||'MODERATE').toUpperCase()}</span><span>${esc((r.plan.type||'TRAINING').toUpperCase())}</span></div>${r.plan.run?`<div class="coach-run-summary"><b>${esc(r.plan.run.kind||'Run')}</b><span>${esc(r.plan.run.distance||'')}</span></div>`:`<div class="coach-exercise-list">${exercisePreview(r.plan)}</div>`}${r.plan.safety?`<div class="coach-safety"><b>SAFETY</b><p>${esc(r.plan.safety)}</p></div>`:''}</article>`).join('');
  const effect=(p.effect||[]).map(x=>`<li>${esc(x)}</li>`).join('');
- return `<section class="coach-result"><div class="coach-message user"><small>YOU</small><p>${esc(p.request)}</p></div><div class="coach-decision"><div class="coach-response-brand"><span>✦</span><div><small>KINETIQ COACH</small><b>${esc(p.decision||'Coaching decision')}</b></div></div><div class="coach-why"><small>WHY THIS WORKS</small><p>${esc(p.reason)}</p></div>${rows}<div class="coach-effect"><small>EFFECT ON SCHEDULE</small><ul>${effect||'<li>My Plan stays unchanged until you apply.</li>'}</ul></div><div class="coach-actions"><button class="apply" onclick="KINETIQSystem.applyAI()">APPLY TO PLAN</button><button class="keep" onclick="KINETIQSystem.keepCurrent()">KEEP CURRENT</button></div></div></section>`
+ return `<section class="coach-result"><div class="coach-message user"><small>USER MESSAGE</small><p>${esc(p.request)}</p></div><div class="coach-decision"><div class="coach-response-brand"><span>✦</span><div><small>COACH DECISION</small><b>${esc(p.decision||'Coaching decision')}</b></div></div><div class="coach-why"><small>WHY THIS CHANGE</small><p>${esc(p.reason)}</p></div>${rows}<div class="coach-effect"><small>EFFECT ON SCHEDULE</small><ul>${effect||'<li>My Plan stays unchanged until you apply.</li>'}</ul></div><div class="coach-actions"><button class="apply" onclick="KINETIQSystem.applyAI()">APPLY TO PLAN</button><button class="keep" onclick="KINETIQSystem.keepCurrent()">KEEP CURRENT</button></div></div></section>`
 }
 function openAI(){
- const v=V(),pending=v.pending,understood=pending?.understood||[];
- window.PT29?.sheet?.('KINETIQ Coach',`<div class="system-coach"><div class="coach-page-head"><div><small>ADAPTIVE PERSONAL TRAINER</small><h1>Ask KINETIQ</h1><p>Tell me what changed. I’ll read your plan, recent training, recovery, location, time and running load before recommending a change.</p></div><span class="coach-orb">✦</span></div><div class="coach-user"><label for="v7AIInput">YOUR REQUEST</label><textarea id="v7AIInput" rows="3" placeholder="I trained legs today. What should I do tomorrow?">${esc(v.lastAI||'')}</textarea><div class="coach-prompts"><button onclick="KINETIQSystem.fillAI('I trained legs today. What should I do tomorrow?')">TRAINED LEGS</button><button onclick="KINETIQSystem.fillAI('I cannot go to the gym today. Give me a home workout.')">HOME WORKOUT</button><button onclick="KINETIQSystem.fillAI('I feel tired today. Adjust my workout.')">LOW READINESS</button><button onclick="KINETIQSystem.fillAI('I have knee discomfort today. Adjust my workout.')">PAIN / RECOVERY</button></div><button class="coach-build" onclick="KINETIQSystem.askAI()">GET COACH DECISION →</button></div>${pending?`<div class="coach-understood"><small>WHAT I UNDERSTOOD</small><div>${understood.map(x=>`<span>✓ ${esc(x)}</span>`).join('')}</div></div>`:''}${pendingHtml()}</div>`);
+ const v=V(),pending=v.pending,u=pending?.understood||{trainingHistory:[],availability:[],readiness:[],goalSchedule:[]};
+ const group=(label,items)=>`<div class="coach-understood-group"><small>${label}</small><div>${(items||[]).map(x=>`<span>✓ ${esc(x)}</span>`).join('')||'<span>—</span>'}</div></div>`;
+ window.PT29?.sheet?.('KINETIQ Coach',`<div class="system-coach"><div class="coach-page-head"><div><small>ADAPTIVE PERSONAL TRAINER</small><h1>Ask KINETIQ</h1><p>Tell me what changed. I’ll read your plan, training history, readiness, schedule, location and time before recommending a change.</p></div><span class="coach-orb">✦</span></div><div class="coach-user"><label for="v7AIInput">USER MESSAGE</label><textarea id="v7AIInput" rows="3" placeholder="I trained legs today. What should I do tomorrow?">${esc(v.lastAI||'')}</textarea><small class="coach-quick-label">QUICK INTENTS</small><div class="coach-prompts"><button onclick="KINETIQSystem.fillAI('I trained legs today. What should I do tomorrow?')">TRAINED LEGS</button><button onclick="KINETIQSystem.fillAI('I cannot go to the gym today. Give me a home workout.')">HOME WORKOUT</button><button onclick="KINETIQSystem.fillAI('I feel tired today. Adjust my workout.')">LOW READINESS</button><button onclick="KINETIQSystem.fillAI('I have knee discomfort today. Adjust my workout.')">PAIN / RECOVERY</button></div><button class="coach-build" onclick="KINETIQSystem.askAI()">GET COACH DECISION →</button></div>${pending?`<div class="coach-understood"><small>WHAT I UNDERSTOOD</small>${group('TRAINING HISTORY',u.trainingHistory)}${group('AVAILABLE TODAY',u.availability)}${group('READINESS / SYMPTOMS',u.readiness)}${group('GOAL / SCHEDULING CONTEXT',u.goalSchedule)}</div>`:''}${pendingHtml()}</div>`);
  const sh=$('#sheet');sh?.classList.remove('system-device-surface');sh?.classList.add('system-ai-surface');const close=$('#sheetClose');if(close)close.onclick=()=>{sh.classList.remove('system-ai-surface');window.PT29?.closeSheet?.()}
 }
 function fillAI(t){const a=$('#v7AIInput');if(a){a.value=t;a.focus()}}
