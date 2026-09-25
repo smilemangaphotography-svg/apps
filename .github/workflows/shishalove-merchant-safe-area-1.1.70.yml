@@ -1,0 +1,112 @@
+name: ShishaLove Merchant 1.1.70 First Paint Safe Area
+
+on:
+  push:
+    branches: [merchant-post-update-master-fix-1.1.53]
+    paths:
+      - '.github/workflows/shishalove-merchant-safe-area-1.1.70.yml'
+      - 'shishalove-mobile/merchant/build.gradle'
+      - 'shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+      - 'shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.70-bottom-nav-safe-area.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout 1.1.70 source
+        uses: actions/checkout@v4
+
+      - name: Verify first-paint safe-area lock
+        run: |
+          set -euo pipefail
+          M='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+          V='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java'
+          G='shishalove-mobile/merchant/build.gradle'
+          X='shishalove-mobile/merchant/src/main/AndroidManifest.xml'
+          B='shishalove-wordpress-bridge/tools/patch-shishalove-1.1.70-bottom-nav-safe-area.py'
+
+          python3 -m py_compile "$B"
+          grep -Fq 'versionCode 170' "$G"
+          grep -Fq "versionName '1.1.70'" "$G"
+          grep -Fq 'build=170' "$M"
+          grep -Fq 'ShishaLoveMerchant/1.1.70' "$M"
+
+          grep -Fq 'WindowCompat.setDecorFitsSystemWindows(window, false)' "$M"
+          grep -Fq 'WindowInsetsCompat.Type.systemBars()' "$M"
+          grep -Fq 'root.setVisibility(View.INVISIBLE)' "$M"
+          grep -Fq 'ViewCompat.requestApplyInsets(root)' "$M"
+          grep -Fq 'v.setPadding(bars.left, bars.top, bars.right, bars.bottom)' "$M"
+          grep -Fq 'v.setVisibility(View.VISIBLE)' "$M"
+
+          ! grep -Fq 'scheduleWebFixes' "$V"
+          ! grep -Fq 'postDelayed(this::applyWebFix' "$V"
+          ! grep -Fq 'evaluateJavascript(js' "$V"
+          ! grep -Fq -- '--safe-bottom' "$V"
+          ! grep -Fq 'visualViewport' "$V"
+
+          grep -Fq 'android:name=".MerchantActivityV121"' "$X"
+          grep -Fq 'screenOrientation="portrait"' "$X"
+
+          grep -Fq 'expected exact Bridge 1.1.69 baseline' "$B"
+          grep -Fq 'WindowInsetsCompat.systemBars() owns the physical safe area' "$B"
+          grep -Fq 'padding-bottom:106px!important' "$B"
+          grep -Fq 'scroll-padding-bottom:106px!important' "$B"
+          grep -Fq 'inset:auto 0 0 0!important' "$B"
+          grep -Fq 'height:100dvh!important' "$B"
+          grep -Fq 'merchant.js unexpectedly changed' "$B"
+          grep -Fq 'customer.js unexpectedly changed' "$B"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Prepare Android SDK
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Build Merchant 1.1.70 APK
+        working-directory: shishalove-mobile
+        run: gradle :merchant:assembleRelease --stacktrace
+
+      - name: Verify packaged APK
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APK='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          test -f "$APK"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='eu.shishalove.merchant' versionCode='170' versionName='1.1.70'"
+
+          unzip -p "$APK" classes.dex > /tmp/classes.dex
+          strings /tmp/classes.dex > /tmp/classes.txt
+          grep -Fq 'ShishaLoveMerchant/1.1.70' /tmp/classes.txt
+          grep -Fq 'WindowInsetsCompat' /tmp/classes.txt
+          ! grep -Fq 'scheduleWebFixes' /tmp/classes.txt
+
+          mkdir -p dist
+          cp "$APK" dist/ShishaLove-Merchant-1.1.70-SAFE-AREA.apk
+          sha256sum dist/ShishaLove-Merchant-1.1.70-SAFE-AREA.apk > dist/SHA256SUMS.txt
+
+      - name: Upload Merchant 1.1.70
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-merchant-1.1.70-safe-area
+          path: |
+            dist/ShishaLove-Merchant-1.1.70-SAFE-AREA.apk
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
