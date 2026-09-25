@@ -66,7 +66,7 @@ php.write_text(p,encoding="utf-8")
 js.write_text(m,encoding="utf-8")
 css.write_text(c,encoding="utf-8")
 
-if customer.read_bytes()!=customer.read_bytes():
+if hashlib.sha256(customer.read_bytes()).hexdigest()!=expected[customer]:
     raise SystemExit("customer runtime changed")
 if "slm-live-suggestions" in m or "renderLiveSuggestions" in m or "slm-live-suggestions" in c:
     raise SystemExit("floating overlay code remains")
