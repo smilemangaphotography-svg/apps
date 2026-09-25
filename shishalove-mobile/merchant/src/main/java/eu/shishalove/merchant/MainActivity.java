@@ -43,7 +43,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=167";
+    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=168";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7201;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 7301;
@@ -235,7 +235,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) settings.setOffscreenPreRaster(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.67");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.68");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
@@ -305,13 +305,18 @@ public class MainActivity extends Activity {
                 filePathCallback = newCallback;
                 cameraCaptureUri = null;
 
-                final boolean cameraRequested = params != null
-                        && params.isCaptureEnabled()
-                        && acceptsImage(params.getAcceptTypes());
+                final boolean imageRequested = params != null && acceptsImage(params.getAcceptTypes());
+                final boolean cameraRequested = imageRequested && params.isCaptureEnabled();
 
                 Intent intent;
                 try {
-                    intent = cameraRequested ? createImageCaptureIntent() : params.createIntent();
+                    if (cameraRequested) {
+                        intent = createImageCaptureIntent();
+                    } else if (imageRequested) {
+                        intent = createImagePickerIntent();
+                    } else {
+                        intent = params == null ? null : params.createIntent();
+                    }
                 } catch (Exception e) {
                     intent = null;
                 }
@@ -324,7 +329,7 @@ public class MainActivity extends Activity {
                     }
                     intent = new Intent(Intent.ACTION_GET_CONTENT);
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
-                    intent.setType("image/*");
+                    intent.setType(imageRequested ? "image/*" : "*/*");
                 }
 
                 try {
@@ -355,6 +360,18 @@ public class MainActivity extends Activity {
             }
         }
         return false;
+    }
+
+    private Intent createImagePickerIntent() {
+        Intent intent;
+        if (Build.VERSION.SDK_INT >= 33) {
+            intent = new Intent(MediaStore.ACTION_PICK_IMAGES);
+            intent.setType("image/*");
+        } else {
+            intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+            intent.setType("image/*");
+        }
+        return intent;
     }
 
     private Intent createImageCaptureIntent() throws Exception {
