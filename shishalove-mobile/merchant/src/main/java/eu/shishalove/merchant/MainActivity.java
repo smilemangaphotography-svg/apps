@@ -20,7 +20,6 @@ import android.provider.MediaStore;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
-import android.view.WindowInsets;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
@@ -36,6 +35,10 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -43,7 +46,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=169";
+    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=170";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7201;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 7301;
@@ -66,19 +69,22 @@ public class MainActivity extends Activity {
         window.setStatusBarColor(Color.WHITE);
         window.setNavigationBarColor(Color.WHITE);
         window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        // 1.1.70: one native inset owner. The WebView never guesses Android
+        // navigation-bar height and is not revealed until real systemBars insets exist.
+        WindowCompat.setDecorFitsSystemWindows(window, false);
 
         createOrderNotificationChannel();
         requestOrderNotificationPermission();
 
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
-        if (Build.VERSION.SDK_INT >= 35) {
-            root.setOnApplyWindowInsetsListener((v, insets) -> {
-                android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars());
-                v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
-                return insets;
-            });
-        }
+        root.setVisibility(View.INVISIBLE);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            if (v.getVisibility() != View.VISIBLE) v.setVisibility(View.VISIBLE);
+            return insets;
+        });
 
         webView = new WebView(this);
         webView.setBackgroundColor(Color.WHITE);
@@ -106,6 +112,7 @@ public class MainActivity extends Activity {
         ));
 
         setContentView(root);
+        ViewCompat.requestApplyInsets(root);
         phonePolishJs = readAsset("merchant_phone_polish.js");
         orderWatchJs = readAsset("merchant_order_watch.js");
         configureWebView();
@@ -235,7 +242,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) settings.setOffscreenPreRaster(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.69");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.70");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
