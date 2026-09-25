@@ -6,6 +6,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -15,6 +16,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -33,12 +35,15 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import androidx.core.content.FileProvider;
+
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=116";
+    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=167";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7201;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 7301;
@@ -50,6 +55,7 @@ public class MainActivity extends Activity {
     private ImageView snapshotOverlay;
     private Bitmap lastSnapshot;
     private ValueCallback<Uri[]> filePathCallback;
+    private Uri cameraCaptureUri;
     private String phonePolishJs;
     private String orderWatchJs;
 
@@ -229,7 +235,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) settings.setOffscreenPreRaster(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.6");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.67");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
@@ -297,20 +303,39 @@ public class MainActivity extends Activity {
                                              FileChooserParams params) {
                 if (filePathCallback != null) filePathCallback.onReceiveValue(null);
                 filePathCallback = newCallback;
+                cameraCaptureUri = null;
+
+                final boolean cameraRequested = params != null
+                        && params.isCaptureEnabled()
+                        && acceptsImage(params.getAcceptTypes());
+
                 Intent intent;
                 try {
-                    intent = params.createIntent();
+                    intent = cameraRequested ? createImageCaptureIntent() : params.createIntent();
                 } catch (Exception e) {
+                    intent = null;
+                }
+
+                if (intent == null) {
+                    if (cameraRequested) {
+                        filePathCallback = null;
+                        Toast.makeText(MainActivity.this, "Camera is not available", Toast.LENGTH_SHORT).show();
+                        return false;
+                    }
                     intent = new Intent(Intent.ACTION_GET_CONTENT);
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
                     intent.setType("image/*");
                 }
+
                 try {
                     startActivityForResult(intent, FILE_CHOOSER_REQUEST);
                     return true;
                 } catch (Exception e) {
                     filePathCallback = null;
-                    Toast.makeText(MainActivity.this, "No file picker available", Toast.LENGTH_SHORT).show();
+                    cameraCaptureUri = null;
+                    Toast.makeText(MainActivity.this,
+                            cameraRequested ? "Camera is not available" : "No file picker available",
+                            Toast.LENGTH_SHORT).show();
                     return false;
                 }
             }
@@ -320,6 +345,38 @@ public class MainActivity extends Activity {
     private void applyRuntimeJs(WebView view) {
         if (phonePolishJs != null && !phonePolishJs.isEmpty()) view.evaluateJavascript(phonePolishJs, null);
         if (orderWatchJs != null && !orderWatchJs.isEmpty()) view.evaluateJavascript(orderWatchJs, null);
+    }
+
+    private boolean acceptsImage(String[] acceptTypes) {
+        if (acceptTypes == null || acceptTypes.length == 0) return true;
+        for (String type : acceptTypes) {
+            if (type == null || type.trim().isEmpty() || "*/*".equals(type) || type.toLowerCase().startsWith("image/")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Intent createImageCaptureIntent() throws Exception {
+        File dir = getExternalCacheDir();
+        if (dir == null) dir = getCacheDir();
+        File photo = File.createTempFile("shishalove-visual-", ".jpg", dir);
+        Uri uri = FileProvider.getUriForFile(
+                this,
+                getPackageName() + ".fileprovider",
+                photo
+        );
+        cameraCaptureUri = uri;
+
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
+        intent.setClipData(ClipData.newRawUri("ShishaLove product photo", uri));
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        if (intent.resolveActivity(getPackageManager()) == null) {
+            cameraCaptureUri = null;
+            throw new IllegalStateException("No camera activity available");
+        }
+        return intent;
     }
 
     private boolean handleUri(Uri uri) {
@@ -341,9 +398,16 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == FILE_CHOOSER_REQUEST && filePathCallback != null) {
-            Uri[] results = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+            Uri[] results = null;
+            if (resultCode == RESULT_OK && cameraCaptureUri != null) {
+                Uri returned = data == null ? null : data.getData();
+                results = returned != null ? new Uri[]{returned} : new Uri[]{cameraCaptureUri};
+            } else {
+                results = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+            }
             filePathCallback.onReceiveValue(results);
             filePathCallback = null;
+            cameraCaptureUri = null;
         }
     }
 
