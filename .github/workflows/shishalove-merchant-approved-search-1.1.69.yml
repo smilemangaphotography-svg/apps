@@ -1,0 +1,141 @@
+name: ShishaLove Merchant 1.1.69 Approved Search Lock
+
+on:
+  push:
+    branches: [merchant-post-update-master-fix-1.1.53]
+    paths:
+      - '.github/workflows/shishalove-merchant-approved-search-1.1.69.yml'
+      - 'shishalove-mobile/merchant/build.gradle'
+      - 'shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+      - 'shishalove-mobile/merchant/src/main/assets/merchant_phone_polish.js'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.69-approved-search-mockup-lock.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout current 1.1.69 source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify approved search lock and remove legacy renderer
+        run: |
+          set -euo pipefail
+          P='shishalove-mobile/merchant/src/main/assets/merchant_phone_polish.js'
+          M='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+          G='shishalove-mobile/merchant/build.gradle'
+          X='shishalove-mobile/merchant/src/main/AndroidManifest.xml'
+          B='shishalove-wordpress-bridge/tools/patch-shishalove-1.1.69-approved-search-mockup-lock.py'
+
+          node --check "$P"
+          python3 -m py_compile "$B"
+
+          grep -Fq 'versionCode 169' "$G"
+          grep -Fq "versionName '1.1.69'" "$G"
+          grep -Fq "applicationId 'eu.shishalove.merchant'" "$G"
+          grep -Fq 'build=169' "$M"
+          grep -Fq 'ShishaLoveMerchant/1.1.69' "$M"
+
+          grep -Fq 'params.isCaptureEnabled()' "$M"
+          grep -Fq 'MediaStore.ACTION_IMAGE_CAPTURE' "$M"
+          grep -Fq 'MediaStore.ACTION_PICK_IMAGES' "$M"
+          grep -Fq 'Intent.ACTION_PICK' "$M"
+          grep -Fq 'FileProvider.getUriForFile' "$M"
+          grep -Fq 'android:name=".MerchantActivityV121"' "$X"
+
+          ! grep -Fq '__SLM3_FILTER_UI_INSTALLED' "$P"
+          ! grep -Fq 'slm3RenderControls' "$P"
+          ! grep -Fq 'slm3-filter-row' "$P"
+          ! grep -Fq 'slmQState' "$P"
+
+          grep -Fq "expected exact Bridge 1.1.68 baseline" "$B"
+          grep -Fq 'class="slm-text-search-icon"' "$B"
+          grep -Fq 'class="slm-lens-icon"' "$B"
+          grep -Fq 'class="slm-photo-handle"' "$B"
+          grep -Fq 'capture="environment"' "$B"
+          grep -Fq 'id="slm-visual-gallery"' "$B"
+          grep -Fq 'slm-stock-out' "$B"
+          grep -Fq "apiForm('merchant/visual-search'" "$B"
+          grep -Fq 'slm-authoritative-filters' "$B"
+          grep -Fq 'category_exact=1' "$B"
+          grep -Fq "m.count('class=\"slm-authoritative-filters\"') != 1" "$B"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build Merchant 1.1.69 APK
+        working-directory: shishalove-mobile
+        run: gradle :merchant:assembleRelease --stacktrace
+
+      - name: Verify packaged APK
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APK='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          test -f "$APK"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='eu.shishalove.merchant' versionCode='169' versionName='1.1.69'"
+
+          unzip -p "$APK" assets/merchant_phone_polish.js > /tmp/packaged-polish.js
+          node --check /tmp/packaged-polish.js
+          ! grep -Fq '__SLM3_FILTER_UI_INSTALLED' /tmp/packaged-polish.js
+          ! grep -Fq 'slm3RenderControls' /tmp/packaged-polish.js
+          ! grep -Fq 'slmQState' /tmp/packaged-polish.js
+
+          mkdir -p dist
+          cp "$APK" dist/ShishaLove-Merchant-1.1.69-APPROVED-SEARCH.apk
+          sha256sum dist/ShishaLove-Merchant-1.1.69-APPROVED-SEARCH.apk > dist/SHA256SUMS.txt
+          cat > dist/BUILD-INFO.txt <<EOF
+          SHISHALOVE MERCHANT 1.1.69 — APPROVED SEARCH + VISUAL SEARCH MOCKUP LOCK
+          Package: eu.shishalove.merchant
+          versionCode: 169
+          versionName: 1.1.69
+          Legacy Android duplicate filter renderer: REMOVED
+          Camera: direct ACTION_IMAGE_CAPTURE
+          Gallery: ACTION_PICK_IMAGES / ACTION_PICK
+          Visual Search recognition backend: UNCHANGED
+          Voyage configuration/index: UNCHANGED
+          Customer: UNCHANGED
+          EOF
+
+      - name: Upload Merchant 1.1.69
+        uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-merchant-1.1.69-approved-search
+          path: |
+            dist/ShishaLove-Merchant-1.1.69-APPROVED-SEARCH.apk
+            dist/BUILD-INFO.txt
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Publish Merchant 1.1.69 release
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG='shishalove-merchant-1.1.69-approved-search'
+          NOTES='Approved Products/Stock search lock: one authoritative filter row, legacy Android duplicate renderer removed, direct camera/gallery routing preserved. Bridge UI is advanced separately by the forward-only 1.1.68 -> 1.1.69 patch.'
+          ASSETS=(dist/ShishaLove-Merchant-1.1.69-APPROVED-SEARCH.apk dist/BUILD-INFO.txt dist/SHA256SUMS.txt)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "\${ASSETS[@]}" --clobber
+            gh release edit "$TAG" --title 'ShishaLove Merchant 1.1.69 — Approved Search Lock' --notes "$NOTES" --target merchant-post-update-master-fix-1.1.53
+          else
+            gh release create "$TAG" "\${ASSETS[@]}" --title 'ShishaLove Merchant 1.1.69 — Approved Search Lock' --notes "$NOTES" --target merchant-post-update-master-fix-1.1.53
+          fi
