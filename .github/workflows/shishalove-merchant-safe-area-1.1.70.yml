@@ -1,14 +1,6 @@
 name: ShishaLove Merchant 1.1.70 First Paint Safe Area
 
 on:
-  push:
-    branches: [merchant-post-update-master-fix-1.1.53]
-    paths:
-      - '.github/workflows/shishalove-merchant-safe-area-1.1.70.yml'
-      - 'shishalove-mobile/merchant/build.gradle'
-      - 'shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
-      - 'shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java'
-      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.70-bottom-nav-safe-area.py'
   workflow_dispatch:
 
 permissions:
