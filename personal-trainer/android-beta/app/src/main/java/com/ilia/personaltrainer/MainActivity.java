@@ -233,6 +233,39 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) { }
             return false;
         }
+        @JavascriptInterface public String getDeviceCapabilities() {
+            try {
+                JSONObject out = new JSONObject();
+                boolean gps = Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+                boolean garminInstalled = getPackageManager().getLaunchIntentForPackage("com.garmin.android.apps.connectmobile") != null;
+                out.put("phoneGpsPermission", gps);
+                out.put("garminConnectInstalled", garminInstalled);
+                out.put("garminDataBridge", false);
+                out.put("externalSensorBridge", false);
+                return out.toString();
+            } catch (Exception ignored) { return "{\"phoneGpsPermission\":false,\"garminConnectInstalled\":false,\"garminDataBridge\":false,\"externalSensorBridge\":false}"; }
+        }
+        @JavascriptInterface public void requestLocationPermission() {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    sendGpsStatus("GPS ready");
+                    return;
+                }
+                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, LOCATION_PERMISSION);
+            });
+        }
+        @JavascriptInterface public void openGarminConnect() {
+            runOnUiThread(() -> {
+                try {
+                    Intent launch = getPackageManager().getLaunchIntentForPackage("com.garmin.android.apps.connectmobile");
+                    if (launch != null) { startActivity(launch); return; }
+                    try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.garmin.android.apps.connectmobile"))); }
+                    catch (Exception ignored) { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.garmin.android.apps.connectmobile"))); }
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "Garmin Connect unavailable", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
         @JavascriptInterface public boolean hasLocationPermission() {
             return Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
         }

@@ -124,8 +124,8 @@ jobs:
           grep -q 'id="pageRun"' "$A/system.html"
           grep -q 'file:///android_asset/system.html' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           grep -q "applicationId 'com.ilia.personaltrainer.systembeta'" personal-trainer/android-beta/app/build.gradle
-          grep -q 'versionCode 47' personal-trainer/android-beta/app/build.gradle
-          grep -q "versionName '3.0.3-system-beta.3'" personal-trainer/android-beta/app/build.gradle
+          grep -q 'versionCode 48' personal-trainer/android-beta/app/build.gradle
+          grep -q "versionName '3.0.3-system-beta.4'" personal-trainer/android-beta/app/build.gradle
           grep -q '<string name="app_name">KINETIQ SYSTEM BETA</string>' personal-trainer/android-beta/app/src/main/res/values/strings.xml
           if grep -q "applicationId 'com.ilia.personaltrainer.beta'" personal-trainer/android-beta/app/build.gradle; then echo 'ERROR: collides with frozen verified beta'; exit 1; fi
           if grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle; then echo 'ERROR: collides with production'; exit 1; fi
@@ -140,6 +140,10 @@ jobs:
           grep -q 'requestedBody' "$A/kinetiq-system-ui.js"
           grep -q 'system-plan-card' "$A/kinetiq-system-ui.js"
           grep -q 'system-motion-shell' "$A/style2-v29.js"
+          grep -q 'window.KINETIQDeviceBridge' "$A/kinetiq-system-ui.js"
+          grep -q 'getDeviceCapabilities' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
+          grep -q 'runProtocol' "$A/style2-v7.js"
+          grep -q 'KINETIQ_DRIVE_FINAL_IMPLEMENTATION_PASS' personal-trainer/android-beta/system-browser-test.cjs
           grep -q 'APPLY TO PLAN' "$A/kinetiq-system-ui.js"
           grep -q 'KEEP CURRENT PLAN' "$A/kinetiq-system-ui.js"
           grep -q 'paceSamples' "$A/style2-v7.js"
@@ -174,7 +178,7 @@ jobs:
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.systembeta' versionCode='47' versionName='3.0.3-system-beta.3'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.systembeta' versionCode='48' versionName='3.0.3-system-beta.4'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ SYSTEM BETA'"
           unzip -l "$APK" | grep -q 'assets/system.html'
           unzip -l "$APK" | grep -q 'assets/kinetiq-system-ui.css'
@@ -201,7 +205,7 @@ jobs:
           KINETIQ 3.0.3 — SYSTEM BETA
           Package: com.ilia.personaltrainer.systembeta
           Label: KINETIQ SYSTEM BETA
-          Version: 3.0.3-system-beta.3 / versionCode 47
+          Version: 3.0.3-system-beta.4 / versionCode 48
           Built from the separate kinetiq-v303-system-beta branch.
           Frozen verified baseline bff960ac6ee406345f344554e5e8874d285bbf42 remains unchanged.
           Production package com.ilia.personaltrainer remains unchanged.
