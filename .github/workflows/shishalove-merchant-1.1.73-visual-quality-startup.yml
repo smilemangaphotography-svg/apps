@@ -1,0 +1,91 @@
+name: ShishaLove Merchant 1.1.73 Visual Quality + Startup
+
+on:
+  push:
+    branches: [merchant-post-update-master-fix-1.1.53]
+    paths:
+      - '.github/workflows/shishalove-merchant-1.1.73-visual-quality-startup.yml'
+      - 'shishalove-mobile/merchant/build.gradle'
+      - 'shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+      - 'shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java'
+      - 'shishalove-wordpress-bridge/tools/patch-shishalove-1.1.73-visual-quality-speed.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify 1.1.73 preservation + startup locks
+        run: |
+          set -euo pipefail
+          M='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MainActivity.java'
+          V='shishalove-mobile/merchant/src/main/java/eu/shishalove/merchant/MerchantActivityV121.java'
+          G='shishalove-mobile/merchant/build.gradle'
+          B='shishalove-wordpress-bridge/tools/patch-shishalove-1.1.73-visual-quality-speed.py'
+
+          python3 -m py_compile "$B"
+          grep -Fq 'versionCode 173' "$G"
+          grep -Fq "versionName '1.1.73'" "$G"
+          grep -Fq 'build=173' "$M"
+          grep -Fq 'ShishaLoveMerchant/1.1.73' "$M"
+          grep -Fq 'processStartupGateShown' "$M"
+          grep -Fq 'R.drawable.ic_shishalove_merchant' "$M"
+          grep -Fq 'enter.setText("ENTER")' "$M"
+          grep -Fq 'WindowInsetsCompat.Type.systemBars()' "$M"
+          grep -Fq 'root.setVisibility(View.INVISIBLE)' "$M"
+
+          ! grep -Fq 'scheduleWebFixes' "$V"
+          ! grep -Fq 'postDelayed(this::applyWebFix' "$V"
+          ! grep -Fq -- '--safe-bottom' "$V"
+
+          grep -Fq 'unexpected 1.1.72 baseline' "$B"
+          grep -Fq 'WHERE id>%d AND dims=%d' "$B"
+          grep -Fq 'view_support' "$B"
+          grep -Fq 'client_original_width' "$B"
+          grep -Fq 'max=1024' "$B"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Prepare Android SDK
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Build Merchant 1.1.73 APK
+        working-directory: shishalove-mobile
+        run: gradle :merchant:assembleRelease --stacktrace
+
+      - name: Verify packaged APK
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APK='shishalove-mobile/merchant/build/outputs/apk/release/merchant-release.apk'
+          test -f "$APK"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='eu.shishalove.merchant' versionCode='173' versionName='1.1.73'"
+          mkdir -p dist
+          cp "$APK" dist/ShishaLove-Merchant-1.1.73-VISUAL-STARTUP.apk
+          sha256sum dist/ShishaLove-Merchant-1.1.73-VISUAL-STARTUP.apk > dist/SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shishalove-merchant-1.1.73-visual-startup
+          path: |
+            dist/ShishaLove-Merchant-1.1.73-VISUAL-STARTUP.apk
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
