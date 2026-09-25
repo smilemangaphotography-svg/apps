@@ -27,8 +27,8 @@ android {
         applicationId 'eu.shishalove.merchant'
         minSdk 24
         targetSdk 35
-        versionCode 169
-        versionName '1.1.69'
+        versionCode 170
+        versionName '1.1.70'
     }
 
     buildTypes {
@@ -145,16 +145,19 @@ def lockMerchantRuntimeVersion = tasks.register('lockMerchantRuntimeVersion') {
     doLast {
         def activity = file('src/main/java/eu/shishalove/merchant/MainActivity.java')
         def source = activity.getText('UTF-8')
-        ['build=116','build=118','build=119','build=120','build=129'].each { oldValue -> source = source.replace(oldValue, 'build=129') }
-        ['ShishaLoveMerchant/1.1.6','ShishaLoveMerchant/1.1.8','ShishaLoveMerchant/1.1.9','ShishaLoveMerchant/1.1.10','ShishaLoveMerchant/1.1.11','ShishaLoveMerchant/1.1.19','ShishaLoveMerchant/1.1.20','ShishaLoveMerchant/1.1.21'].each { oldValue -> source = source.replace(oldValue, 'ShishaLoveMerchant/1.1.22') }
-        activity.setText(source, 'UTF-8')
+        if (!source.contains('build=170')) throw new GradleException('Merchant build marker must be 170')
+        if (!source.contains('ShishaLoveMerchant/1.1.70')) throw new GradleException('Merchant user agent must be 1.1.70')
+        if (!source.contains('WindowCompat.setDecorFitsSystemWindows(window, false)')) throw new GradleException('Native edge-to-edge ownership missing')
+        if (!source.contains('WindowInsetsCompat.Type.systemBars()')) throw new GradleException('systemBars inset source missing')
+        if (!source.contains('root.setVisibility(View.INVISIBLE)')) throw new GradleException('First-frame inset gate missing')
+        if (!source.contains('ViewCompat.requestApplyInsets(root)')) throw new GradleException('Initial inset request missing')
 
         def permanentActivity = file('src/main/java/eu/shishalove/merchant/MerchantActivityV121.java')
         def permanentSource = permanentActivity.getText('UTF-8')
-        if (!permanentSource.contains('v.setPadding(bars.left, bars.top, bars.right, 0)')) throw new GradleException('Permanent Merchant inset fix missing')
-        if (!permanentSource.contains("nav.style.setProperty('bottom','0','important')")) throw new GradleException('Permanent Merchant bottom navigation lock missing')
-        if (!permanentSource.contains("nav.style.setProperty('padding-bottom',inset,'important')")) throw new GradleException('Permanent Merchant navigation safe-area padding missing')
-        if (!permanentSource.contains("overflow-y','auto','important")) throw new GradleException('Permanent Merchant scrolling fix missing')
+        if (permanentSource.contains('postDelayed(this::applyWebFix')) throw new GradleException('Delayed bottom-nav correction must not return')
+        if (permanentSource.contains('scheduleWebFixes()')) throw new GradleException('Late safe-area scheduler must not return')
+        if (permanentSource.contains('evaluateJavascript(js')) throw new GradleException('Native shell must not rewrite nav geometry with JS')
+        if (permanentSource.contains('--safe-bottom')) throw new GradleException('Native shell must not own CSS safe-area variables')
     }
 }
 
