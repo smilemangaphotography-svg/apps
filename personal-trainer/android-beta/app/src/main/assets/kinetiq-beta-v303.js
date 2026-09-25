@@ -13,6 +13,7 @@ function beta(){
   const b=s.beta303;
   b.exerciseDone=b.exerciseDone||{};
   b.sets=b.sets||{};
+  b.weights=b.weights||{};
   b.routes=Array.isArray(b.routes)?b.routes:[];
   b.selectedRouteId=b.selectedRouteId||null;
   b.lastPlanDate=b.lastPlanDate||s.v7?.selectedDate||ymd(new Date());
@@ -194,33 +195,51 @@ function syncVoiceControls(panel){
 function renderSetTracker(host,e,date,workoutMode){
   if(!host||!e)return;
   $('.beta-set-tracker',host)?.remove();
-  const r=rxFor(e),states=setState(date,e.id,r.sets);
-  const panel=document.createElement('section');panel.className='beta-set-tracker';panel.dataset.exerciseId=e.id;panel.dataset.date=date;panel.dataset.workoutMode=workoutMode?'1':'0';
-  const complete=states.filter(Boolean).length;
-  let rows='';
-  for(let i=0;i<r.sets;i++)rows+='<button type="button" class="beta-set-row '+(states[i]?'done':'')+'" data-beta-set="'+i+'"><b>Set '+(i+1)+'</b><small>'+esc(r.reps)+' reps</small><span class="beta-set-check">'+(states[i]?'✓':'')+'</span></button>';
-  panel.innerHTML='<div class="beta-set-title"><b>SET TRACKING</b><span>'+complete+' / '+r.sets+' SETS COMPLETE</span></div>'+rows+
-   '<div class="beta-coach-actions"><button type="button" class="beta-start-set">START SET</button><button type="button" class="beta-end-set">END SET</button></div>'+
-   '<div class="beta-voice-tools"><button type="button" class="beta-voice-toggle '+(voiceState().enabled?'on':'')+'" aria-pressed="'+String(!!voiceState().enabled)+'">VOICE '+(voiceState().enabled?'ON':'OFF')+'</button><button type="button" class="beta-voice-config" aria-expanded="false">SETTINGS</button></div>'+settingsHtml();
+  const r=rxFor(e),states=setState(date,e.id,r.sets),panel=document.createElement('section');
+  panel.className='beta-set-tracker'+(workoutMode?' system-workout-execution':'');
+  panel.dataset.exerciseId=e.id;panel.dataset.date=date;panel.dataset.workoutMode=workoutMode?'1':'0';
+  if(workoutMode){
+    let current=0;try{current=Math.min(r.sets-1,Math.max(0,typeof workout!=='undefined'?+workout.set||0:0))}catch(_){}
+    const savedWeight=beta()?.weights?.[e.id]??'';
+    panel.innerHTML='<div class="workout-exec-title"><div><small>WORKOUT EXECUTION</small><b>Set '+(current+1)+' of '+r.sets+'</b></div><span>'+esc(r.reps)+' REPS</span></div>'+
+      '<div class="workout-exec-metrics"><label><small>CURRENT SET</small><b>'+(current+1)+' / '+r.sets+'</b></label><label><small>REPS</small><b>'+esc(r.reps)+'</b></label><label class="workout-weight"><small>WEIGHT</small><span><input class="beta-weight-input" inputmode="decimal" type="number" min="0" step="0.5" value="'+esc(savedWeight)+'" placeholder="—"><i>KG</i></span></label></div>'+
+      '<div class="workout-exec-actions"><button type="button" class="beta-start-set">START SET</button><button type="button" class="beta-end-set">COMPLETE SET</button><button type="button" class="beta-skip-set">SKIP SET</button></div>'+
+      '<div class="beta-voice-tools workout-voice"><button type="button" class="beta-voice-toggle '+(voiceState().enabled?'on':'')+'" aria-pressed="'+String(!!voiceState().enabled)+'">VOICE '+(voiceState().enabled?'ON':'OFF')+'</button><button type="button" class="beta-voice-config" aria-expanded="false">VOICE SETTINGS</button></div>'+settingsHtml();
+  }else{
+    const complete=states.filter(Boolean).length;let rows='';
+    for(let i=0;i<r.sets;i++)rows+='<button type="button" class="beta-set-row '+(states[i]?'done':'')+'" data-beta-set="'+i+'"><b>Set '+(i+1)+'</b><small>'+esc(r.reps)+' reps</small><span class="beta-set-check">'+(states[i]?'✓':'')+'</span></button>';
+    panel.innerHTML='<div class="beta-set-title"><b>SET TRACKING</b><span>'+complete+' / '+r.sets+' SETS COMPLETE</span></div>'+rows+
+      '<div class="beta-coach-actions"><button type="button" class="beta-start-set">START SET</button><button type="button" class="beta-end-set">END SET</button></div>'+
+      '<div class="beta-voice-tools"><button type="button" class="beta-voice-toggle '+(voiceState().enabled?'on':'')+'" aria-pressed="'+String(!!voiceState().enabled)+'">VOICE '+(voiceState().enabled?'ON':'OFF')+'</button><button type="button" class="beta-voice-config" aria-expanded="false">SETTINGS</button></div>'+settingsHtml();
+  }
   const stats=$('.workout-stats',host)||$('.phase-row-v29',host)||host.firstChild;
   stats?.insertAdjacentElement?.('afterend',panel);
   $$('.beta-set-row',panel).forEach(btn=>btn.onclick=ev=>{
     ev.stopPropagation();const i=+btn.dataset.betaSet;
-    if(workoutMode){
-      try{if(typeof workout!=='undefined'&&i===workout.set)$('#completeSet',host)?.click()}catch(_){}
-      return;
-    }
     const a=setState(date,e.id,r.sets);a[i]=!a[i];syncDoneFromSets(date,e.id,e);persist();renderSetTracker(host,e,date,false);
   });
-  $('.beta-start-set',panel).onclick=()=>{const a=setState(date,e.id,r.sets),i=Math.max(0,a.findIndex(x=>!x));startSetVoice(e,i)};
+  $('.beta-start-set',panel).onclick=()=>{
+    let i=0;try{i=workoutMode&&typeof workout!=='undefined'?Math.max(0,+workout.set||0):Math.max(0,setState(date,e.id,r.sets).findIndex(x=>!x))}catch(_){}
+    startSetVoice(e,i)
+  };
   $('.beta-end-set',panel).onclick=()=>{
     if(workoutMode){$('#completeSet',host)?.click();return}
     const a=setState(date,e.id,r.sets);let i=a.findIndex(x=>!x);if(i<0)i=r.sets-1;a[i]=true;syncDoneFromSets(date,e.id,e);persist();
     if(a.every(Boolean)){speak('Exercise complete.');renderSetTracker(host,e,date,false)}
     else{showBetaRest(e,r.rest,i+1);renderSetTracker(host,e,date,false)}
   };
+  const skip=$('.beta-skip-set',panel);
+  if(skip)skip.onclick=()=>{
+    try{
+      if(typeof workout==='undefined'||!workout.open)return;
+      if((+workout.set||0)<r.sets-1){workout.set=(+workout.set||0)+1;workout.rep=0;persistWorkoutState();renderWorkout()}
+      else if(typeof finishExercise==='function')finishExercise();
+    }catch(_){}
+  };
+  const weight=$('.beta-weight-input',panel);
+  if(weight)weight.onchange=()=>{const b=beta();if(!b)return;const v=weight.value.trim();if(v==='')delete b.weights[e.id];else b.weights[e.id]=Math.max(0,+v||0);persist()};
   $('.beta-voice-toggle',panel).onclick=()=>{setVoiceEnabled(!voiceState().enabled);syncVoiceControls(panel)};
-  $('.beta-voice-config',panel).onclick=ev=>{ev.preventDefault();ev.stopPropagation();const s=$('#betaVoiceSettings',panel),btn=$('.beta-voice-config',panel);s.hidden=false;btn.setAttribute('aria-expanded','true');requestAnimationFrame(()=>s.scrollIntoView({behavior:'smooth',block:'nearest'}))};
+  $('.beta-voice-config',panel).onclick=ev=>{ev.preventDefault();ev.stopPropagation();const box=$('#betaVoiceSettings',panel),btn=$('.beta-voice-config',panel);box.hidden=false;btn.setAttribute('aria-expanded','true');requestAnimationFrame(()=>box.scrollIntoView({behavior:'smooth',block:'nearest'}))};
   const vo=$('#betaVoiceOn',panel),co=$('#betaCountdown',panel),cu=$('#betaCues',panel),voiceSel=$('#betaVoiceSelect',panel),vol=$('#betaVolume',panel),rate=$('#betaRate',panel),closeSettings=$('#betaVoiceSettingsClose',panel);
   if(voiceSel){try{const voices=JSON.parse(window.PTNative?.getTtsVoices?.()||'[]');voices.slice(0,30).forEach(x=>{const o=document.createElement('option');o.value=x.name;o.textContent=(x.locale?x.locale+' · ':'')+x.name;if(voiceState().voiceName===x.name)o.selected=true;voiceSel.appendChild(o)});voiceSel.onchange=()=>{voiceState().voiceName=voiceSel.value;persist();if(voiceSel.value)window.PTNative?.setTtsVoice?.(voiceSel.value)}}catch(_){}}
   if(vo)vo.onchange=()=>{setVoiceEnabled(vo.checked);syncVoiceControls(panel)};
@@ -244,7 +263,7 @@ function inferWorkoutDate(){
   return selectedDateKey();
 }
 function enhanceWorkout(){
-  const ov=$('#workoutOverlay');if(!ov||ov.classList.contains('hidden'))return;
+  const ov=$('#workoutOverlay');if(!ov||ov.classList.contains('hidden'))return;ov.classList.add('system-active-workout');
   const name=$('h1',ov)?.textContent?.trim(),e=window.PT29?.catalog?.().find(x=>x.name===name);if(!e)return;
   const date=inferWorkoutDate(),existing=$('.beta-set-tracker',ov);if(!existing||existing.dataset.exerciseId!==e.id||existing.dataset.date!==date||existing.dataset.workoutMode!=='1')renderSetTracker($('.detail-page',ov)||ov,e,date,true);else syncVoiceControls(existing);
   const end=$('#completeSet',ov);if(end&&!end.dataset.betaSync){
