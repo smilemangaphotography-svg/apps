@@ -27,8 +27,8 @@ android {
         applicationId 'eu.shishalove.merchant'
         minSdk 24
         targetSdk 35
-        versionCode 170
-        versionName '1.1.70'
+        versionCode 173
+        versionName '1.1.73'
     }
 
     buildTypes {
@@ -145,12 +145,15 @@ def lockMerchantRuntimeVersion = tasks.register('lockMerchantRuntimeVersion') {
     doLast {
         def activity = file('src/main/java/eu/shishalove/merchant/MainActivity.java')
         def source = activity.getText('UTF-8')
-        if (!source.contains('build=170')) throw new GradleException('Merchant build marker must be 170')
-        if (!source.contains('ShishaLoveMerchant/1.1.70')) throw new GradleException('Merchant user agent must be 1.1.70')
+        if (!source.contains('build=173')) throw new GradleException('Merchant build marker must be 173')
+        if (!source.contains('ShishaLoveMerchant/1.1.73')) throw new GradleException('Merchant user agent must be 1.1.73')
         if (!source.contains('WindowCompat.setDecorFitsSystemWindows(window, false)')) throw new GradleException('Native edge-to-edge ownership missing')
         if (!source.contains('WindowInsetsCompat.Type.systemBars()')) throw new GradleException('systemBars inset source missing')
         if (!source.contains('root.setVisibility(View.INVISIBLE)')) throw new GradleException('First-frame inset gate missing')
         if (!source.contains('ViewCompat.requestApplyInsets(root)')) throw new GradleException('Initial inset request missing')
+        if (!source.contains('processStartupGateShown')) throw new GradleException('Merchant cold-start gate lock missing')
+        if (!source.contains('R.drawable.ic_shishalove_merchant')) throw new GradleException('Merchant startup must use the real locked logo asset')
+        if (!source.contains('enter.setText("ENTER")')) throw new GradleException('Merchant ENTER gate missing')
 
         def permanentActivity = file('src/main/java/eu/shishalove/merchant/MerchantActivityV121.java')
         def permanentSource = permanentActivity.getText('UTF-8')
