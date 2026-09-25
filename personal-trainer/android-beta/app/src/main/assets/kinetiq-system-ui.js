@@ -15,6 +15,7 @@ const available=id=>{const e=window.PT29?.byId?.(id);return !!e&&(!window.ILIA_V
 const plan=(type,name,ids,textExercises=[],duration=45,meta={})=>({type,name,ids:(ids||[]).filter(available),textExercises,duration,...meta});
 let motionObserver=null;
 
+
 function syncLegacy(){
  const s=state(),v=V(),start=today();
  s.program=Array.from({length:7},(_,i)=>{const d=addDays(start,i),p=v.myPlans[ymd(d)]||{type:'Recovery',name:'Recovery',ids:[],duration:20};return p.type==='Run'?{type:'run',name:p.name,duration:p.duration||v.duration||45,distanceKm:parseFloat(p.run?.distance)||5,ids:[],programIndex:i}:{type:p.type==='Recovery'?'rehab':'strength',name:p.name,duration:p.duration||v.duration||45,ids:[...(p.ids||[])],programIndex:i}});
@@ -44,8 +45,21 @@ function afterRender(page){
 function afterEquipmentChange(){syncLegacy();const page=$('.page.active')?.dataset.page;if(page==='plan')renderSystemPlan();else if(page==='train'){window.PT29?.renderTrain?.();enhanceLibrary()}}
 
 
+
+
 function fullDate(d){return new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(d)}
 function compactDate(d){return new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'numeric',month:'short'}).format(d)}
+function homeDate(d){return new Intl.DateTimeFormat('en-GB',{weekday:'long',day:'numeric',month:'short'}).format(d)}
+function weekStart(d=today()){const x=new Date(d);return addDays(x,-((x.getDay()+6)%7))}
+function weekDates(d=today()){const w=weekStart(d);return Array.from({length:7},(_,i)=>addDays(w,i))}
+function weekContains(k,d=today()){return weekDates(d).some(x=>ymd(x)===k)}
+function planIcon(p){const x=((p?.type||'')+' '+(p?.name||'')).toLowerCase();return /run/.test(x)?'↗':/recovery|mobility/.test(x)?'⌁':/upper/.test(x)?'◩':/lower|leg/.test(x)?'◒':'◆'}
+function planLine(p){if(p?.type==='Run')return `${esc(p.run?.distance||'Run')} · ${esc(p.run?.kind||p.intensity||'Outdoor')}`;return `${esc(p.duration||V().duration||45)} min · ${esc(p.location||p.type||'Flexible')}`}
+function historyKey(x){try{if(/^\\d{4}-\\d{2}-\\d{2}$/.test(String(x?.date||'')))return String(x.date);const n=+x?.date;if(Number.isFinite(n)&&n>1000000000)return ymd(new Date(n))}catch(_){}return''}
+function sessionState(k,p){const s=state(),done=s.beta303?.exerciseDone?.[k]||{},ids=p?.ids||[],historyDone=(s.history||[]).some(x=>historyKey(x)===k);if(historyDone||(ids.length&&ids.every(id=>done[id])))return'completed';if(k<ymd(today()))return'missed';return'scheduled'}
+function planCardMedia(p){const id=(p?.ids||[])[0],poster=id?window.PT29?.mediaPoster?.(window.PT29?.byId?.(id))||'':'';return poster?`<span class="phase1-plan-media"><img src="${esc(poster)}" alt=""></span>`:`<span class="phase1-plan-media phase1-plan-glyph">${planIcon(p)}</span>`}
+function currentWeekKeys(){return weekDates().map(ymd)}
+function planChanged(a,b){return JSON.stringify(a||null)!==JSON.stringify(b||null)}
 function ensureSystemPlan(){
  const v=V(),t=ymd(today());
  if(!v.selectedDate)v.selectedDate=t;if(!['my','ai'].includes(v.planTab))v.planTab='my';
@@ -71,29 +85,45 @@ function actionForPlan(p,date){
  return `<button class="system-primary" data-system-start="${esc(date)}">START WORKOUT →</button>`
 }
 function readinessSnapshot(){
- const c=currentContext(),profiles=Object.values(c.recovery||{}).filter(Boolean);
- if(!profiles.length)return {label:'READY',score:null,sleep:null,hrv:null};
+ const c=currentContext(),profiles=Object.values(c.recovery||{}).filter(Boolean),device=state().devices?.lastMetrics||{},sensor=state().lastSensor||{};
  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
- const pain=avg(profiles.map(p=>+p.pain||0)),fatigue=avg(profiles.map(p=>+p.fatigue||0)),sleep=avg(profiles.map(p=>+p.sleep||0)),tol=avg(profiles.map(p=>+p.tolerance||0));
- const score=Math.max(0,Math.min(100,Math.round(100-(pain||0)*7-(fatigue||0)*3+(sleep?Math.max(0,sleep-5)*3:0)+(tol?Math.max(0,tol-5)*4:0))));
- return {label:score>=75?'READY':score>=50?'MODERATE':'RECOVER',score,sleep:profiles.some(p=>p.sleep!==undefined)?sleep:null,hrv:null}
+ let score=null,sleep=null;
+ if(profiles.length){
+   const pain=avg(profiles.map(p=>+p.pain||0)),fatigue=avg(profiles.map(p=>+p.fatigue||0)),sl=avg(profiles.map(p=>+p.sleep||0)),tol=avg(profiles.map(p=>+p.tolerance||0));
+   score=Math.max(0,Math.min(100,Math.round(100-(pain||0)*7-(fatigue||0)*3+(sl?Math.max(0,sl-5)*3:0)+(tol?Math.max(0,tol-5)*4:0))));
+   sleep=profiles.some(p=>p.sleep!==undefined)?sl:null;
+ }
+ const hrv=Number.isFinite(+(device.hrv??device.hrvMs??sensor.hrv))?+(device.hrv??device.hrvMs??sensor.hrv):null;
+ const label=score==null?'NO DATA':score>=75?'GREAT TO TRAIN':score>=50?'TRAIN WITH CARE':'RECOVER';
+ const energy=score==null?'—':score>=75?'HIGH':score>=50?'MODERATE':'LOW';
+ return {label,score,sleep,hrv,energy}
 }
-function nextRunPlan(){
- const v=V();for(let i=0;i<8;i++){const d=addDays(today(),i),p=v.myPlans[ymd(d)];if(p?.type==='Run')return {d,p}}return null
+
+function nextRunPlan(excludeKey=''){
+ const v=V();for(let i=0;i<9;i++){const d=addDays(today(),i),k=ymd(d),p=v.myPlans[k];if(k!==excludeKey&&p?.type==='Run')return {d,p}}return null
 }
+
 function renderSystemHome(){
  const root=$('#pageHome');if(!root)return;
- const v=ensureSystemPlan(),s=state(),d=today(),k=ymd(d),p=planFor(k,'my'),tom=addDays(d,1),tomKey=ymd(tom),np=planFor(tomKey,'my'),aw=s.activeWorkout,ready=readinessSnapshot(),nr=nextRunPlan();
+ const v=ensureSystemPlan(),s=state(),d=today(),k=ymd(d),p=planFor(k,'my'),aw=s.activeWorkout,ready=readinessSnapshot(),nr=nextRunPlan(p.type==='Run'?k:'');
  const first=(p.ids||[])[0],poster=first?window.PT29?.mediaPoster?.(window.PT29?.byId?.(first))||'':'';
- const sameNextRun=!!(nr&&ymd(nr.d)===tomKey&&(np.type==='Run'||nr.p?.name===np.name));
- const todayAction=aw?.active?'':actionForPlan(p,k);
- root.innerHTML=`<div class="system-page system-home" data-system-screen="home"><div class="home-greeting"><small>${esc(fullDate(d).toUpperCase())}</small><h1>Good ${new Date().getHours()<12?'morning':new Date().getHours()<18?'afternoon':'evening'}${s.name?', '+esc(s.name):''}</h1></div><div class="home-readiness"><div><small>READINESS</small><b>${ready.score??'—'}</b><span>${ready.label}</span></div><div><small>SLEEP</small><b>${ready.sleep!=null?ready.sleep.toFixed(1):'—'}</b><span>${ready.sleep!=null?'SELF-REPORT':'NO DATA'}</span></div><div><small>HRV</small><b>—</b><span>DEVICE DATA</span></div></div>${aw?.active?`<section class="home-resume"><div><small>WORKOUT IN PROGRESS</small><b>${esc((s.program?.[aw.day]||{}).name||p.name||'Workout')}</b><span>Exercise ${(+aw.index||0)+1} · Set ${(+aw.set||0)+1}</span></div><button data-system-resume>RESUME →</button></section>`:''}<section class="home-today-card ${aw?.active?'is-active':''}"><div class="home-today-copy"><small>TODAY · ${esc(p.location||p.type||'TRAINING')}</small><h2>${esc(p.name||'Recovery')}</h2><p>${esc(p.duration||v.duration||45)} min · ${p.ids?.length||0} exercises · ${esc(p.intensity||'Moderate')}</p>${todayAction?`<div class="home-session-actions">${todayAction}</div>`:aw?.active?'<div class="home-active-note">ACTIVE SESSION · USE RESUME ABOVE</div>':''}</div>${poster?`<div class="home-today-media"><img src="${esc(poster)}" alt=""></div>`:''}</section><section class="home-next-card" data-system-tomorrow><small>NEXT SESSION · ${esc(compactDate(tom).toUpperCase())}</small><div><b>${esc(np.name||'Recovery')}</b><span>${esc(np.type||'Recovery')} · ${esc(np.duration||v.duration||45)} min</span></div></section>${nr&&!sameNextRun?`<section class="home-run-card"><div><small>NEXT RUN · ${esc(compactDate(nr.d).toUpperCase())}</small><b>${esc(nr.p.name||nr.p.run?.kind||'Run')}</b><span>${esc(nr.p.run?.distance||'')} · ${esc(nr.p.duration||45)} min</span></div><button data-system-run>RUN →</button></section>`:''}<section class="home-coach-card"><span>✦</span><div><small>KINETIQ COACH</small><b>Need to adjust today?</b><p>Tell KINETIQ what changed and get a plan-aware recommendation.</p></div><button data-system-ai>ASK →</button></section></div>`;
+ const activeToday=!!aw?.active;
+ const score=ready.score==null?0:Math.max(0,Math.min(100,ready.score));
+ const runIsDuplicate=!!(nr&&ymd(nr.d)===k&&nr.p?.name===p.name);
+ const sessionStatus=sessionState(k,p);
+ root.innerHTML=`<div class="system-page system-home phase1-home" data-system-screen="home">
+   <header class="phase1-home-head"><div><small>KINETIQ</small><h1>Today</h1><p>${esc(homeDate(d))}</p></div><div class="phase1-head-actions"><button data-system-ai aria-label="AI Coach">✦</button><button data-home-plan aria-label="Open plan">▦</button></div></header>
+   <section class="phase1-readiness"><div class="phase1-readiness-ring" style="--readiness:${score}"><div><strong>${ready.score??'—'}</strong><small>Readiness</small><span>${esc(ready.label)}</span></div></div></section>
+   <section class="phase1-home-metrics"><div><i>◔</i><span><small>SLEEP</small><b>${ready.sleep!=null?ready.sleep.toFixed(1)+'h':'—'}</b></span></div><div><i>♡</i><span><small>HRV</small><b>${ready.hrv!=null?Math.round(ready.hrv):'—'}</b></span></div><div><i>✦</i><span><small>ENERGY</small><b>${esc(ready.energy)}</b></span></div></section>
+   <section class="phase1-session-card phase1-today-card ${activeToday?'is-active':''}"><div class="phase1-card-label"><b>Today’s Plan</b><small>${esc(p.type||'Training')}</small></div><div class="phase1-session-body">${poster?`<span class="phase1-session-media"><img src="${esc(poster)}" alt=""></span>`:`<span class="phase1-session-media phase1-plan-glyph">${planIcon(p)}</span>`}<div class="phase1-session-copy"><h2>${esc(p.name||'Recovery')}</h2><p>${planLine(p)}</p>${activeToday?'<small class="phase1-progress-label">WORKOUT IN PROGRESS</small>':`<small class="phase1-state ${sessionStatus}">${sessionStatus==='completed'?'✓ COMPLETED':sessionStatus==='missed'?'MISSED':'SCHEDULED'}</small>`}</div></div><div class="phase1-session-cta">${activeToday?'<button class="phase1-lime" data-system-resume>RESUME</button>':actionForPlan(p,k).replace('system-primary','phase1-lime')}</div></section>
+   ${nr&&!runIsDuplicate?`<section class="phase1-session-card phase1-run-card"><div class="phase1-card-label"><b>Running</b><small>${esc(nr.p.type||'Run')}</small></div><div class="phase1-session-body"><span class="phase1-session-media phase1-run-mark">↗</span><div class="phase1-session-copy"><h2>${esc(nr.p.name||nr.p.run?.kind||'Run')}</h2><p>${esc(nr.p.run?.distance||'')} · ${esc(nr.p.run?.kind||nr.p.intensity||'Outdoor')}</p><small class="phase1-state ${sessionState(ymd(nr.d),nr.p)}">${esc(compactDate(nr.d).toUpperCase())}</small></div></div><div class="phase1-session-cta"><button class="phase1-lime" data-system-run>START RUN</button></div></section>`:''}
+ </div>`;
  $('[data-system-start]',root)?.addEventListener('click',e=>startPlanWorkout(e.currentTarget.dataset.systemStart));
  $('[data-system-run]',root)?.addEventListener('click',()=>showPage('run'));
  $('[data-system-recovery]',root)?.addEventListener('click',()=>window.PT29?.showRecover?.());
  $('[data-system-resume]',root)?.addEventListener('click',resumeWorkout);
  $('[data-system-ai]',root)?.addEventListener('click',openAI);
- $('[data-system-tomorrow]',root)?.addEventListener('click',()=>{v.selectedDate=tomKey;v.planTab='my';saveState();showPage('plan')})
+ $('[data-home-plan]',root)?.addEventListener('click',()=>{v.planTab='my';v.selectedDate=k;saveState();showPage('plan')})
 }
 
 function planExerciseRow(id,date,tab){
@@ -106,22 +136,33 @@ function aiPlanMeta(k,p){
 }
 function renderSystemPlan(){
  const root=$('#pagePlan');if(!root)return;
- const v=ensureSystemPlan(),tab=v.planTab==='ai'?'ai':'my',selected=v.selectedDate||ymd(today()),base=today(),dates=Array.from({length:7},(_,i)=>addDays(base,i));
+ const v=ensureSystemPlan(),tab=v.planTab==='ai'?'ai':'my',dates=weekDates(),keys=dates.map(ymd);
+ let selected=v.selectedDate||ymd(today());if(!keys.includes(selected))selected=ymd(today());v.selectedDate=selected;saveState();
+ const tabs=`<div class="phase1-plan-tabs"><button class="${tab==='my'?'active':''}" data-system-tab="my">My Plan</button><button class="${tab==='ai'?'active':''}" data-system-tab="ai">AI Recommended</button></div>`;
+ const dayStrip=`<div class="phase1-week-strip">${dates.map(d=>{const k=ymd(d);return`<button class="${k===selected?'active':''}" data-system-date="${k}"><small>${new Intl.DateTimeFormat('en-GB',{weekday:'short'}).format(d)}</small><b>${d.getDate()}</b></button>`}).join('')}</div>`;
  if(tab==='my'){
-   const cards=dates.map(d=>{const k=ymd(d),p=planFor(k,'my'),active=k===selected;return `<article class="plan-week-card ${active?'active':''}" data-system-week="${k}"><div class="plan-week-day"><small>${new Intl.DateTimeFormat('en-GB',{weekday:'short'}).format(d).toUpperCase()}</small><b>${d.getDate()}</b></div><div class="plan-week-copy"><small>${esc(p.location||p.type||'Flexible')} · ${esc(p.duration||v.duration||45)} MIN</small><h3>${esc(p.name||'Recovery')}</h3><p>${esc(p.type||'Recovery')} · ${p.ids?.length||0} exercises</p></div><span>›</span></article>`}).join('');
-   const p=planFor(selected,'my'),d=new Date(selected+'T12:00:00'),exerciseRows=(p.ids||[]).map(id=>planExerciseRow(id,selected,'my')).join('');
-   root.innerHTML=`<div class="system-page plan-drive" data-system-screen="plan"><div class="system-tabs"><button class="active" data-system-tab="my">MY PLAN</button><button data-system-tab="ai">AI RECOMMENDED</button></div><div class="plan-week-list">${cards}</div><section class="plan-selected-card"><div class="system-plan-top"><div><div class="system-kicker">SELECTED · ${esc(compactDate(d).toUpperCase())}</div><h2>${esc(p.name||'Recovery')}</h2></div><span class="system-plan-location">${esc(p.location||p.type||'Flexible')}</span></div><div class="system-plan-meta"><span><b>${esc(p.duration||v.duration||45)}</b><small>MIN</small></span><span><b>${esc((p.intensity||'Moderate').toUpperCase())}</b><small>INTENSITY</small></span><span><b>${esc((p.type||'Training').toUpperCase())}</b><small>TYPE</small></span></div><div class="system-ex-list">${exerciseRows}</div><div class="system-plan-actions">${actionForPlan(p,selected)}</div></section></div>`;
+   const plannedDates=dates.filter(d=>!!v.myPlans[ymd(d)]);
+   const visibleDates=plannedDates.length?plannedDates:[new Date(selected+'T12:00:00')];
+   const cards=visibleDates.map(d=>{const k=ymd(d),p=planFor(k,'my'),st=sessionState(k,p);return `<button class="phase1-week-card ${k===selected?'selected':''}" data-open-plan="${k}">${planCardMedia(p)}<span class="phase1-week-copy"><b>${esc(p.name||'Recovery')}</b><small>${planLine(p)}</small></span><span class="phase1-plan-status ${st}">${st==='completed'?'✓':'○'}</span></button>`}).join('');
+   root.innerHTML=`<div class="system-page phase1-plan" data-system-screen="my-plan">${tabs}${dayStrip}<div class="phase1-week-cards">${cards}</div></div>`;
  }else{
-   const p=v.aiPlans[selected],meta=v.aiMeta?.[selected],d=new Date(selected+'T12:00:00');
-   root.innerHTML=`<div class="system-page plan-drive" data-system-screen="plan"><div class="system-tabs"><button data-system-tab="my">MY PLAN</button><button class="active" data-system-tab="ai">AI RECOMMENDED</button></div><div class="system-days">${dates.map(x=>{const k=ymd(x);return`<button class="system-day ${k===selected?'active':''}" data-system-date="${k}"><small>${new Intl.DateTimeFormat('en-GB',{weekday:'short'}).format(x).toUpperCase()}</small><b>${x.getDate()}</b></button>`}).join('')}</div>${p&&meta?`<section class="ai-plan-drive"><div class="ai-plan-head"><div><small>AI RECOMMENDED · ${esc(compactDate(d).toUpperCase())}</small><h1>${esc(p.name)}</h1></div><span>${esc(p.location||p.type||'Flexible')}</span></div><div class="system-plan-meta"><span><b>${esc(p.duration||45)}</b><small>MIN</small></span><span><b>${esc((p.intensity||'Moderate').toUpperCase())}</b><small>INTENSITY</small></span><span><b>${esc((p.type||'Training').toUpperCase())}</b><small>TYPE</small></span></div><div class="ai-plan-why"><small>WHY THIS WORKS</small><p>${esc(meta.reason||'Plan-aware recommendation.')}</p></div>${meta.effect?.length?`<div class="ai-plan-effect"><small>EFFECT ON SCHEDULE</small><ul>${meta.effect.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}${p.run?`<div class="system-run-plan"><b>${esc(p.run.kind||'Run')}</b><span>${esc(p.run.distance||'')}</span></div>`:`<div class="system-ex-list">${(p.ids||[]).map(id=>planExerciseRow(id,selected,'ai')).join('')}${(p.textExercises||[]).map(x=>`<div class="system-text-ex"><span class="system-text-badge">TEXT</span><span><b>${esc(x.name)}</b><small>${esc(x.muscles||'Guided exercise')} · ${esc(x.prescription||'Coach prescribed')}</small></span></div>`).join('')}</div>`}<div class="system-plan-actions"><button class="system-primary" data-system-apply-selected>APPLY TO PLAN</button><button class="system-secondary" data-system-keep-selected>KEEP CURRENT</button></div></section>`:`<section class="ai-plan-empty"><span>✦</span><h2>No AI recommendation yet</h2><p>Ask KINETIQ Coach to build a recommendation for this date. My Plan will not change until you approve it.</p><button class="system-primary" data-system-ai>ASK KINETIQ COACH →</button></section>`}</div>`;
+   const changedKeys=new Set(Object.keys(v.aiPlans||{}));
+   const recommendationDates=dates.filter(d=>{const k=ymd(d);return !!(v.myPlans[k]||v.aiPlans[k])});
+   const visibleDates=recommendationDates.length?recommendationDates:[new Date(selected+'T12:00:00')];
+   const cards=visibleDates.map(d=>{const k=ymd(d),base=v.myPlans[k]||planFor(k,'my'),ai=v.aiPlans[k],p=ai||base,changed=!!ai&&planChanged(ai,base);const cleanName=String(p.name||'Recovery').replace(/(?:\s*\(Adjusted\))+$/i,'');return `<article class="phase1-ai-card ${changed?'changed':''}" data-ai-date="${k}">${planCardMedia(p)}<div class="phase1-week-copy"><b>${esc(cleanName)}${changed?' <em>(Adjusted)</em>':''}</b><small>${planLine(p)}</small></div><span class="phase1-plan-status ${changed?'completed':'scheduled'}">${changed?'✓':'○'}</span></article>`}).join('');
+   const hasAny=keys.some(k=>changedKeys.has(k));
+   root.innerHTML=`<div class="system-page phase1-plan phase1-ai-plan" data-system-screen="ai-recommended">${tabs}<p class="phase1-ai-intro">Based on your progress, recovery and upcoming goals.</p>${dayStrip}${hasAny?`<div class="phase1-week-cards">${cards}</div><div class="phase1-ai-week-actions"><button class="phase1-keep" data-keep-week>Keep Current</button><button class="phase1-lime" data-apply-week>Apply to Plan</button></div>`:`<section class="phase1-ai-empty"><span>✦</span><h2>No recommendation yet</h2><p>Ask KINETIQ Coach to create plan-aware adjustments. My Plan stays unchanged until you apply them.</p><button class="phase1-lime" data-system-ai>Ask KINETIQ Coach</button></section>`}</div>`;
  }
  $$('[data-system-tab]',root).forEach(b=>b.onclick=()=>{v.planTab=b.dataset.systemTab;saveState();renderSystemPlan()});
  $$('[data-system-date]',root).forEach(b=>b.onclick=()=>{v.selectedDate=b.dataset.systemDate;saveState();renderSystemPlan()});
- $$('[data-system-week]',root).forEach(b=>b.onclick=()=>{v.selectedDate=b.dataset.systemWeek;saveState();renderSystemPlan()});
- $$('[data-system-ex]',root).forEach(b=>b.onclick=()=>{const e=window.PT29?.byId?.(b.dataset.systemEx);if(e)window.PT29.openDetail(e,{source:'plan',date:b.dataset.date,planTab:b.dataset.tab})});
- $$('[data-system-media]',root).forEach(box=>mountMotion(box,box.dataset.systemMedia));
- $('[data-system-start]',root)?.addEventListener('click',e=>startPlanWorkout(e.currentTarget.dataset.systemStart));$('[data-system-run]',root)?.addEventListener('click',()=>showPage('run'));$('[data-system-recovery]',root)?.addEventListener('click',()=>window.PT29?.showRecover?.());$$('[data-system-ai]',root).forEach(b=>b.addEventListener('click',openAI));$('[data-system-apply-selected]',root)?.addEventListener('click',applySelectedAI);$('[data-system-keep-selected]',root)?.addEventListener('click',()=>{v.planTab='my';saveState();renderSystemPlan()})
+ $$('[data-open-plan]',root).forEach(b=>b.onclick=()=>{const k=b.dataset.openPlan,p=planFor(k,'my');v.selectedDate=k;saveState();if(p.type==='Run')showPage('run');else if(p.type==='Recovery')window.PT29?.showRecover?.();else startPlanWorkout(k)});
+ $$('[data-system-ai]',root).forEach(b=>b.addEventListener('click',openAI));
+ $('[data-apply-week]',root)?.addEventListener('click',applyWeekAI);
+ $('[data-keep-week]',root)?.addEventListener('click',keepWeekAI)
 }
+
+function applyWeekAI(){const v=V();currentWeekKeys().forEach(k=>{if(v.aiPlans[k])v.myPlans[k]=clone(v.aiPlans[k])});v.planTab='my';syncLegacy();saveState();renderSystemPlan()}
+function keepWeekAI(){const v=V();v.planTab='my';saveState();renderSystemPlan()}
 function startPlanWorkout(date){
  const v=ensureSystemPlan(),p=planFor(date,'my');if(p.type==='Run'){showPage('run');return}if(p.type==='Recovery'){window.PT29?.showRecover?.();return}const s=state(),ids=[...(p.ids||[])];if(!ids.length)return;s.program[0]={type:'strength',name:p.name,duration:p.duration||v.duration||45,ids,programIndex:0};s.currentDay=0;saveState();window.startWorkout?.(0,0)
 }
@@ -146,14 +187,17 @@ function renderSystemTrain(){
  $$('[data-system-media]',root).forEach(box=>mountMotion(box,box.dataset.systemMedia))
 }
 
+
 function renderSystemRun(){
  const root=$('#pageRun');if(!root)return;try{window.ILIA_V7?.renderRun?.()}catch(_){root.innerHTML='<div class="system-card"><h2>Running Coach</h2><p class="system-sub">Run engine unavailable.</p></div>'}window.KINETIQBeta303?.enhanceRunPage?.()
 }
+
 
 function authoritativeShell(){
  window.showMain=showPage;if(window.PT29)window.PT29.showMain=showPage;
  $$('.system-nav .nav-btn').forEach(b=>b.onclick=()=>{const page=b.dataset.nav;if(page==='plan'){const v=V();v.selectedDate=ymd(today());saveState()}showPage(page)});$('#systemProfile')?.addEventListener('click',()=>showPage('more'));$('#systemAiFab')?.addEventListener('click',openAI);const enter=$('#coverEnter');if(enter)enter.onclick=enterSystem
 }
+
 
 function currentContext(){
  const s=state(),v=V(),todayKey=ymd(today()),tomorrowKey=ymd(addDays(today(),1)),hist=(s.history||[]).slice(-12);
@@ -191,7 +235,7 @@ function parseIntent(text){
  const weekendRunning=/\bweekend\b[^.!?]*\b(?:run|running)\b|\b(?:run|running)\b[^.!?]*\bweekend\b/.test(t);
  const requestRun=!scheduledRunTomorrow&&!weekendRunning&&/(?:give me|want|need|do|go for|schedule).*(?:easy\s+|tempo\s+|long\s+|interval\s+|custom\s+)?run|\b(?:tempo run|intervals|long run|easy run|custom run)\b/.test(t);
  const fatigue=/\b(tired|fatigued|fatigue|exhausted|low energy|poor sleep|bad sleep|sleep deprived)\b/.test(t);
- const pain=/(pain|discomfort|irritated|irritation|sore|injur)/.test(t);
+ const pain=/(pain|discomfort|uncomfortable|ache|aching|irritated|irritation|sore|injur)/.test(t);
  const painArea=/knee/.test(t)?'knee':/hip/.test(t)?'hip':/(ankle|astragalus)/.test(t)?'ankle':/shoulder/.test(t)?'shoulder':/elbow/.test(t)?'elbow':pain?'unspecified':null;
  const moveTodayTomorrow=/move\s+(?:today(?:'s)?\s+)?(?:workout|session)?\s*(?:to|into)\s+tomorrow|move\s+today(?:'s)?\s+(?:workout|session)\s+tomorrow/.test(t);
  const gymDays=[['monday',1],['tuesday',2],['wednesday',3],['thursday',4],['friday',5],['saturday',6],['sunday',0]].filter(([n])=>new RegExp('\\b'+n+'\\b').test(t)).map(x=>x[1]);
@@ -211,7 +255,7 @@ function kneeConservativePlan(minutes){return plan('Recovery','Knee-Friendly Rec
  {name:'Glute Bridge',prescription:'3 × 10–12 · only if comfortable',muscles:'Glutes + Hamstrings'},
  {name:'Gentle Mobility',prescription:'5–8 min · symptom-free range',muscles:'Lower Body'}
 ],minutes||25,{location:'Home / Flexible',intensity:'Easy',safety:'Avoid movements that increase knee symptoms. Stop and seek qualified assessment for significant swelling, locking, giving way, or rapidly worsening pain.'})}
-function weekdayDate(wd){const d=today(),delta=(wd-d.getDay()+7)%7;return addDays(d,delta===0?7:delta)}
+function weekdayDate(wd){const d=today(),delta=(wd-d.getDay()+7)%7;return addDays(d,delta)}
 function runPlan(name,kind,distance,duration){return {type:'Run',name,ids:[],textExercises:[],duration:duration||40,run:{kind,distance},location:'Outdoor',intensity:/easy/i.test(kind)?'Easy':/long/i.test(kind)?'Steady':'Moderate'}}
 function planBody(p){if(!p)return null;const x=((p.type||'')+' '+(p.name||'')).toLowerCase();return /upper/.test(x)?'upper':/(legs|lower)/.test(x)?'lower':/run/.test(x)?'run':/recovery/.test(x)?'recovery':/full/.test(x)?'full':null}
 function contextualRecentBody(ctx){const n=String(ctx?.latest?.name||'').toLowerCase();return /upper|chest|back|shoulder|arms/.test(n)?'upper':/leg|lower|glute|hamstring|quad|calf/.test(n)?'lower':null}
@@ -230,7 +274,7 @@ function chooseCompatible(i,targetDate){
  else if(i.fatigue||i.requestedBody==='recovery'||recoveryLimited(i.ctx))p=recoveryPlan(i.minutes||25);
  else if(i.requestRun||i.place==='outdoor')p=runPlan('Easy Run','Easy Run','5K',i.minutes||35);
  else if(i.scheduledRunTomorrow&&!i.requestedBody)p=recent==='upper'||recent==='lower'?recoveryPlan(i.minutes||20):(i.place==='home'?homeUpper(i.minutes,i.equipment):gymUpper(i.minutes||35));
- else if(i.minutes&&!i.requestedBody&&!i.place&&!recent&&!i.requestRun&&!i.scheduledRunTomorrow&&before)p=clone(before);
+ else if(i.minutes&&!i.requestedBody&&!i.place&&!i.requestRun&&!i.scheduledRunTomorrow&&before)p=clone(before);
  else if(i.requestedDay==='tomorrow'&&planBody(before)==='run'&&!i.requestedBody)p=clone(before);
  else if(i.requestedBody==='upper')p=i.place==='home'?homeUpper(i.minutes,i.equipment):gymUpper(i.minutes);
  else if(i.requestedBody==='lower')p=i.place==='home'?homeLower(i.minutes):gymLower(i.minutes);
@@ -320,32 +364,49 @@ function exercisePreview(p){
  (p.textExercises||[]).forEach(x=>rows.push(`<div class="coach-ex-row"><span class="coach-ex-status text">TEXT</span><span class="coach-ex-copy"><b>${esc(x.name)}</b><small>${esc(x.muscles||'Guided exercise')} · ${esc(x.prescription||'Coach prescribed')}</small></span></div>`));
  return rows.join('')
 }
+function baselineUnderstood(){
+ const c=currentContext(),latest=c.latest,ready=[];
+ if(c.maxPain>0)ready.push(`Pain/discomfort context present (${c.maxPain}/10 max)`);if(c.maxFatigue>0)ready.push(`Fatigue context present (${c.maxFatigue}/10 max)`);if(!ready.length)ready.push('No new symptom/readiness constraint stated');
+ return {trainingHistory:[latest?.name?`Recent: ${latest.name}`:'No completed session recorded yet'],availability:[`Equipment: ${c.equipment||'Not specified'}`,`Default session: ${c.duration||45} min`],readiness:ready,goalSchedule:[...(c.goals||[]).slice(0,1).map(x=>`Goal: ${x}`),`Today: ${c.todayPlan?.name||'No session'}`,`Tomorrow: ${c.tomorrowPlan?.name||'No session'}`]}
+}
+function coachGroup(label,items){return `<div class="phase1-understood-group"><small>${label}</small>${(items||[]).map(x=>`<span>✓ ${esc(x)}</span>`).join('')||'<span>—</span>'}</div>`}
 function pendingHtml(){
  const p=V().pending;if(!p)return'';
- const rows=p.rows.map(r=>`<article class="coach-session-card"><div class="coach-session-date">${esc(compactDate(r.date).toUpperCase())}</div><div class="coach-diff"><div><small>BEFORE</small><b>${esc(r.before?.name||'No session')}</b></div><span>→</span><div><small>AFTER</small><b>${esc(r.plan.name)}</b></div></div><div class="coach-session-title"><div><small>RECOMMENDED SESSION</small><h3>${esc(r.plan.name)}</h3></div><span>${esc(r.plan.location||r.plan.type||'Flexible')}</span></div><div class="coach-session-meta"><span>${esc(r.plan.duration||45)} MIN</span><span>${esc(r.plan.intensity||'MODERATE').toUpperCase()}</span><span>${esc((r.plan.type||'TRAINING').toUpperCase())}</span></div>${r.plan.run?`<div class="coach-run-summary"><b>${esc(r.plan.run.kind||'Run')}</b><span>${esc(r.plan.run.distance||'')}</span></div>`:`<div class="coach-exercise-list">${exercisePreview(r.plan)}</div>`}${r.plan.safety?`<div class="coach-safety"><b>SAFETY</b><p>${esc(r.plan.safety)}</p></div>`:''}</article>`).join('');
- const effect=(p.effect||[]).map(x=>`<li>${esc(x)}</li>`).join('');
- return `<section class="coach-result"><div class="coach-message user"><small>USER MESSAGE</small><p>${esc(p.request)}</p></div><div class="coach-decision"><div class="coach-response-brand"><span>✦</span><div><small>COACH DECISION</small><b>${esc(p.decision||'Coaching decision')}</b></div></div><div class="coach-why"><small>WHY THIS CHANGE</small><p>${esc(p.reason)}</p></div>${rows}<div class="coach-effect"><small>EFFECT ON SCHEDULE</small><ul>${effect||'<li>My Plan stays unchanged until you apply.</li>'}</ul></div><div class="coach-actions"><button class="apply" onclick="KINETIQSystem.applyAI()">APPLY TO PLAN</button><button class="keep" onclick="KINETIQSystem.keepCurrent()">KEEP CURRENT</button></div></div></section>`
+ const rows=p.rows.map(r=>{const exercises=[...(r.plan.ids||[])].slice(0,4).map(id=>window.PT29?.byId?.(id)?.name).filter(Boolean);return `<article class="phase1-result-card"><div class="phase1-result-diff"><div><small>BEFORE</small><b>${esc(r.before?.name||'No session')}</b></div><span>→</span><div><small>AFTER</small><b>${esc(r.plan.name)}</b></div></div><small class="phase1-recommended-label">RECOMMENDED SESSION</small><h2>${esc(r.plan.name)}</h2><div class="phase1-result-meta"><span>${esc(r.plan.duration||45)} min</span><span>${esc(r.plan.location||r.plan.type||'Flexible')}</span><span>${esc(r.plan.intensity||'Moderate')}</span></div>${exercises.length?`<ul class="phase1-result-exercises">${exercises.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}${(r.plan.textExercises||[]).length?`<ul class="phase1-result-exercises">${r.plan.textExercises.slice(0,4).map(x=>`<li>${esc(x.name)} · ${esc(x.prescription||'')}</li>`).join('')}</ul>`:''}${r.plan.run?`<div class="phase1-result-run"><b>${esc(r.plan.run.kind||'Run')}</b><span>${esc(r.plan.run.distance||'')}</span></div>`:''}${r.plan.safety?`<div class="phase1-result-safety">${esc(r.plan.safety)}</div>`:''}</article>`}).join('');
+ return `<div class="phase1-result-stack">${rows}<section class="phase1-result-reason"><small>WHY THIS CHANGE</small><p>${esc(p.reason)}</p></section><section class="phase1-result-effect"><small>EFFECT ON THE WEEK</small><ul>${(p.effect||[]).map(x=>`<li>${esc(x)}</li>`).join('')||'<li>My Plan remains unchanged until you apply.</li>'}</ul></section></div>`
 }
+
 function openAI(){
- const v=V(),pending=v.pending,u=pending?.understood||{trainingHistory:[],availability:[],readiness:[],goalSchedule:[]};
- const group=(label,items)=>`<div class="coach-understood-group"><small>${label}</small><div>${(items||[]).map(x=>`<span>✓ ${esc(x)}</span>`).join('')||'<span>—</span>'}</div></div>`;
- window.PT29?.sheet?.('KINETIQ Coach',`<div class="system-coach"><div class="coach-page-head"><div><small>ADAPTIVE PERSONAL TRAINER</small><h1>Ask KINETIQ</h1><p>Tell me what changed. I’ll read your plan, training history, readiness, schedule, location and time before recommending a change.</p></div><span class="coach-orb">✦</span></div><div class="coach-user"><label for="v7AIInput">USER MESSAGE</label><textarea id="v7AIInput" rows="3" placeholder="I trained legs today. What should I do tomorrow?">${esc(v.lastAI||'')}</textarea><small class="coach-quick-label">QUICK INTENTS</small><div class="coach-prompts"><button onclick="KINETIQSystem.fillAI('I trained legs today. What should I do tomorrow?')">TRAINED LEGS</button><button onclick="KINETIQSystem.fillAI('I cannot go to the gym today. Give me a home workout.')">HOME WORKOUT</button><button onclick="KINETIQSystem.fillAI('I feel tired today. Adjust my workout.')">LOW READINESS</button><button onclick="KINETIQSystem.fillAI('I have knee discomfort today. Adjust my workout.')">PAIN / RECOVERY</button></div><button class="coach-build" onclick="KINETIQSystem.askAI()">GET COACH DECISION →</button></div>${pending?`<div class="coach-understood"><small>WHAT I UNDERSTOOD</small>${group('TRAINING HISTORY',u.trainingHistory)}${group('AVAILABLE TODAY',u.availability)}${group('READINESS / SYMPTOMS',u.readiness)}${group('GOAL / SCHEDULING CONTEXT',u.goalSchedule)}</div>`:''}${pendingHtml()}</div>`);
- const sh=$('#sheet');sh?.classList.remove('system-device-surface');sh?.classList.add('system-ai-surface');const close=$('#sheetClose');if(close)close.onclick=()=>{sh.classList.remove('system-ai-surface');window.PT29?.closeSheet?.()}
+ const v=V(),draft=v.lastAI||'',u=draft?understoodFor(parseIntent(draft)):baselineUnderstood();
+ window.PT29?.sheet?.('KINETIQ Coach',`<div class="phase1-coach-screen"><header class="phase1-coach-nav"><button data-coach-back>‹</button><div><b>KINETIQ Coach</b><small>ADAPTIVE PERSONAL TRAINER</small></div><span>✦</span></header><section class="phase1-coach-intro"><small class="phase1-ask-label">ASK KINETIQ</small><h2>How can I help you today?</h2><p>Ask anything about your training, running, recovery or nutrition.</p></section><div class="phase1-quick-list"><small>QUICK INTENTS</small><button data-quick="Adjust my plan"><span>♙</span>Adjust my plan</button><button data-quick="My knee is uncomfortable today. Adjust my workout."><span>▣</span>I feel knee pain</button><button data-quick="Change today's workout"><span>↺</span>Change today’s workout</button><button data-quick="Recommend a running plan"><span>▦</span>Recommend a running plan</button><button data-quick="Nutrition advice"><span>▤</span>Nutrition advice</button></div><section class="phase1-understood"><small>WHAT I UNDERSTOOD</small>${coachGroup('TRAINING HISTORY',u.trainingHistory)}${coachGroup('AVAILABLE TODAY',u.availability)}${coachGroup('READINESS / SYMPTOMS',u.readiness)}${coachGroup('GOAL / SCHEDULING CONTEXT',u.goalSchedule)}</section><div class="phase1-coach-compose"><label>USER MESSAGE</label><textarea id="v7AIInput" rows="2" placeholder="Type your message…">${esc(draft)}</textarea><button class="phase1-lime" data-coach-decide>GET COACH DECISION</button></div></div>`);
+ const sh=$('#sheet');sh?.classList.remove('system-device-surface','system-coach-result');sh?.classList.add('system-ai-surface','system-coach-intake');
+ $('[data-coach-back]',sh)?.addEventListener('click',()=>{sh.classList.remove('system-ai-surface','system-coach-intake');window.PT29?.closeSheet?.()});
+ $$('[data-quick]',sh).forEach(b=>b.onclick=()=>{const a=$('#v7AIInput',sh);if(a){a.value=b.dataset.quick;a.focus()}});
+ $('[data-coach-decide]',sh)?.addEventListener('click',askAI)
 }
+
 function fillAI(t){const a=$('#v7AIInput');if(a){a.value=t;a.focus()}}
 function askAI(){
  const a=$('#v7AIInput'),text=(a?.value||'').trim();if(!text){window.toast?.('Tell KINETIQ what changed first');return}
  const v=V();v.lastAI=text;v.pending=aiProposal(text);v.aiHistory.push({role:'user',text,at:Date.now()});if(v.aiHistory.length>20)v.aiHistory=v.aiHistory.slice(-20);
  v.aiMeta=v.aiMeta||{};
  v.pending.rows.forEach(r=>{const k=ymd(r.date);v.aiPlans[k]=clone(r.plan);v.aiMeta[k]={reason:v.pending.reason,decision:v.pending.decision,effect:v.pending.effect,request:text,createdAt:Date.now()}});
- saveState();openAI()
+ saveState();openCoachResult()
 }
+function openCoachResult(){
+ const v=V(),p=v.pending;if(!p){openAI();return}
+ window.PT29?.sheet?.('Coach Result',`<div class="phase1-result-screen"><header class="phase1-coach-nav"><button data-result-back>‹</button><div><b>Coach Result</b><small>KINETIQ COACH</small></div><span>⋮</span></header><section class="phase1-request-card"><small>USER REQUEST / CONTEXT</small><p>${esc(p.request)}</p></section><section class="phase1-decision-card"><small>COACH DECISION</small><h1>${esc(p.decision||'Recommended adjustment')}</h1>${pendingHtml()}</section><div class="phase1-result-actions"><button class="phase1-keep" data-keep-result>Keep Current</button><button class="phase1-lime" data-apply-result>Apply to Plan</button></div></div>`);
+ const sh=$('#sheet');sh?.classList.remove('system-coach-intake','system-device-surface');sh?.classList.add('system-ai-surface','system-coach-result');
+ $('[data-result-back]',sh)?.addEventListener('click',openAI);$('[data-keep-result]',sh)?.addEventListener('click',keepCurrent);$('[data-apply-result]',sh)?.addEventListener('click',applyAI)
+}
+
 function applyAI(){
  const v=V(),p=v.pending;if(!p)return;const first=p.rows[0]?.date||today();
  p.rows.forEach(r=>{const k=ymd(r.date);v.aiPlans[k]=clone(r.plan);v.myPlans[k]=clone(r.plan)});
  v.pending=null;v.planTab='my';v.selectedDate=ymd(first);syncLegacy();saveState();$('#sheet')?.classList.remove('system-ai-surface');window.PT29?.closeSheet?.();showPage('plan')
 }
-function keepCurrent(){const v=V();v.pending=null;saveState();$('#sheet')?.classList.remove('system-ai-surface');window.PT29?.closeSheet?.();if($('.page.active')?.dataset.page==='plan')renderSystemPlan()}
+function keepCurrent(){const v=V();v.pending=null;v.planTab='my';saveState();const sh=$('#sheet');sh?.classList.remove('system-ai-surface','system-coach-intake','system-coach-result');window.PT29?.closeSheet?.();showPage('plan')}
+
 function applySelectedAI(){const v=V(),k=v.selectedDate,src=v.aiPlans[k];if(!src)return;v.myPlans[k]=clone(src);v.planTab='my';syncLegacy();saveState();renderSystemPlan()}
 function startExerciseFromDetail(id,opt={}){
  const st=state(),v=V(),e=window.PT29?.byId?.(id);if(!e)return;
@@ -432,6 +493,6 @@ function init(){
  window.__KINETIQ_SYSTEM_BETA__='KINETIQ-3.0.3-system-beta-2';window.__KINETIQ_SYSTEM_UI__=VERSION;document.documentElement.dataset.kinetiqSystemBeta='ready';document.documentElement.dataset.kinetiqSystemUi='authoritative';
  if(state().built)enterSystem()
 }
-window.KINETIQSystem={version:VERSION,showPage,renderHome:renderSystemHome,renderPlan:renderSystemPlan,renderTrain:renderSystemTrain,renderRun:renderSystemRun,renderMore:renderSystemMore,openAI,fillAI,askAI,applyAI,keepCurrent,applySelectedAI,aiProposal,startExerciseFromDetail,resumeWorkout,openDevices,openGarminApp,connectGarminHealth,requestGps,syncDevices,syncLegacy,afterEquipmentChange:()=>{syncLegacy();showPage($('.page.active')?.dataset.page||'home')}};
+window.KINETIQSystem={version:VERSION,showPage,renderHome:renderSystemHome,renderPlan:renderSystemPlan,renderTrain:renderSystemTrain,renderRun:renderSystemRun,renderMore:renderSystemMore,openAI,openCoachResult,fillAI,askAI,applyAI,keepCurrent,applySelectedAI,applyWeekAI,keepWeekAI,aiProposal,startExerciseFromDetail,resumeWorkout,openDevices,openGarminApp,connectGarminHealth,requestGps,syncDevices,syncLegacy,afterEquipmentChange:()=>{syncLegacy();showPage($('.page.active')?.dataset.page||'home')}};
 setTimeout(init,700);
 })();
