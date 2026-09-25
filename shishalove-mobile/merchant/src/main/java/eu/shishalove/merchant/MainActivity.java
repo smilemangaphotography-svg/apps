@@ -13,12 +13,15 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Gravity;
 import android.view.Window;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
@@ -30,6 +33,8 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.Toast;
@@ -46,11 +51,12 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
-    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=170";
+    private static final String START_URL = "https://shishalove.eu/shishalove-merchant/?app=android&build=173";
     private static final String SHOP_HOST = "shishalove.eu";
     private static final int FILE_CHOOSER_REQUEST = 7201;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 7301;
     private static final String ORDER_CHANNEL_ID = "shishalove_orders";
+    private static boolean processStartupGateShown = false;
 
     private FrameLayout root;
     private WebView webView;
@@ -61,6 +67,7 @@ public class MainActivity extends Activity {
     private Uri cameraCaptureUri;
     private String phonePolishJs;
     private String orderWatchJs;
+    private View startupGate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,6 +82,9 @@ public class MainActivity extends Activity {
 
         createOrderNotificationChannel();
         requestOrderNotificationPermission();
+
+        final boolean showColdStartGate = !processStartupGateShown;
+        processStartupGateShown = true;
 
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
@@ -111,6 +121,8 @@ public class MainActivity extends Activity {
                 3
         ));
 
+        if (showColdStartGate) installColdStartGate();
+
         setContentView(root);
         ViewCompat.requestApplyInsets(root);
         phonePolishJs = readAsset("merchant_phone_polish.js");
@@ -119,6 +131,69 @@ public class MainActivity extends Activity {
 
         if (savedInstanceState == null) webView.loadUrl(START_URL);
         else webView.restoreState(savedInstanceState);
+    }
+
+    private int dp(float value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private void installColdStartGate() {
+        FrameLayout gate = new FrameLayout(this);
+        gate.setBackgroundColor(Color.BLACK);
+        gate.setClickable(true);
+        gate.setFocusable(true);
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setGravity(Gravity.CENTER_HORIZONTAL);
+
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.ic_shishalove_merchant);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        logo.setAdjustViewBounds(true);
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(250)
+        );
+        logoParams.setMargins(0, 0, 0, dp(26));
+        content.addView(logo, logoParams);
+
+        Button enter = new Button(this);
+        enter.setText("ENTER");
+        enter.setTextColor(Color.WHITE);
+        enter.setTextSize(15f);
+        enter.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        enter.setAllCaps(false);
+        enter.setPadding(dp(18), 0, dp(18), 0);
+        GradientDrawable enterBackground = new GradientDrawable();
+        enterBackground.setColor(Color.rgb(217, 37, 63));
+        enterBackground.setCornerRadius(dp(14));
+        enter.setBackground(enterBackground);
+        LinearLayout.LayoutParams enterParams = new LinearLayout.LayoutParams(dp(220), dp(54));
+        content.addView(enter, enterParams);
+
+        FrameLayout.LayoutParams contentParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        contentParams.gravity = Gravity.CENTER;
+        contentParams.setMargins(dp(28), 0, dp(28), 0);
+        gate.addView(content, contentParams);
+
+        enter.setOnClickListener(v -> {
+            if (startupGate == null) return;
+            final View currentGate = startupGate;
+            startupGate = null;
+            currentGate.animate().alpha(0f).setDuration(120).withEndAction(() -> {
+                if (currentGate.getParent() == root) root.removeView(currentGate);
+            }).start();
+        });
+
+        startupGate = gate;
+        root.addView(gate, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+        ));
     }
 
     private void createOrderNotificationChannel() {
@@ -242,7 +317,7 @@ public class MainActivity extends Activity {
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) settings.setOffscreenPreRaster(true);
-        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.70");
+        settings.setUserAgentString(settings.getUserAgentString() + " ShishaLoveMerchant/1.1.73");
 
         CookieManager cookies = CookieManager.getInstance();
         cookies.setAcceptCookie(true);
