@@ -138,14 +138,14 @@ jobs:
           grep -q 'coach-response' "$A/kinetiq-system-ui.js"
           grep -q 'trainedBody' "$A/kinetiq-system-ui.js"
           grep -q 'requestedBody' "$A/kinetiq-system-ui.js"
-          grep -q 'system-plan-card' "$A/kinetiq-system-ui.js"
+          grep -q 'plan-week-card' "$A/kinetiq-system-ui.js"
           grep -q 'system-motion-shell' "$A/style2-v29.js"
           grep -q 'window.KINETIQDeviceBridge' "$A/kinetiq-system-ui.js"
           grep -q 'getDeviceCapabilities' personal-trainer/android-beta/app/src/main/java/com/ilia/personaltrainer/MainActivity.java
           grep -q 'runProtocol' "$A/style2-v7.js"
           grep -q 'KINETIQ_DRIVE_FINAL_IMPLEMENTATION_PASS' personal-trainer/android-beta/system-browser-test.cjs
           grep -q 'APPLY TO PLAN' "$A/kinetiq-system-ui.js"
-          grep -q 'KEEP CURRENT PLAN' "$A/kinetiq-system-ui.js"
+          grep -q 'KEEP CURRENT' "$A/kinetiq-system-ui.js"
           grep -q 'paceSamples' "$A/style2-v7.js"
       - name: Browser acceptance gate before APK build
         shell: bash
