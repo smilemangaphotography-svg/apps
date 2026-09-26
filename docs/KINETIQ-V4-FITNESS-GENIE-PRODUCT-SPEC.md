@@ -1224,3 +1224,338 @@ Today, Journey, Coach, Run, Workout, History, and the Goal Engine must agree on:
 - next-goal proposal state
 
 No screen may independently invent a conflicting post-event state.
+
+
+---
+
+# 21. SAFE WORKOUT FINAL REFINEMENT — EXERCISE MEDIA, GALLERY & SUBSTITUTION
+
+This section is authoritative for the V4 Safe Workout product layer.
+
+## A. Exercise Media Contract
+
+KINETIQ supports two distinct exercise-media modes.
+
+### 1. Dynamic Exercises — MOTION
+
+Examples include:
+
+- leg press
+- chest press
+- rows
+- pulldowns
+- squats
+- curls
+- dynamic strength movements
+
+Dynamic exercises use the existing animated motion / anatomy system.
+
+The main Motion view must:
+
+- use the maximum available media frame
+- show the full body where relevant
+- show the full machine / equipment where relevant
+- never clip the head, hands, feet, or important equipment
+- avoid unnecessary inner padding
+- keep the athlete / subject centered
+- preserve correct aspect ratio
+- preserve active-muscle highlighting
+- preserve exercise-to-motion mapping
+
+**Rule: FULL FRAME WITHOUT IMPORTANT SUBJECT CLIPPING.**
+
+Preview thumbnails may be smaller.
+
+The main Exercise Detail / Active Exercise Motion view must remain large and clearly visible.
+
+A focused full-screen Motion view may be offered by tap without changing the canonical motion asset or mapping.
+
+### 2. Isometric / Rehab / Knee-Safe Exercises — GUIDE
+
+Do not force animation when movement is minimal or static.
+
+Isometric, rehab, knee-safe, mobility-hold, and activation exercises may use still explanatory images as their primary media.
+
+Examples include:
+
+- quad set
+- wall sit / supported isometric
+- bridge hold
+- calf isometric
+- straight-leg raise setup where still guidance is sufficient
+- knee-safe holds
+- mobility holds
+- activation drills
+
+Exercise Detail for GUIDE media should communicate:
+
+- exact starting position
+- body alignment
+- joint position
+- where pressure / load should be
+- hold duration
+- what the athlete should feel
+- what to avoid
+- symptom / safety guidance
+
+Example:
+
+**QUAD ISOMETRIC**
+
+**HOW TO DO IT**
+Press knee toward support. Contract quadriceps. Hold 20–30 sec.
+
+**SETS**
+3–5
+
+**WHAT YOU SHOULD FEEL**
+Quadriceps working.
+
+**AVOID**
+Sharp knee pain. Excessive joint compression.
+
+GUIDE media is not a degraded fallback. It is the correct primary presentation for static or near-static exercises where a still explanatory image communicates setup more clearly than animation.
+
+## B. Exercise Gallery Contract
+
+The Exercise Gallery remains part of KINETIQ.
+
+Location:
+
+**MORE → EXERCISE GALLERY**
+
+It may also be used as a source for Coach-driven substitutions.
+
+Required categories include:
+
+- STRENGTH
+- RUNNING SUPPORT
+- KNEE-SAFE
+- REHAB / ISOMETRICS
+- MOBILITY
+- CORE
+- UPPER BODY
+- LOWER BODY
+
+Each exercise card identifies:
+
+- exercise name
+- target area
+- media type: **MOTION** or **GUIDE**
+- today's safety state where relevant
+- equipment
+- goal relevance
+
+Knee-safe and rehab exercises must remain discoverable even when they are not included in today's prescribed session.
+
+The gallery is supporting infrastructure and does not replace the prescription-first V4 flow.
+
+## C. Safety States
+
+Preserve the V4 safety language:
+
+- **GREEN — GOOD TODAY**
+- **AMBER — MODIFY TODAY**
+- **RED — AVOID TODAY**
+
+For AMBER and RED exercises, expose:
+
+**BETTER OPTION →**
+
+Example:
+
+**45° LEG PRESS**  
+**AMBER · MODIFY TODAY**
+
+Reduced depth  
+Moderate load
+
+**BETTER OPTION →**
+
+Safety state is Today-specific and must not be treated as a diagnosis.
+
+## D. Better Option / Substitution Contract
+
+Opening **BETTER OPTION** presents:
+
+**CURRENT → RECOMMENDED ALTERNATIVE**
+
+plus:
+
+**WHY**
+
+Example:
+
+**45° LEG PRESS**  
+→  
+**SUPPORTED STEP-UP**
+
+**WHY**  
+Maintains lower-body strength stimulus with a more tolerable movement for today's reported knee state.
+
+Actions:
+
+- **KEEP CURRENT**
+- **USE BETTER OPTION**
+
+The proposed replacement should preserve the intended training purpose where possible.
+
+Replacement selection may consider:
+
+- session purpose
+- target muscle / movement pattern
+- equipment
+- current tolerance
+- recovery rules
+- known restrictions
+- goal relevance
+
+No diagnosis.
+
+No requirement to manually browse the Exercise Gallery during a normal substitution flow.
+
+## E. Adjust Workout Contract
+
+**ADJUST WORKOUT ✦** remains available from Safe Workout.
+
+It may support:
+
+- replace exercise
+- remove exercise
+- reorder exercise
+- shorten workout
+- change equipment
+- change available time
+
+These advanced controls must not clutter the normal pre-workout screen.
+
+If swipe / reorder / remove interactions are implemented later, they belong inside Adjust Workout / Edit mode rather than permanent main-screen controls.
+
+All Coach-driven workout changes use the one canonical Coach intelligence.
+
+## F. Today Strength Preview Contract
+
+When Today's Best Move is a strength session, Today should show a compact prescription preview.
+
+Example:
+
+**MARATHON STRENGTH**
+
+42 min  
+6 exercises
+
+**5 GOOD TODAY**  
+**1 MODIFY TODAY**
+
+Actions:
+
+**START SESSION**
+
+**VIEW EXERCISES**
+
+This gives immediate safety visibility without turning Today into the full Safe Workout page.
+
+## G. Safe Workout Bottom Navigation Contract
+
+On the Safe Workout **pre-workout** screen, Today is the originating primary context.
+
+The standard V4 bottom navigation remains visible:
+
+**TODAY · JOURNEY · COACH · RUN · MORE**
+
+**TODAY must be visibly active using the same neon-lime treatment as the approved Today mockup.**
+
+During **ACTIVE WORKOUT**, the standard five-tab navigation is hidden and the app switches to focused execution mode.
+
+## H. Active Exercise Media Lock
+
+### Dynamic Active Exercise
+
+Must show:
+
+- **ANIMATED MOTION**
+- full-frame presentation
+- no important subject clipping
+- active muscles
+- technique cues
+- Today-specific safety / modification state
+- set / rep / load execution context
+
+### Isometric / Rehab Active Exercise
+
+Must show:
+
+- **STILL GUIDE IMAGE**
+- setup
+- hold duration
+- technique
+- what to feel
+- what to avoid
+- safety note
+- set / hold execution context
+
+The application must not imply that every exercise requires animation.
+
+## I. This Doesn't Feel Good — Rapid Intervention
+
+During an active workout, **THIS DOESN'T FEEL GOOD** must open an immediate intervention flow.
+
+Options may include:
+
+- **REDUCE LOAD**
+- **REDUCE RANGE**
+- **SWAP EXERCISE**
+- **END EXERCISE**
+- **TELL COACH**
+
+The athlete should remain inside the workout.
+
+The user must not be forced to leave the workout and manually search the Exercise Gallery.
+
+## J. Adaptive Substitution Contract
+
+When an exercise becomes unsuitable during execution, KINETIQ may propose a replacement that preserves training intent where possible.
+
+Presentation:
+
+**CURRENT → REPLACEMENT**
+
+**WHY**
+
+Actions:
+
+- **KEEP CURRENT**
+- **APPLY REPLACEMENT**
+
+Example:
+
+**45° LEG PRESS**  
+→  
+**SUPPORTED STEP-UP**
+
+The replacement is based on current workout context and existing exercise data, not diagnosis.
+
+## K. Safe Workout Visual Lock
+
+The approved V4 Safe Workout pre-workout direction preserves:
+
+- Marathon Strength identity
+- goal / phase context
+- 42 min
+- 6 exercises
+- 5 GREEN
+- 1 AMBER
+- 0 RED
+- exercise sequence
+- visible safety states
+- Start Workout
+- Adjust Workout
+- V4 visual language
+
+The refined pre-workout presentation additionally requires:
+
+- TODAY nav visibly active
+- BETTER OPTION access for AMBER / RED items
+- clear MOTION labeling for dynamic exercises
+- clear GUIDE labeling where still-guide media is appropriate
+- no implication that every exercise requires animation
