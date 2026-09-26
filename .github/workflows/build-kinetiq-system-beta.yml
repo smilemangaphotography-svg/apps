@@ -243,3 +243,4 @@ jobs:
           path: ${{ runner.temp }}/kinetiq-system-screens/*
           if-no-files-found: warn
           retention-days: 30
+# KINETIQ System Beta manual build trigger
