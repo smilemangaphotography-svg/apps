@@ -459,3 +459,388 @@ window.ILIA_V7={
 };
 setTimeout(init,380);
 })();
+
+;(function phase3Installer(){
+'use strict';
+const MARK='KINETIQ_PHASE3_RUNNING_COACH';
+if(window.__KINETIQ_PHASE3_RUNNING_COACH__)return;
+window.__KINETIQ_PHASE3_RUNNING_COACH__=MARK;
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const num=(v,d=0)=>Number.isFinite(+v)?+v:d;
+const state=()=>window.S||{};
+const saveState=()=>{try{window.save?.()}catch(_){try{localStorage.setItem('personalTrainer.beta2',JSON.stringify(state()))}catch(__){}}};
+const now=()=>Date.now();
+const fmtTime=sec=>{sec=Math.max(0,Math.floor(num(sec)));const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return h?`${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`${m}:${String(s).padStart(2,'0')}`};
+const fmtPace=sec=>{sec=num(sec);if(!sec||sec<60||sec>1800)return'—';let m=Math.floor(sec/60),s=Math.round(sec%60);if(s===60){m++;s=0}return`${m}:${String(s).padStart(2,'0')}`};
+const hav=(a,b,c,d)=>{const R=6371,p=Math.PI/180,dx=(c-a)*p,dy=(d-b)*p,z=Math.sin(dx/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(dy/2)**2;return 2*R*Math.asin(Math.sqrt(z))};
+const median=a=>{const x=(a||[]).filter(Number.isFinite).slice().sort((a,b)=>a-b),n=x.length;return n?(n%2?x[(n-1)/2]:(x[n/2-1]+x[n/2])/2):0};
+const RUN_TYPES=['Easy Run','Tempo Run','Intervals','Long Run','Custom Run'];
+const defaults={
+  mode:'OUTDOOR',targetDistanceKm:5,targetDuration:35,paceMin:5,paceSec:15,paceToleranceSec:10,
+  coachPersistenceSec:12,coachCooldownSec:60,coachHysteresisSec:4,targetHr:'',
+  warmupMinutes:8,cooldownMinutes:5,intervalReps:6,intervalWorkValue:120,intervalWorkUnit:'seconds',
+  intervalRecoveryValue:90,intervalRecoveryUnit:'seconds'
+};
+const runtime={timer:null,gpsWatchId:null,lastTickMs:0,lastSaveMs:0,lastLoc:null,paceSamples:[],lastAltitude:null,restoredUntil:0,summary:null,nativeBound:false};
+
+function ensureConfig(){
+ const s=state();s.v7=s.v7||{};s.v7.run=Object.assign({},defaults,s.v7.run||{});
+ if(!RUN_TYPES.includes(s.v7.run.kind))s.v7.run.kind='Easy Run';
+ if(!['OUTDOOR','INDOOR'].includes(s.v7.run.mode))s.v7.run.mode='OUTDOOR';
+ return s.v7.run;
+}
+function typeDefaults(kind){
+ if(kind==='Tempo Run')return{targetDistanceKm:7,targetDuration:45,warmupMinutes:10,cooldownMinutes:8};
+ if(kind==='Intervals')return{targetDistanceKm:6,targetDuration:45,warmupMinutes:10,cooldownMinutes:8,intervalReps:6,intervalWorkValue:120,intervalWorkUnit:'seconds',intervalRecoveryValue:90,intervalRecoveryUnit:'seconds'};
+ if(kind==='Long Run')return{targetDistanceKm:12,targetDuration:70,warmupMinutes:8,cooldownMinutes:5};
+ if(kind==='Custom Run')return{targetDistanceKm:5,targetDuration:40,warmupMinutes:5,cooldownMinutes:5};
+ return{targetDistanceKm:5,targetDuration:35,warmupMinutes:8,cooldownMinutes:5};
+}
+function configFor(kind){
+ const c=ensureConfig(),d=typeDefaults(kind||c.kind);
+ return Object.assign({},c,d,{kind:kind||c.kind});
+}
+function targetCenter(c=ensureConfig()){return clamp(num(c.paceMin,5)*60+num(c.paceSec,15),180,900)}
+function targetRange(c=ensureConfig()){
+ const center=targetCenter(c),tol=clamp(num(c.paceToleranceSec,10),3,45);
+ return{center,min:center-tol,max:center+tol,tolerance:tol};
+}
+function protocol(c=ensureConfig()){
+ const kind=c.kind,base=typeDefaults(kind);
+ const warm=Math.max(0,num(c.warmupMinutes,base.warmupMinutes)),cool=Math.max(0,num(c.cooldownMinutes,base.cooldownMinutes));
+ if(kind==='Intervals'){
+  const reps=clamp(Math.round(num(c.intervalReps,6)),1,30);
+  return{warmup:warm,cooldown:cool,duration:num(c.targetDuration,45),main:`${reps} × ${c.intervalWorkValue} ${c.intervalWorkUnit==='meters'?'m':'sec'} / ${c.intervalRecoveryValue} ${c.intervalRecoveryUnit==='meters'?'m':'sec'}`,reps}
+ }
+ if(kind==='Tempo Run')return{warmup:warm,cooldown:cool,duration:num(c.targetDuration,45),main:'Sustained controlled tempo'};
+ if(kind==='Long Run')return{warmup:warm,cooldown:cool,duration:num(c.targetDuration,70),main:'Steady endurance effort'};
+ if(kind==='Custom Run')return{warmup:warm,cooldown:cool,duration:num(c.targetDuration,40),main:'User-defined steady structure'};
+ return{warmup:warm,cooldown:cool,duration:num(c.targetDuration,35),main:'Conversational aerobic effort'}
+}
+function cloneSerializable(a){
+ return JSON.parse(JSON.stringify(a,(k,v)=>k==='timer'||k==='gpsWatchId'?undefined:v));
+}
+function active(){return state().activeRun?.active?state().activeRun:null}
+function makeActive(c){
+ const tr=targetRange(c),p=protocol(c),t=now();
+ return{
+  active:true,runId:'run-'+t,runType:c.kind,mode:c.mode,startTime:t,lastPersistedAt:t,elapsedActive:0,paused:false,completionState:'ACTIVE',
+  targetPace:tr.center,targetPaceMin:tr.min,targetPaceMax:tr.max,paceToleranceSec:tr.tolerance,
+  coachPersistenceSec:clamp(num(c.coachPersistenceSec,12),5,60),coachCooldownSec:clamp(num(c.coachCooldownSec,60),20,300),coachHysteresisSec:clamp(num(c.coachHysteresisSec,4),1,15),
+  coachState:'hold',pendingCoachState:'hold',pendingCoachSince:0,lastCoachCueAt:0,
+  targetDistanceKm:Math.max(0,num(c.targetDistanceKm,0)),targetDurationMin:Math.max(0,num(c.targetDuration,p.duration)),targetHr:num(c.targetHr)>0?num(c.targetHr):null,
+  distanceKm:0,currentPace:null,averagePace:null,routePoints:[],splits:[],nextSplitKm:1,lastSplitElapsed:0,
+  gpsState:c.mode==='OUTDOOR'?'GPS ACQUIRING':'NOT REQUIRED',lastGpsFixAt:0,gpsAccuracy:null,
+  heartRate:null,heartRateSamples:[],maxHr:null,cadence:null,elevationGain:null,lastAltitude:null,
+  interval:{phase:c.kind==='Intervals'?'WARM-UP':'WARM-UP',rep:0,completedIntervals:0,phaseStartElapsed:0,phaseStartDistance:0,phaseRemainingSec:null,phaseRemainingKm:null,results:[]},
+  configSnapshot:cloneSerializable(c),scheduledRun:null,trainingLoad:null
+ }
+}
+function persist(force=false){
+ const a=active();if(!a)return;
+ const t=now();if(!force&&t-runtime.lastSaveMs<4000)return;
+ a.lastPersistedAt=t;runtime.lastSaveMs=t;saveState()
+}
+function ensureRunStyles(){
+ if($('#kinetiqPhase3RunStyles'))return;
+ const st=document.createElement('style');st.id='kinetiqPhase3RunStyles';st.textContent=`
+ .p3-run-page{display:grid;gap:14px;padding:14px 12px calc(104px + env(safe-area-inset-bottom));max-width:760px;margin:0 auto;overflow-x:hidden}
+ .p3-run-page *{box-sizing:border-box}.p3-run-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+ .p3-run-head small,.p3-label{font-size:8px;font-weight:900;letter-spacing:.12em;color:#8f9b92}.p3-run-head h1{margin:4px 0 0;font-size:28px}
+ .p3-mode{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#17271d;padding:5px;border-radius:14px}
+ .p3-mode button{min-height:42px;border:0;border-radius:11px;background:transparent;color:#dfe5df;font-size:10px;font-weight:900}.p3-mode button.active{background:#dfff74;color:#102018}
+ .p3-run-types{display:grid;gap:7px}.p3-run-type{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:62px;border:1px solid rgba(255,255,255,.08);border-radius:16px;background:#13231a;color:#eef2ec;padding:12px;text-align:left}
+ .p3-run-type.active{outline:2px solid #cffa55}.p3-run-type b{display:block;font-size:14px}.p3-run-type small{display:block;margin-top:4px;color:#9ba69e;font-size:9px}
+ .p3-setup-card,.p3-live-card,.p3-summary-card,.p3-coach-card,.p3-splits,.p3-interval-summary{background:#ece7d8;color:#102018;border-radius:22px;padding:15px;min-width:0}
+ .p3-setup-title,.p3-summary-title{display:flex;justify-content:space-between;gap:10px;align-items:center}.p3-setup-title button{border:0;border-radius:10px;background:#102018;color:#dfff74;padding:9px 12px;font-size:8px;font-weight:900}
+ .p3-target-grid,.p3-secondary-grid,.p3-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+ .p3-target-grid span,.p3-secondary-grid span,.p3-summary-grid span{background:#dcd7ca;border-radius:14px;padding:10px;min-width:0}.p3-target-grid b,.p3-secondary-grid b,.p3-summary-grid b{display:block;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.p3-target-grid small,.p3-secondary-grid small,.p3-summary-grid small{display:block;margin-top:3px;font-size:7px;font-weight:900;color:#657068;letter-spacing:.08em}
+ .p3-protocol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px}.p3-protocol div{background:#192a20;color:#eef2ec;border-radius:12px;padding:9px}.p3-protocol small{display:block;color:#aeb9b0;font-size:7px}.p3-protocol b{display:block;margin-top:4px;font-size:9px}
+ .p3-start{min-height:54px;border:0;border-radius:16px;background:#dfff74;color:#102018;font-weight:950;font-size:12px}.p3-gps-note{font-size:9px;line-height:1.45;color:#6b756e;margin:10px 0 0}
+ .p3-live-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.p3-status-chip{border-radius:999px;padding:7px 9px;background:#273a2d;color:#dfff74;font-size:7px;font-weight:900;max-width:46%;text-align:center}
+ .p3-primary-metrics{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:7px;margin-top:12px}.p3-primary-metrics>div{background:#13231a;color:#fff;border-radius:16px;padding:11px;min-width:0}.p3-primary-metrics strong{display:block;font-size:25px;line-height:1}.p3-primary-metrics b{display:block;font-size:17px}.p3-primary-metrics small{display:block;color:#aeb8b0;font-size:7px;margin-top:5px}
+ .p3-map{min-height:190px;border-radius:18px;overflow:hidden;background:#0b1911}.p3-coach-card b{display:block;font-size:20px}.p3-coach-card p{font-size:10px;line-height:1.45;color:#56625a;margin:5px 0 0}
+ .p3-run-actions{position:sticky;bottom:calc(78px + env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr 1.35fr;gap:8px;padding:8px;background:rgba(8,18,12,.92);backdrop-filter:blur(10px);border-radius:18px;z-index:10}.p3-run-actions button{min-height:52px;border-radius:14px;font-size:10px;font-weight:950}.p3-pause{border:1px solid #809087;background:#14251b;color:#f0f2ed}.p3-finish{border:0;background:#dfff74;color:#102018}
+ .p3-table{width:100%;border-collapse:collapse;margin-top:8px}.p3-table th,.p3-table td{padding:9px 6px;border-bottom:1px solid rgba(16,32,24,.12);font-size:9px;text-align:left}.p3-table th{font-size:7px;color:#68736b;letter-spacing:.08em}
+ .p3-summary-hero{text-align:center;padding:8px 0}.p3-summary-hero>span{display:inline-grid;place-items:center;width:44px;height:44px;border-radius:50%;background:#102018;color:#dfff74;font-size:24px}.p3-summary-hero h1{margin:8px 0 2px}.p3-summary-actions button{width:100%;min-height:52px;border:0;border-radius:15px;background:#102018;color:#dfff74;font-weight:950}
+ .p3-sheet-grid{display:grid;gap:10px}.p3-sheet-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.p3-sheet-field{display:grid;gap:5px}.p3-sheet-field label{font-size:8px;font-weight:900;color:#68736b}.p3-sheet-field input,.p3-sheet-field select{width:100%;min-height:42px;border:1px solid rgba(16,32,24,.16);border-radius:11px;background:#f6f1e5;color:#102018;padding:8px;font-size:11px}
+ @media(max-width:390px){.p3-primary-metrics{grid-template-columns:1.25fr 1fr}.p3-primary-metrics>div:first-child{grid-row:span 2}.p3-target-grid,.p3-summary-grid{grid-template-columns:1fr 1fr}.p3-protocol{grid-template-columns:1fr}.p3-run-page{padding-left:10px;padding-right:10px}}
+ `;document.head.appendChild(st)
+}
+function runTypeDescription(kind){
+ if(kind==='Tempo Run')return'Sustained target pace / controlled threshold effort';
+ if(kind==='Intervals')return'Warm-up → work / recovery cycles → cool-down';
+ if(kind==='Long Run')return'Steady endurance target';
+ if(kind==='Custom Run')return'User-defined distance, duration, pace and structure';
+ return'Controlled conversational effort / target pace range'
+}
+function paceTextRange(c=ensureConfig()){const r=targetRange(c);return`${fmtPace(r.min)}–${fmtPace(r.max)} /km`}
+function gpsLabel(a){return a.mode==='INDOOR'?'INDOOR · GPS NOT REQUIRED':(a.gpsState||'GPS ACQUIRING')}
+function coachCopy(a){
+ const phase=a.interval?.phase||'';
+ if(a.paused)return{title:'PAUSED',body:'Run timing and coaching are paused.'};
+ if(phase==='RECOVERY')return{title:'RECOVERY',body:'Easy pace. Let breathing settle before the next work interval.'};
+ if(phase==='WARM-UP')return{title:'WARM-UP',body:'Build gradually. Do not chase target pace yet.'};
+ if(phase==='COOL-DOWN')return{title:'COOL-DOWN',body:'Ease the effort and finish controlled.'};
+ if(phase==='COMPLETE')return{title:'SESSION COMPLETE',body:'Finish the run when you are ready.'};
+ if(a.coachState==='slow')return{title:'SLOW DOWN',body:"You're above target. Ease back slightly."};
+ if(a.coachState==='speed')return{title:'SPEED UP GRADUALLY',body:"You're below target. Increase pace smoothly."};
+ return{title:'ON TARGET',body:'Hold this pace and keep the effort controlled.'}
+}
+function phaseLabel(a){
+ const i=a.interval||{},reps=num(a.configSnapshot?.intervalReps,0);
+ if(i.phase==='WORK')return`WORK ${i.rep}/${reps}`;
+ if(i.phase==='RECOVERY')return`RECOVERY ${i.rep}/${reps}`;
+ return i.phase||'MAIN RUN'
+}
+function summaryHtml(q){
+ const map=q.mode==='OUTDOOR'&&q.routePoints?.length>1?'<div id="betaRunMap" class="p3-map"></div>':'';
+ const splits=q.splits?.length?`<section class="p3-splits"><div class="p3-label">SPLITS</div><table class="p3-table"><thead><tr><th>KM</th><th>PACE</th><th>TIME</th></tr></thead><tbody>${q.splits.map(x=>`<tr><td>${x.km}</td><td>${fmtPace(x.pace)} /km</td><td>${fmtTime(x.time)}</td></tr>`).join('')}</tbody></table></section>`:'';
+ const ints=q.intervalResults?.length?`<section class="p3-interval-summary"><div class="p3-label">INTERVAL RESULTS</div><table class="p3-table"><thead><tr><th>REP</th><th>DISTANCE</th><th>PACE</th><th>TIME</th></tr></thead><tbody>${q.intervalResults.map(x=>`<tr><td>${x.rep}</td><td>${x.distanceKm.toFixed(2)} km</td><td>${x.pace?fmtPace(x.pace)+' /km':'—'}</td><td>${fmtTime(x.timeSec)}</td></tr>`).join('')}</tbody></table></section>`:'';
+ return`<div class="v7-page v7-run-shell p3-run-page" data-system-screen="run-summary">
+ <section class="p3-summary-card"><div class="p3-summary-hero"><span>✓</span><div class="p3-label">RUN COMPLETE</div><h1>${esc(q.runType)}</h1><p>${new Date(q.completedAt).toLocaleString()}</p></div>
+ ${map}
+ <div class="p3-summary-grid">
+  <span><b>${q.distanceKm.toFixed(2)}</b><small>DISTANCE · KM</small></span>
+  <span><b>${fmtTime(q.elapsedActive)}</b><small>TOTAL TIME</small></span>
+  <span><b>${q.averagePace?fmtPace(q.averagePace):'—'}</b><small>AVG PACE /KM</small></span>
+  <span><b>${q.averageHr||'—'}</b><small>AVG HR</small></span>
+  <span><b>${q.maxHr||'—'}</b><small>MAX HR</small></span>
+  <span><b>${q.elevationGain!=null?Math.round(q.elevationGain)+' m':'—'}</b><small>ELEVATION GAIN</small></span>
+ </div></section>${splits}${ints}
+ <div class="p3-summary-actions"><button onclick="ILIA_V7.dismissRunSummary()">BACK TO RUNNING COACH</button></div>
+ </div>`
+}
+function renderRun(){
+ ensureRunStyles();const root=$('#pageRun')||$('#pageMore');if(!root)return;const c=ensureConfig(),a=active();
+ const last=runtime.summary||state().lastRunResult;
+ if(!a&&last&&state().lastRunResultDismissedId!==last.runId){root.innerHTML=summaryHtml(last);requestAnimationFrame(()=>window.KINETIQBeta303?.enhanceRunPage?.());return}
+ if(!a){
+  const p=protocol(c);
+  root.innerHTML=`<div class="v7-page v7-run-shell p3-run-page" data-system-screen="run-setup">
+   <header class="p3-run-head"><div><small>RUNNING COACH</small><h1>Run Setup</h1></div><span class="p3-status-chip">${esc(c.mode)}</span></header>
+   <div class="p3-mode"><button class="${c.mode==='OUTDOOR'?'active':''}" onclick="ILIA_V7.setRun('mode','OUTDOOR')">OUTDOOR</button><button class="${c.mode==='INDOOR'?'active':''}" onclick="ILIA_V7.setRun('mode','INDOOR')">INDOOR</button></div>
+   <section class="p3-run-types">${RUN_TYPES.map(k=>`<button class="p3-run-type ${c.kind===k?'active':''}" onclick="ILIA_V7.selectRunKind('${k}')"><div><b>${k}</b><small>${runTypeDescription(k)}</small></div><span>›</span></button>`).join('')}</section>
+   <section class="p3-setup-card"><div class="p3-setup-title"><div><div class="p3-label">RUN SETUP</div><h2>${esc(c.kind)}</h2></div><button onclick="ILIA_V7.runSettings()">EDIT</button></div>
+    <div class="p3-target-grid"><span><b>${paceTextRange(c)}</b><small>TARGET PACE</small></span><span><b>${num(c.targetDistanceKm).toFixed(1)} km</b><small>TARGET DISTANCE</small></span><span><b>${num(c.targetDuration,p.duration)} min</b><small>TARGET DURATION</small></span><span><b>${num(c.targetHr)>0?Math.round(num(c.targetHr))+' bpm':'—'}</b><small>TARGET HR</small></span></div>
+    <div class="p3-protocol"><div><small>WARM-UP</small><b>${p.warmup} min</b></div><div><small>MAIN BLOCK</small><b>${esc(p.main)}</b></div><div><small>COOL-DOWN</small><b>${p.cooldown} min</b></div></div>
+    <p class="p3-gps-note">${c.mode==='OUTDOOR'?'Phone GPS will track route, distance and pace. GPS loss will not terminate the run.':'Indoor mode does not require GPS. Pace/distance remain unavailable unless a legitimate sensor source supplies them.'}</p>
+   </section><button class="p3-start" onclick="ILIA_V7.startRun()">START RUN →</button>
+  </div>`;return
+ }
+ const cp=coachCopy(a),avg=a.distanceKm>.05?a.elapsedActive/a.distanceKm:null;
+ const map=a.mode==='OUTDOOR'?'<div id="betaRunMap" class="p3-map"></div>':'';
+ root.innerHTML=`<div class="v7-page v7-run-shell p3-run-page" data-system-screen="live-run">
+  <header class="p3-live-top"><div><div class="p3-label">LIVE · ${esc(a.runType.toUpperCase())}</div><h1 id="p3RunPhase">${esc(phaseLabel(a))}</h1></div><span id="p3GpsState" class="p3-status-chip">${esc(gpsLabel(a))}</span></header>
+  ${map}
+  <section class="p3-live-card">
+   <div class="p3-primary-metrics"><div><strong id="p3RunPace">${a.currentPace?fmtPace(a.currentPace):'—'}</strong><small>CURRENT PACE /KM</small></div><div><b id="p3RunTime">${fmtTime(a.elapsedActive)}</b><small>ELAPSED</small></div><div><b id="p3RunDistance">${a.distanceKm.toFixed(2)}</b><small>DISTANCE · KM</small></div></div>
+   <div class="p3-secondary-grid"><span><b id="p3RunAvg">${avg?fmtPace(avg):'—'}</b><small>AVG PACE</small></span><span><b id="p3RunTarget">${fmtPace(a.targetPaceMin)}–${fmtPace(a.targetPaceMax)}</b><small>TARGET PACE</small></span><span><b id="p3RunHr">${a.heartRate||'—'}</b><small>HEART RATE</small></span><span><b id="p3RunCad">${a.cadence||'—'}</b><small>CADENCE</small></span><span><b id="p3RunElev">${a.elevationGain!=null?Math.round(a.elevationGain)+' m':'—'}</b><small>ELEVATION</small></span><span><b id="p3RunInterval">${esc(phaseLabel(a))}</b><small>CURRENT INTERVAL</small></span></div>
+  </section>
+  <section class="p3-coach-card"><div class="p3-label">LIVE COACH</div><b id="p3CoachTitle">${esc(cp.title)}</b><p id="p3CoachBody">${esc(cp.body)}</p></section>
+  <div class="p3-run-actions"><button class="p3-pause" onclick="${a.paused?'ILIA_V7.resumeRun()':'ILIA_V7.pauseRun()'}">${a.paused?'RESUME':'PAUSE'}</button><button class="p3-finish" onclick="ILIA_V7.stopRun()">FINISH RUN</button></div>
+ </div>`;requestAnimationFrame(()=>window.KINETIQBeta303?.enhanceRunPage?.())
+}
+function openSettings(){
+ const c=ensureConfig(),p=protocol(c),sheet=$('#sheet'),card=$('#sheetCard');if(!sheet||!card)return;
+ sheet.classList.remove('hidden');card.innerHTML=`<div class="sheet-handle"></div><div class="section-head" style="margin-top:0"><h2>Running Settings</h2><button id="p3SheetClose" class="icon-btn">×</button></div>
+ <div class="p3-sheet-grid">
+  <div class="p3-sheet-row"><div class="p3-sheet-field"><label>RUN TYPE</label><select onchange="ILIA_V7.setRun('kind',this.value)">${RUN_TYPES.map(x=>`<option ${c.kind===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="p3-sheet-field"><label>MODE</label><select onchange="ILIA_V7.setRun('mode',this.value)"><option ${c.mode==='OUTDOOR'?'selected':''}>OUTDOOR</option><option ${c.mode==='INDOOR'?'selected':''}>INDOOR</option></select></div></div>
+  <div class="p3-sheet-row"><div class="p3-sheet-field"><label>TARGET DISTANCE · KM</label><input type="number" min="0" step=".1" value="${c.targetDistanceKm}" onchange="ILIA_V7.setRun('targetDistanceKm',this.value)"></div><div class="p3-sheet-field"><label>TARGET DURATION · MIN</label><input type="number" min="1" step="1" value="${c.targetDuration}" onchange="ILIA_V7.setRun('targetDuration',this.value)"></div></div>
+  <div class="p3-sheet-row"><div class="p3-sheet-field"><label>TARGET PACE · MIN</label><input type="number" min="3" max="15" value="${c.paceMin}" onchange="ILIA_V7.setRun('paceMin',this.value)"></div><div class="p3-sheet-field"><label>TARGET PACE · SEC</label><input type="number" min="0" max="59" value="${c.paceSec}" onchange="ILIA_V7.setRun('paceSec',this.value)"></div></div>
+  <div class="p3-sheet-row"><div class="p3-sheet-field"><label>PACE RANGE ± SEC</label><input type="number" min="3" max="45" value="${c.paceToleranceSec}" onchange="ILIA_V7.setRun('paceToleranceSec',this.value)"></div><div class="p3-sheet-field"><label>OPTIONAL HR TARGET</label><input type="number" min="80" max="220" placeholder="—" value="${c.targetHr||''}" onchange="ILIA_V7.setRun('targetHr',this.value)"></div></div>
+  <div class="p3-sheet-row"><div class="p3-sheet-field"><label>WARM-UP · MIN</label><input type="number" min="0" max="60" value="${c.warmupMinutes}" onchange="ILIA_V7.setRun('warmupMinutes',this.value)"></div><div class="p3-sheet-field"><label>COOL-DOWN · MIN</label><input type="number" min="0" max="60" value="${c.cooldownMinutes}" onchange="ILIA_V7.setRun('cooldownMinutes',this.value)"></div></div>
+  ${c.kind==='Intervals'?`<div class="p3-sheet-row"><div class="p3-sheet-field"><label>REPETITIONS</label><input type="number" min="1" max="30" value="${c.intervalReps}" onchange="ILIA_V7.setRun('intervalReps',this.value)"></div><div class="p3-sheet-field"><label>WORK UNIT</label><select onchange="ILIA_V7.setRun('intervalWorkUnit',this.value)"><option value="seconds" ${c.intervalWorkUnit==='seconds'?'selected':''}>SECONDS</option><option value="meters" ${c.intervalWorkUnit==='meters'?'selected':''}>METERS</option></select></div></div>
+  <div class="p3-sheet-row"><div class="p3-sheet-field"><label>WORK AMOUNT</label><input type="number" min="1" value="${c.intervalWorkValue}" onchange="ILIA_V7.setRun('intervalWorkValue',this.value)"></div><div class="p3-sheet-field"><label>RECOVERY UNIT</label><select onchange="ILIA_V7.setRun('intervalRecoveryUnit',this.value)"><option value="seconds" ${c.intervalRecoveryUnit==='seconds'?'selected':''}>SECONDS</option><option value="meters" ${c.intervalRecoveryUnit==='meters'?'selected':''}>METERS</option></select></div></div>
+  <div class="p3-sheet-field"><label>RECOVERY AMOUNT</label><input type="number" min="1" value="${c.intervalRecoveryValue}" onchange="ILIA_V7.setRun('intervalRecoveryValue',this.value)"></div>`:''}
+  <div class="p3-sheet-row"><div class="p3-sheet-field"><label>PACE PERSISTENCE · SEC</label><input type="number" min="5" max="60" value="${c.coachPersistenceSec}" onchange="ILIA_V7.setRun('coachPersistenceSec',this.value)"></div><div class="p3-sheet-field"><label>CUE COOLDOWN · SEC</label><input type="number" min="20" max="300" value="${c.coachCooldownSec}" onchange="ILIA_V7.setRun('coachCooldownSec',this.value)"></div></div>
+  <div class="v7-sheet-note"><b>PROTOCOL</b><br>${p.warmup} min warm-up · ${esc(p.main)} · ${p.cooldown} min cool-down.<br>Pace coaching uses a persistence window, cooldown and hysteresis to ignore normal GPS fluctuation.</div>
+ </div>`;$('#p3SheetClose').onclick=()=>sheet.classList.add('hidden')
+}
+function setRun(k,v){
+ const c=ensureConfig(),numeric=['targetDistanceKm','targetDuration','paceMin','paceSec','paceToleranceSec','coachPersistenceSec','coachCooldownSec','coachHysteresisSec','targetHr','warmupMinutes','cooldownMinutes','intervalReps','intervalWorkValue','intervalRecoveryValue'];
+ c[k]=numeric.includes(k)?(v===''?'':num(v)):v;
+ if(k==='kind'&&RUN_TYPES.includes(v))Object.assign(c,typeDefaults(v),{kind:v});
+ saveState();if(!$('#sheet')?.classList.contains('hidden'))openSettings();else renderRun()
+}
+function selectRunKind(k){if(!RUN_TYPES.includes(k))return;const c=ensureConfig();Object.assign(c,typeDefaults(k),{kind:k});saveState();renderRun()}
+function rawPaceState(current,min,max,hyst){
+ if(!current||!Number.isFinite(+current))return'hold';
+ if(current<min-hyst)return'slow';
+ if(current>max+hyst)return'speed';
+ return'hold'
+}
+function paceCue(current,targetOrMin,maxMaybe,hystMaybe){
+ if(Number.isFinite(+maxMaybe))return rawPaceState(+current,+targetOrMin,+maxMaybe,num(hystMaybe,4));
+ const target=num(targetOrMin,targetCenter()),tol=clamp(num(ensureConfig().paceToleranceSec,10),3,45);return rawPaceState(+current,target-tol,target+tol,clamp(num(ensureConfig().coachHysteresisSec,4),1,15))
+}
+function speakCoach(kind){
+ const a=active();if(!a||a.paused)return;
+ const text=kind==='slow'?'Ease back. You are above target pace.':kind==='speed'?'Gradually increase pace. You are below target.':kind==='hold'?'On target. Hold this pace.':kind==='work'?'Next interval. Prepare to accelerate.':kind==='recovery'?'Recovery. Easy pace.':'';
+ if(text)try{window.KINETIQVoice?.speak?.(text)}catch(_){}
+}
+function updateCoach(a,t=now()){
+ if(a.paused||!a.currentPace)return;
+ const ph=a.interval?.phase;if(a.runType==='Intervals'&&!['WORK'].includes(ph))return;
+ const raw=rawPaceState(a.currentPace,a.targetPaceMin,a.targetPaceMax,a.coachHysteresisSec);
+ if(raw!==a.pendingCoachState){a.pendingCoachState=raw;a.pendingCoachSince=t;return}
+ if(raw===a.coachState)return;
+ if(t-a.pendingCoachSince<a.coachPersistenceSec*1000)return;
+ a.coachState=raw;
+ if(t-a.lastCoachCueAt>=a.coachCooldownSec*1000){a.lastCoachCueAt=t;speakCoach(raw)}
+}
+function phaseReached(a,unit,value){
+ if(unit==='meters')return Math.max(0,a.distanceKm-a.interval.phaseStartDistance)*1000>=num(value);
+ return Math.max(0,a.elapsedActive-a.interval.phaseStartElapsed)>=num(value)
+}
+function setIntervalPhase(a,phase,rep){
+ a.interval.phase=phase;if(Number.isFinite(+rep))a.interval.rep=+rep;
+ a.interval.phaseStartElapsed=a.elapsedActive;a.interval.phaseStartDistance=a.distanceKm;a.interval.phaseRemainingSec=null;a.interval.phaseRemainingKm=null;
+ if(phase==='WORK')speakCoach('work');if(phase==='RECOVERY')speakCoach('recovery')
+}
+function recordWorkInterval(a){
+ const i=a.interval,sec=Math.max(0,a.elapsedActive-i.phaseStartElapsed),km=Math.max(0,a.distanceKm-i.phaseStartDistance);
+ i.results.push({rep:i.rep,timeSec:sec,distanceKm:km,pace:km>.01?sec/km:null});i.completedIntervals=i.rep
+}
+function updateInterval(a){
+ const c=a.configSnapshot||ensureConfig(),p=protocol(c),i=a.interval;
+ if(a.runType!=='Intervals'){
+  const warm=p.warmup*60,total=Math.max(0,a.targetDurationMin*60),cool=p.cooldown*60;
+  i.phase=a.elapsedActive<warm?'WARM-UP':(total&&a.elapsedActive>=Math.max(warm,total-cool)?'COOL-DOWN':'MAIN RUN');return
+ }
+ if(i.phase==='WARM-UP'){
+  i.phaseRemainingSec=Math.max(0,p.warmup*60-(a.elapsedActive-i.phaseStartElapsed));
+  if(i.phaseRemainingSec<=0)setIntervalPhase(a,'WORK',1);return
+ }
+ if(i.phase==='WORK'){
+  if(c.intervalWorkUnit==='meters')i.phaseRemainingKm=Math.max(0,(num(c.intervalWorkValue)/1000)-(a.distanceKm-i.phaseStartDistance));
+  else i.phaseRemainingSec=Math.max(0,num(c.intervalWorkValue)-(a.elapsedActive-i.phaseStartElapsed));
+  if(phaseReached(a,c.intervalWorkUnit,c.intervalWorkValue)){recordWorkInterval(a);setIntervalPhase(a,'RECOVERY',i.rep)}return
+ }
+ if(i.phase==='RECOVERY'){
+  if(c.intervalRecoveryUnit==='meters')i.phaseRemainingKm=Math.max(0,(num(c.intervalRecoveryValue)/1000)-(a.distanceKm-i.phaseStartDistance));
+  else i.phaseRemainingSec=Math.max(0,num(c.intervalRecoveryValue)-(a.elapsedActive-i.phaseStartElapsed));
+  if(phaseReached(a,c.intervalRecoveryUnit,c.intervalRecoveryValue)){
+   if(i.rep>=num(c.intervalReps,6))setIntervalPhase(a,'COOL-DOWN',i.rep);else setIntervalPhase(a,'WORK',i.rep+1)
+  }return
+ }
+ if(i.phase==='COOL-DOWN'){
+  i.phaseRemainingSec=Math.max(0,p.cooldown*60-(a.elapsedActive-i.phaseStartElapsed));if(i.phaseRemainingSec<=0)setIntervalPhase(a,'COMPLETE',i.rep)
+ }
+}
+function updateSplits(a){
+ while(a.distanceKm>=a.nextSplitKm){
+  const splitTime=Math.max(0,a.elapsedActive-a.lastSplitElapsed);
+  a.splits.push({km:a.nextSplitKm,pace:splitTime,time:splitTime});a.lastSplitElapsed=a.elapsedActive;a.nextSplitKm++;
+ }
+}
+function updateGpsFreshness(a,t=now()){
+ if(a.mode!=='OUTDOOR'||a.paused)return;
+ if(a.gpsState==='GPS RESTORED'&&runtime.restoredUntil&&t>=runtime.restoredUntil)a.gpsState='GPS READY';
+ if(a.lastGpsFixAt&&t-a.lastGpsFixAt>20000&&a.gpsState!=='PERMISSION REQUIRED')a.gpsState='GPS LOST'
+}
+function tick(){
+ const a=active();if(!a){clearInterval(runtime.timer);runtime.timer=null;return}
+ const t=now(),dt=runtime.lastTickMs?Math.max(0,(t-runtime.lastTickMs)/1000):0;runtime.lastTickMs=t;
+ if(!a.paused){a.elapsedActive+=dt;updateInterval(a);updateGpsFreshness(a,t);updateCoach(a,t);if(a.distanceKm>.05)a.averagePace=a.elapsedActive/a.distanceKm}
+ updateLiveDom(a);persist(false)
+}
+function startTicker(){clearInterval(runtime.timer);runtime.lastTickMs=now();runtime.timer=setInterval(tick,1000)}
+function startGps(a){
+ if(a.mode!=='OUTDOOR'){a.gpsState='NOT REQUIRED';return}
+ const native=window.PTNative,has=typeof native?.hasLocationPermission==='function'?!!native.hasLocationPermission():null;
+ a.gpsState=has===false?'PERMISSION REQUIRED':'GPS ACQUIRING';
+ if(has===false)try{native?.requestLocationPermission?.()}catch(_){}
+ let nativeStarted=false;try{if(typeof native?.startLocation==='function'){native.startLocation();nativeStarted=true}}catch(_){}
+ if(!nativeStarted&&navigator.geolocation){
+  try{runtime.gpsWatchId=navigator.geolocation.watchPosition(
+   p=>onLocation(p.coords.latitude,p.coords.longitude,p.coords.speed,p.coords.accuracy,p.timestamp,p.coords.altitude),
+   e=>{const x=active();if(!x)return;x.gpsState=e?.code===1?'PERMISSION REQUIRED':'GPS LOST';persist(true);updateLiveDom(x)},
+   {enableHighAccuracy:true,maximumAge:1000,timeout:12000}
+  )}catch(_){a.gpsState='GPS LOST'}
+ }
+}
+function stopGps(){
+ try{window.PTNative?.stopLocation?.()}catch(_){}
+ if(runtime.gpsWatchId!=null&&navigator.geolocation)try{navigator.geolocation.clearWatch(runtime.gpsWatchId)}catch(_){}
+ runtime.gpsWatchId=null
+}
+function onLocation(lat,lon,speed,accuracy,ts,altitude){
+ const a=active();if(!a||a.mode!=='OUTDOOR')return;
+ const acc=num(accuracy,999),t=num(ts,now())||now();if(acc>45)return;
+ const previousGps=a.gpsState;a.lastGpsFixAt=now();a.gpsAccuracy=acc;
+ if(previousGps==='GPS LOST'){a.gpsState='GPS RESTORED';runtime.restoredUntil=now()+5000}else a.gpsState='GPS READY';
+ if(a.paused){runtime.lastLoc=null;updateLiveDom(a);return}
+ const point={lat:num(lat),lon:num(lon),t,speed:Number.isFinite(+speed)?+speed:null,accuracy:acc,altitude:Number.isFinite(+altitude)?+altitude:null};
+ if(runtime.lastLoc){
+  const km=hav(runtime.lastLoc.lat,runtime.lastLoc.lon,point.lat,point.lon),dt=Math.max(.2,(t-runtime.lastLoc.t)/1000);
+  if(km>=.0005&&km<.12&&dt<45){a.distanceKm+=km;updateSplits(a);const derived=km>0?dt/km:null;if(derived&&derived>=120&&derived<=1200)runtime.paceSamples.push(derived)}
+ }
+ if(point.speed!=null&&point.speed>.65){const raw=1000/point.speed;if(raw>=120&&raw<=1200)runtime.paceSamples.push(raw)}
+ if(runtime.paceSamples.length>9)runtime.paceSamples=runtime.paceSamples.slice(-9);
+ const med=median(runtime.paceSamples);a.currentPace=med||a.currentPace;
+ if(point.altitude!=null&&runtime.lastAltitude!=null){const gain=point.altitude-runtime.lastAltitude;if(gain>1&&gain<40)a.elevationGain=(a.elevationGain||0)+gain}
+ if(point.altitude!=null)runtime.lastAltitude=point.altitude;
+ runtime.lastLoc=point;a.routePoints.push(point);if(a.routePoints.length>2500)a.routePoints=a.routePoints.filter((_,i)=>i%2===0);
+ updateInterval(a);updateCoach(a);if(a.distanceKm>.05)a.averagePace=a.elapsedActive/a.distanceKm;persist(true);updateLiveDom(a)
+}
+function startRun(){
+ if(active()){renderRun();return false}
+ const c=cloneSerializable(ensureConfig()),a=makeActive(c);state().activeRun=a;runtime.summary=null;runtime.lastLoc=null;runtime.paceSamples=[];runtime.lastAltitude=null;runtime.lastSaveMs=0;saveState();startTicker();startGps(a);try{window.KINETIQVoice?.speak?.('Run started. Settle into the session.')}catch(_){}
+ renderRun();return true
+}
+function pauseRun(){
+ const a=active();if(!a||a.paused)return;a.paused=true;a.pausedAt=now();runtime.lastLoc=null;try{window.KINETIQVoice?.stop?.()}catch(_){}persist(true);renderRun()
+}
+function resumeRun(){
+ const a=active();if(!a||!a.paused)return;a.paused=false;a.pausedAt=null;runtime.lastTickMs=now();runtime.lastLoc=null;persist(true);renderRun()
+}
+function hrStats(a){
+ const xs=(a.heartRateSamples||[]).filter(x=>Number.isFinite(+x)&&+x>0).map(Number);if(!xs.length)return{avg:null,max:null};
+ return{avg:Math.round(xs.reduce((x,y)=>x+y,0)/xs.length),max:Math.max(...xs)}
+}
+function stopRun(){
+ const a=active();if(!a)return false;tick();clearInterval(runtime.timer);runtime.timer=null;stopGps();const hs=hrStats(a),completedAt=now(),summary={
+  runId:a.runId,runType:a.runType,mode:a.mode,completedAt,startTime:a.startTime,elapsedActive:Math.round(a.elapsedActive),distanceKm:+a.distanceKm.toFixed(3),
+  averagePace:a.distanceKm>.05?a.elapsedActive/a.distanceKm:null,averageHr:hs.avg,maxHr:hs.max,cadence:a.cadence||null,elevationGain:a.elevationGain,
+  routePoints:cloneSerializable(a.routePoints||[]),splits:cloneSerializable(a.splits||[]),intervalResults:cloneSerializable(a.interval?.results||[]),
+  targetPace:a.targetPace,targetPaceMin:a.targetPaceMin,targetPaceMax:a.targetPaceMax,scheduledRun:a.scheduledRun||null,trainingLoad:a.trainingLoad||null,completionState:'COMPLETE'
+ };
+ a.completionState='COMPLETE';a.active=false;state().lastRunResult=summary;state().lastRunResultDismissedId=null;state().runHistory=state().runHistory||[];state().runHistory.push({date:new Date(completedAt).toISOString(),runId:summary.runId,name:summary.runType,type:summary.runType,distance:summary.distanceKm,seconds:summary.elapsedActive,avgPace:summary.averagePace,hr:summary.averageHr,trainingLoad:summary.trainingLoad});state().activeRun=null;runtime.summary=summary;saveState();try{window.KINETIQVoice?.stop?.()}catch(_){}
+ renderRun();return true
+}
+function dismissRunSummary(){const q=runtime.summary||state().lastRunResult;if(q)state().lastRunResultDismissedId=q.runId;runtime.summary=null;saveState();renderRun()}
+function runSensorData(hr,cadence){
+ const a=active();if(!a)return;if(Number.isFinite(+hr)&&+hr>0){a.heartRate=Math.round(+hr);a.heartRateSamples.push(a.heartRate);if(a.heartRateSamples.length>1200)a.heartRateSamples=a.heartRateSamples.slice(-900);a.maxHr=Math.max(a.maxHr||0,a.heartRate)}if(Number.isFinite(+cadence)&&+cadence>0)a.cadence=Math.round(+cadence);persist(false);updateLiveDom(a)
+}
+function ingestDeviceMetrics(m){
+ const a=active();if(!a)return;m=m||{};runSensorData(m.heartRate??m.hr,m.cadence);
+ if(Number.isFinite(+m.pace)&&+m.pace>0)a.currentPace=+m.pace;
+ if(Number.isFinite(+m.distance)&&+m.distance>=a.distanceKm){a.distanceKm=+m.distance;updateSplits(a)}
+ if(Number.isFinite(+m.elevationGain)&&+m.elevationGain>=0)a.elevationGain=+m.elevationGain;
+ updateInterval(a);updateCoach(a);persist(false);updateLiveDom(a)
+}
+function updateLiveDom(a){
+ if(!a||!$('#p3RunTime'))return;
+ const avg=a.distanceKm>.05?a.elapsedActive/a.distanceKm:null,cp=coachCopy(a);
+ const set=(id,val)=>{const n=$(id);if(n)n.textContent=val};
+ set('#p3RunTime',fmtTime(a.elapsedActive));set('#p3RunDistance',a.distanceKm.toFixed(2));set('#p3RunPace',a.currentPace?fmtPace(a.currentPace):'—');set('#p3RunAvg',avg?fmtPace(avg):'—');set('#p3RunHr',a.heartRate||'—');set('#p3RunCad',a.cadence||'—');set('#p3RunElev',a.elevationGain!=null?Math.round(a.elevationGain)+' m':'—');set('#p3RunPhase',phaseLabel(a));set('#p3RunInterval',phaseLabel(a));set('#p3GpsState',gpsLabel(a));set('#p3CoachTitle',cp.title);set('#p3CoachBody',cp.body)
+}
+function restoreActiveRun(){
+ const a=active();if(!a)return false;const t=now();if(!a.paused&&a.lastPersistedAt&&t>a.lastPersistedAt)a.elapsedActive+=Math.max(0,(t-a.lastPersistedAt)/1000);runtime.lastLoc=null;runtime.paceSamples=[];runtime.lastAltitude=a.lastAltitude??null;startTicker();if(a.mode==='OUTDOOR')startGps(a);persist(true);return true
+}
+function bindNative(){
+ if(!window.PT25)return;const currentLoc=window.PT25.onLocation;if(!currentLoc?.__phase3){
+  const wrapped=function(lat,lon,speed,accuracy,ts,altitude){try{currentLoc?.(lat,lon,speed,accuracy,ts,altitude)}catch(_){}onLocation(lat,lon,speed,accuracy,ts,altitude)};wrapped.__phase3=true;window.PT25.onLocation=wrapped
+ }
+ const currentSensor=window.PT25.onSensorData;if(!currentSensor?.__phase3){
+  const wrappedSensor=function(hr,cadence){try{currentSensor?.(hr,cadence)}catch(_){}runSensorData(hr,cadence)};wrappedSensor.__phase3=true;window.PT25.onSensorData=wrappedSensor
+ }
+}
+function openRun(){if(window.KINETIQSystem?.showPage)window.KINETIQSystem.showPage('run');else{try{window.showMain?.('runv7')}catch(_){}renderRun()}}
+const api=window.ILIA_V7||{};
+api.renderRun=renderRun;api.openRun=openRun;api.runSettings=openSettings;api.setRun=setRun;api.selectRunKind=selectRunKind;api.startRun=startRun;api.pauseRun=pauseRun;api.resumeRun=resumeRun;api.stopRun=stopRun;api.dismissRunSummary=dismissRunSummary;api.runSensorData=runSensorData;api.ingestDeviceMetrics=ingestDeviceMetrics;api.debugPaceCue=paceCue;api.debugActiveRun=()=>cloneSerializable(active());api.restoreActiveRun=restoreActiveRun;
+window.ILIA_V7=api;ensureConfig();ensureRunStyles();restoreActiveRun();bindNative();setTimeout(bindNative,700);document.documentElement.dataset.kinetiqPhase3='ready';
+})();
