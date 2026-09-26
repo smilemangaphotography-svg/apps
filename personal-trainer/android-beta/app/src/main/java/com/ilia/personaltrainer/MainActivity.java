@@ -15,6 +15,8 @@ import android.net.Uri;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
 import android.view.ViewGroup;
+import android.view.View;
+import android.view.Gravity;
 import android.view.WindowInsets;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
@@ -25,6 +27,8 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -52,6 +56,7 @@ import java.util.Set;
 public class MainActivity extends Activity {
     private WebView webView;
     private FrameLayout root;
+    private View startupSplash;
     private ValueCallback<Uri[]> fileCallback;
     private static final int FILE_CHOOSER = 501;
     private static final int LOCATION_PERMISSION = 502;
@@ -95,6 +100,7 @@ public class MainActivity extends Activity {
         webView.setBackgroundColor(Color.rgb(6,16,11));
         webView.setOverScrollMode(WebView.OVER_SCROLL_NEVER);
         root.addView(webView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        showStartupSplash();
         setContentView(root);
 
         root.setOnApplyWindowInsetsListener((v, windowInsets) -> {
@@ -182,6 +188,57 @@ public class MainActivity extends Activity {
         webView.loadUrl("file:///android_asset/system.html");
     }
 
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private void showStartupSplash() {
+        if (root == null || startupSplash != null) return;
+        LinearLayout splash = new LinearLayout(this);
+        splash.setOrientation(LinearLayout.VERTICAL);
+        splash.setGravity(Gravity.CENTER);
+        splash.setBackgroundColor(Color.rgb(6,16,11));
+        splash.setPadding(dp(24), dp(24), dp(24), dp(24));
+        splash.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+
+        ImageView mark = new ImageView(this);
+        mark.setImageResource(com.ilia.personaltrainer.R.drawable.ic_launcher_foreground);
+        mark.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        LinearLayout.LayoutParams markParams = new LinearLayout.LayoutParams(dp(132), dp(132));
+        splash.addView(mark, markParams);
+
+        TextView wordmark = new TextView(this);
+        wordmark.setText("KINETIQ");
+        wordmark.setTextColor(Color.rgb(241,240,232));
+        wordmark.setTextSize(28f);
+        wordmark.setGravity(Gravity.CENTER);
+        if (Build.VERSION.SDK_INT >= 21) wordmark.setLetterSpacing(0.18f);
+        LinearLayout.LayoutParams wordmarkParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        wordmarkParams.topMargin = dp(2);
+        splash.addView(wordmark, wordmarkParams);
+
+        TextView statement = new TextView(this);
+        statement.setText("A HIGHER YOU");
+        statement.setTextColor(Color.rgb(207,255,79));
+        statement.setTextSize(10f);
+        statement.setGravity(Gravity.CENTER);
+        if (Build.VERSION.SDK_INT >= 21) statement.setLetterSpacing(0.22f);
+        LinearLayout.LayoutParams statementParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        statementParams.topMargin = dp(8);
+        splash.addView(statement, statementParams);
+
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        root.addView(splash, lp);
+        startupSplash = splash;
+    }
+
+    private void hideStartupSplash() {
+        if (root == null || startupSplash == null) return;
+        root.removeView(startupSplash);
+        startupSplash = null;
+    }
+
     private void verifyRuntimeReady(WebView view, int attempt) {
         if (view == null || isFinishing()) return;
         final String probe = "(function(){try{" +
@@ -195,7 +252,7 @@ public class MainActivity extends Activity {
                 "return (p==='ready'&&s==='locked-all-in-one-2.9'&&v==='3.0.3-calendar-ai-ready'&&l&&b==='KINETIQ-3.0.3-approved-beta-1'&&y==='KINETIQ-3.0.3-system-beta-2'&&ui==='KINETIQ-SYSTEM-UI-2')?'ready':(p+'|'+s+'|'+v+'|'+l+'|'+b+'|'+y+'|'+ui);" +
                 "}catch(e){return 'error';}})()";
         view.evaluateJavascript(probe, value -> {
-            if ("\"ready\"".equals(value)) return;
+            if ("\"ready\"".equals(value)) { hideStartupSplash(); return; }
             if (attempt + 1 < RUNTIME_MAX_ATTEMPTS) {
                 view.postDelayed(() -> verifyRuntimeReady(view, attempt + 1), RUNTIME_RETRY_MS);
             } else {

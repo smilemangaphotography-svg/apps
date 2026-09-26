@@ -627,7 +627,7 @@ function init(){
  if(!window.PT29||!window.ILIA_V7||!window.ILIA_V73||!window.__KINETIQ_BETA303__){setTimeout(init,100);return}
  wireAPI();patchBack();syncLegacy();authoritativeShell();installPhase2CanonicalDetail();installPhase2WorkoutRuntime();window.restoreWorkoutState?.();document.addEventListener('visibilitychange',()=>{if(document.hidden){window.persistWorkoutState?.();try{window.KINETIQVoice?.stop?.()}catch(_){}}});
  window.__KINETIQ_SYSTEM_BETA__='KINETIQ-3.0.3-system-beta-2';window.__KINETIQ_SYSTEM_UI__=VERSION;document.documentElement.dataset.kinetiqSystemBeta='ready';document.documentElement.dataset.kinetiqSystemUi='authoritative';
- if(state().built)enterSystem()
+ if(window.KINETIQPhase7?.routeStartup)window.KINETIQPhase7.routeStartup();else if(state().built)enterSystem()
 }
 window.KINETIQSystem={version:VERSION,showPage,renderHome:renderSystemHome,renderPlan:renderSystemPlan,renderTrain:renderSystemTrain,renderRun:renderSystemRun,renderMore:renderSystemMore,openAI,openCoachResult,fillAI,askAI,applyAI,keepCurrent,applySelectedAI,applyWeekAI,keepWeekAI,aiProposal,startExerciseFromDetail,resumeWorkout,openExerciseFilters,showWorkoutOverview,showWorkoutSummary,openDevices,openGarminApp,connectGarminHealth,requestGps,syncDevices,syncLegacy,afterEquipmentChange:()=>{syncLegacy();showPage($('.page.active')?.dataset.page||'home')}};
 setTimeout(init,700);
@@ -1380,7 +1380,7 @@ function renderMore(){
  $$('[data-p6-more]',root).forEach(b=>b.onclick=()=>openSetting(b.dataset.p6More))
 }
 function openSetting(k){
- if(k==='profile')return openProfile();
+ if(k==='profile')return window.KINETIQPhase7?.openProfile?.()||openProfile();
  if(k==='goals')return openGoals();
  if(k==='training')return openTraining();
  if(k==='equipment')return openEquipment();
@@ -1545,4 +1545,226 @@ function install(){
  installCompletionHooks();document.documentElement.dataset.kinetiqPhase6='ready'
 }
 install();
+})();
+
+
+;(function phase7StartupProfile(){
+'use strict';
+const MARK='KINETIQ_PHASE7_STARTUP_PROFILE';
+if(window.__KINETIQ_PHASE7__)return;
+window.__KINETIQ_PHASE7__=MARK;
+const $=(q,r=document)=>r.querySelector(q), $$=(q,r=document)=>Array.from(r.querySelectorAll(q));
+const st=()=>window.S||{};
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const save=()=>{try{window.save?.()}catch(_){try{localStorage.setItem('personalTrainer.beta2',JSON.stringify(st()))}catch(__){}}};
+const GOALS=['Strength','Running','General Fitness','Recovery / Return to Training','Hybrid'];
+const EXPERIENCE=['Beginner','Intermediate','Advanced'];
+const EQUIPMENT=['Full Gym','Machines / Cables','Dumbbells + Bench','Bodyweight','Custom'];
+const RUN_LEVELS=['New to running','Occasional','Regular','Experienced'];
+const RUN_GOALS=['General Endurance','5K','10K','Half Marathon','Marathon','Return to Running'];
+const RACES=['5K','10K','Half Marathon','Marathon'];
+const HEALTH_AREAS=['Knee','Hip','Ankle','Back','Shoulder','Elbow','Other'];
+const STEPS=5;
+let backPatched=false;
+
+function migrateCanonical(){
+ const s=st();let changed=false;
+ if(s.startupStateVersion!==1){
+  if(s.built===true&&typeof s.onboardingCompleted!=='boolean'){s.onboardingCompleted=true;changed=true}
+  if(s.built===true&&typeof s.profileCreated!=='boolean'){s.profileCreated=true;changed=true}
+  if(!s.trainingGoal){
+   const gs=Array.isArray(s.goals)?s.goals:[],ts=Array.isArray(s.trainingSystems)?s.trainingSystems:[];
+   s.trainingGoal=gs.includes('Running / Endurance')&&ts.some(x=>String(x).includes('Strength'))?'Hybrid':
+    gs.includes('Running / Endurance')?'Running':
+    gs.includes('Injury Recovery / Rehab')?'Recovery / Return to Training':
+    gs.includes('Get Fit')?'General Fitness':'Strength';
+   changed=true
+  }
+  if(!s.preferredUnits){s.preferredUnits=s.progressUi?.weightUnit==='lb'?'IMPERIAL':'METRIC';changed=true}
+  if(!Number.isInteger(s.onboardingStep)){s.onboardingStep=0;changed=true}
+  s.startupStateVersion=1;changed=true
+ }
+ s.goals=Array.isArray(s.goals)?s.goals:[];
+ s.trainingSystems=Array.isArray(s.trainingSystems)?s.trainingSystems:[];
+ s.injuries=Array.isArray(s.injuries)?s.injuries:[];
+ s.race=s.race||{};
+ s.progressUi=s.progressUi||{};
+ s.bodyMetrics=Array.isArray(s.bodyMetrics)?s.bodyMetrics:[];
+ if(changed)save();
+ return s
+}
+function syncGoalModel(goal){
+ const s=st(),managed=new Set(['Get Stronger','Get Fit','Running / Endurance','Injury Recovery / Rehab']),races=new Set(RACES);
+ const keep=(Array.isArray(s.goals)?s.goals:[]).filter(x=>!managed.has(x)&&!races.has(x));
+ const add=[];
+ if(goal==='Strength')add.push('Get Stronger');
+ if(goal==='Running')add.push('Running / Endurance');
+ if(goal==='General Fitness')add.push('Get Fit');
+ if(goal==='Recovery / Return to Training')add.push('Injury Recovery / Rehab');
+ if(goal==='Hybrid')add.push('Get Stronger','Running / Endurance');
+ if(s.race?.goal&&RACES.includes(s.race.goal))add.push(s.race.goal);
+ s.goals=[...new Set([...keep,...add])];
+ s.trainingSystems=goal==='Strength'?['Strength']:
+  goal==='Running'?['Running']:
+  goal==='General Fitness'?['Full Body']:
+  goal==='Recovery / Return to Training'?['Rehab + Strength']:
+  ['Hybrid Strength + Running'];
+ s.trainingGoal=goal
+}
+function currentWeightKg(){
+ const rows=(st().bodyMetrics||[]).filter(x=>String(x.metricType).toUpperCase()==='WEIGHT').sort((a,b)=>Date.parse(a.dateTime||0)-Date.parse(b.dateTime||0));
+ const r=rows[rows.length-1];if(!r||!Number.isFinite(+r.value)||+r.value<=0)return null;
+ return String(r.unit).toLowerCase()==='lb'?+r.value/2.2046226218:+r.value
+}
+function currentHeightCm(){
+ const rows=(st().bodyMetrics||[]).filter(x=>String(x.metricType).toUpperCase()==='HEIGHT').sort((a,b)=>Date.parse(a.dateTime||0)-Date.parse(b.dateTime||0));
+ const r=rows[rows.length-1];if(!r||!Number.isFinite(+r.value)||+r.value<=0)return null;
+ return String(r.unit).toLowerCase()==='in'?+r.value*2.54:+r.value
+}
+function recordMetric(type,value,unit){
+ const s=st(),v=+value;if(!Number.isFinite(v)||v<=0)return;
+ const existing=type==='WEIGHT'?currentWeightKg():currentHeightCm(),normalized=type==='WEIGHT'?(unit==='lb'?v/2.2046226218:v):(unit==='in'?v*2.54:v);
+ if(existing!=null&&Math.abs(existing-normalized)<(type==='WEIGHT'?.05:.2))return;
+ s.bodyMetrics.push({id:'body-'+Date.now()+'-'+type.toLowerCase(),metricType:type,value:v,unit,dateTime:new Date().toISOString(),source:'MANUAL'})
+}
+function ensureStyles(){
+ if($('#phase7Styles'))return;
+ const x=document.createElement('style');x.id='phase7Styles';x.textContent=`
+ #builder.phase7-onboarding{position:fixed!important;inset:0!important;z-index:2147482990!important;display:block!important;overflow-y:auto!important;overflow-x:hidden!important;background:radial-gradient(circle at 78% -8%,rgba(207,255,79,.10),transparent 35%),linear-gradient(180deg,#06100b,#09150e)!important;color:#f1f0e8!important;padding:calc(18px + env(safe-area-inset-top)) 14px calc(102px + env(safe-area-inset-bottom))!important;box-sizing:border-box!important}
+ #builder.phase7-onboarding.hidden{display:none!important}
+ #builder.phase7-onboarding #builderProgress{position:sticky;top:0;z-index:3;display:grid;grid-template-columns:repeat(5,1fr);gap:6px;max-width:720px;margin:0 auto 18px;padding:8px 0;background:linear-gradient(180deg,#06100b 65%,transparent)}
+ #builder.phase7-onboarding #builderProgress i{height:4px;border-radius:999px;background:#314039}#builder.phase7-onboarding #builderProgress i.active,#builder.phase7-onboarding #builderProgress i.done{background:#cfff4f}
+ #builder.phase7-onboarding #builderBody{max-width:720px;margin:0 auto}
+ #builder.phase7-onboarding .builder-footer{position:fixed!important;left:0!important;right:0!important;bottom:0!important;z-index:4;display:grid!important;grid-template-columns:1fr 1.35fr;gap:9px;padding:10px 14px calc(12px + env(safe-area-inset-bottom))!important;background:linear-gradient(180deg,transparent,#06100b 25%)!important}
+ #builder.phase7-onboarding .builder-footer .btn{min-height:52px!important;border-radius:16px!important;font-size:10px!important;font-weight:900!important}
+ .p7-head{margin:4px 0 22px}.p7-head small{font-size:9px;font-weight:950;letter-spacing:.16em;color:#cfff4f}.p7-head h1{font-size:36px;line-height:1;margin:7px 0 9px;letter-spacing:-.05em}.p7-head p{color:#a9b4ac;font-size:12px;line-height:1.5;margin:0}
+ .p7-card{background:#eee9dc;color:#102018;border-radius:22px;padding:16px;margin:10px 0}.p7-label{display:block;margin:15px 2px 7px;font-size:8px;font-weight:950;letter-spacing:.12em;color:#7a867d}
+ .p7-options{display:grid;gap:8px}.p7-options.cols{grid-template-columns:repeat(2,minmax(0,1fr))}.p7-option{border:1px solid rgba(16,32,24,.12);background:#ded9cc;color:#102018;border-radius:15px;padding:13px;text-align:left;min-height:56px;font-weight:900}.p7-option small{display:block;margin-top:4px;font-size:8px;color:#667168;font-weight:650}.p7-option.selected{background:#102018;color:#dfff74;border-color:#102018}.p7-option.selected small{color:#c8d2cb}
+ .p7-field{display:grid;gap:5px;margin:10px 0}.p7-field label{font-size:8px;font-weight:950;letter-spacing:.08em;color:#667168}.p7-field input,.p7-field select,.p7-field textarea{width:100%;box-sizing:border-box;min-height:48px;border:1px solid rgba(16,32,24,.15);border-radius:13px;background:#f8f2e8;color:#102018;padding:11px;font:inherit}.p7-field textarea{min-height:116px;resize:vertical}
+ .p7-grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}.p7-skip{width:100%;min-height:45px;margin-top:12px;border:1px solid rgba(16,32,24,.18);border-radius:13px;background:transparent;color:#102018;font-weight:900}
+ .p7-note{font-size:9px;line-height:1.5;color:#6b766e}.p7-summary{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:9px 0;border-bottom:1px solid rgba(16,32,24,.09)}.p7-summary:last-child{border-bottom:0}.p7-summary span{font-size:9px;color:#69746c}.p7-summary b{font-size:10px;text-align:right}
+ .p7-profile{position:fixed;inset:0;z-index:2147482995;background:#07150e;color:#edf2eb;overflow-y:auto;overflow-x:hidden}.p7-profile-safe{max-width:760px;margin:auto;padding:calc(14px + env(safe-area-inset-top)) 12px calc(100px + env(safe-area-inset-bottom))}.p7-profile-head{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;align-items:center;margin-bottom:12px}.p7-profile-back{width:42px;height:42px;border:0;border-radius:13px;background:#17281e;color:#fff;font-size:28px}.p7-profile-head small{font-size:8px;letter-spacing:.14em;color:#cfff4f;font-weight:950}.p7-profile-head h1{margin:2px 0 0;font-size:27px}.p7-profile .p7-card{margin-bottom:12px}.p7-save{width:100%;min-height:54px;border:0;border-radius:15px;background:#cfff4f;color:#102018;font-weight:950}.p7-health-chips{display:flex;flex-wrap:wrap;gap:6px}.p7-health-chips button{border:1px solid rgba(16,32,24,.15);border-radius:999px;background:#ddd8cc;color:#102018;padding:9px 11px;font-size:8px;font-weight:900}.p7-health-chips button.selected{background:#102018;color:#dfff74}
+ @media(max-width:390px){.p7-head h1{font-size:31px}.p7-grid2{grid-template-columns:1fr 1fr}#builder.phase7-onboarding{padding-left:10px!important;padding-right:10px!important}.p7-profile-safe{padding-left:10px;padding-right:10px}}
+ `;
+ document.head.appendChild(x)
+}
+function setCoverVisible(on){
+ const c=$('#style2Cover');if(c)c.classList.toggle('hidden',!on);
+ $('#mainApp')?.classList.add('hidden');$('#builder')?.classList.add('hidden')
+}
+function bindCover(){
+ const q=$('#coverEnter');if(!q)return;
+ const enter=e=>{e?.preventDefault?.();e?.stopPropagation?.();openOnboarding(Math.max(0,Math.min(STEPS-1,+st().onboardingStep||0)))};
+ q.onclick=enter;q.onpointerup=null;q.ontouchend=null;q.setAttribute('aria-label','Get started with KINETIQ')
+}
+function routeStartup(){
+ const s=migrateCanonical();ensureStyles();bindCover();installBack();
+ const ready=s.onboardingCompleted===true&&s.profileCreated===true&&s.built===true;
+ if(ready){
+  $('#style2Cover')?.classList.add('hidden');$('#builder')?.classList.add('hidden');document.body.classList.remove('p7-onboarding-open');
+  window.KINETIQSystem?.showPage?.('home');return'HOME'
+ }
+ setCoverVisible(true);return'COVER'
+}
+function progress(step){return Array.from({length:STEPS},(_,i)=>'<i class="'+(i<step?'done':i===step?'active':'')+'"></i>').join('')}
+function activateBuilder(step){
+ const s=st();s.onboardingStep=step;s.builderStep=step;save();
+ const b=$('#builder');b.classList.add('phase7-onboarding');b.classList.remove('hidden');b.setAttribute('aria-hidden','false');
+ $('#style2Cover')?.classList.add('hidden');$('#mainApp')?.classList.add('hidden');document.body.classList.add('p7-onboarding-open');
+ $('#builderProgress').innerHTML=progress(step)
+}
+function goalCopy(g){
+ return g==='Strength'?'Build a stronger, more capable training base.':
+  g==='Running'?'Prioritize running consistency, pace and endurance.':
+  g==='General Fitness'?'Build sustainable all-round fitness.':
+  g==='Recovery / Return to Training'?'Use controlled loading and recovery-aware progression.':
+  'Coordinate strength, running and recovery in one system.'
+}
+function goalStep(s){return `<div class="p7-head"><small>01 · GOAL</small><h1>What are you training for?</h1><p>Choose the main outcome KINETIQ should organize around.</p></div><section class="p7-card"><div class="p7-options">${GOALS.map(g=>`<button class="p7-option ${s.trainingGoal===g?'selected':''}" data-p7-goal="${esc(g)}"><b>${esc(g)}</b><small>${esc(goalCopy(g))}</small></button>`).join('')}</div></section>`}
+function availabilityStep(s){return `<div class="p7-head"><small>02 · EXPERIENCE & AVAILABILITY</small><h1>Fit training to real life.</h1><p>These values become your canonical training availability.</p></div><section class="p7-card"><span class="p7-label">EXPERIENCE</span><div class="p7-options cols">${EXPERIENCE.map(x=>`<button class="p7-option ${s.experience===x?'selected':''}" data-p7-exp="${x}">${x}</button>`).join('')}</div><span class="p7-label">DAYS PER WEEK</span><div class="p7-options cols">${[2,3,4,5,6,7].map(x=>`<button class="p7-option ${+s.days===x?'selected':''}" data-p7-days="${x}">${x} DAYS</button>`).join('')}</div><span class="p7-label">SESSION DURATION</span><div class="p7-options cols">${[30,45,60,75].map(x=>`<button class="p7-option ${+s.minutes===x?'selected':''}" data-p7-min="${x}">${x} MIN</button>`).join('')}</div></section>`}
+function equipmentStep(s){return `<div class="p7-head"><small>03 · EQUIPMENT</small><h1>What can you train with?</h1><p>KINETIQ uses this same equipment setting in your plan and exercise availability.</p></div><section class="p7-card"><div class="p7-options">${EQUIPMENT.map(x=>`<button class="p7-option ${s.equipment===x?'selected':''}" data-p7-equip="${esc(x)}"><b>${esc(x)}</b><small>${x==='Full Gym'?'Machines, cables and free weights.':x==='Machines / Cables'?'Selectorized machines and cable stations.':x==='Dumbbells + Bench'?'Compact gym or home setup.':x==='Bodyweight'?'Home / no loaded equipment required.':'Bands or another custom setup.'}</small></button>`).join('')}</div></section>`}
+function runningStep(s){
+ const relevant=s.trainingGoal==='Running'||s.trainingGoal==='Hybrid';
+ return `<div class="p7-head"><small>04 · RUNNING</small><h1>${relevant?'Set your running direction.':'Running is optional.'}</h1><p>${relevant?'Use current level and event goals to give Running Coach the right context.':'Add a running goal now, or skip this step.'}</p></div><section class="p7-card"><div class="p7-field"><label>CURRENT RUNNING LEVEL</label><select id="p7RunLevel"><option value="">Not specified</option>${RUN_LEVELS.map(x=>`<option ${s.runningLevel===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="p7-field"><label>RUNNING GOAL</label><select id="p7RunGoal"><option value="">Not specified</option>${RUN_GOALS.map(x=>`<option ${s.runningGoal===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="p7-grid2"><div class="p7-field"><label>TARGET EVENT / DISTANCE</label><select id="p7Race"><option value="">None</option>${RACES.map(x=>`<option ${s.race?.goal===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="p7-field"><label>RACE DATE · OPTIONAL</label><input id="p7RaceDate" type="date" value="${esc(s.race?.raceDate||'')}"></div></div><div class="p7-field"><label>TARGET TIME · OPTIONAL</label><input id="p7RaceTime" placeholder="e.g. 49:30" value="${esc(s.race?.targetTime||'')}"></div>${!relevant?'<button class="p7-skip" id="p7SkipRun">SKIP RUNNING FOR NOW</button>':''}</section>`}
+function healthStep(s){return `<div class="p7-head"><small>05 · HEALTH CONSIDERATIONS</small><h1>Anything KINETIQ should account for?</h1><p>This is training context only. KINETIQ does not diagnose conditions.</p></div><section class="p7-card"><span class="p7-label">AREAS TO BE CAREFUL WITH · OPTIONAL</span><div class="p7-health-chips">${HEALTH_AREAS.map(x=>`<button class="${s.injuries.includes(x)?'selected':''}" data-p7-health="${x}">${x}</button>`).join('')}</div><div class="p7-field"><label>YOUR NOTES · OPTIONAL</label><textarea id="p7Health" placeholder="Describe relevant limitations, clinician guidance, or return-to-training considerations.">${esc(s.healthConsiderations||'')}</textarea></div><p class="p7-note">Use urgent or worsening symptoms with an appropriate healthcare professional rather than relying on the app.</p></section>`}
+function captureStep(step){
+ const s=st();
+ if(step===3){
+  s.runningLevel=$('#p7RunLevel')?.value||'';
+  s.runningGoal=$('#p7RunGoal')?.value||'';
+  s.race=s.race||{};s.race.goal=$('#p7Race')?.value||'';s.race.raceDate=$('#p7RaceDate')?.value||'';s.race.targetTime=($('#p7RaceTime')?.value||'').trim();
+  syncGoalModel(s.trainingGoal||'Strength')
+ }
+ if(step===4)s.healthConsiderations=($('#p7Health')?.value||'').trim();
+ save()
+}
+function bindStep(step){
+ const s=st();
+ $$('[data-p7-goal]').forEach(b=>b.onclick=()=>{syncGoalModel(b.dataset.p7Goal);save();openOnboarding(step)});
+ $$('[data-p7-exp]').forEach(b=>b.onclick=()=>{s.experience=b.dataset.p7Exp;save();openOnboarding(step)});
+ $$('[data-p7-days]').forEach(b=>b.onclick=()=>{s.days=+b.dataset.p7Days;s.schedule=s.schedule||{};s.schedule.strengthDays=s.days;save();openOnboarding(step)});
+ $$('[data-p7-min]').forEach(b=>b.onclick=()=>{s.minutes=+b.dataset.p7Min;s.schedule=s.schedule||{};s.schedule.sessionLength=s.minutes;save();openOnboarding(step)});
+ $$('[data-p7-equip]').forEach(b=>b.onclick=()=>{s.equipment=b.dataset.p7Equip;save();openOnboarding(step)});
+ $$('[data-p7-health]').forEach(b=>b.onclick=()=>{const x=b.dataset.p7Health;s.injuries=s.injuries.includes(x)?s.injuries.filter(v=>v!==x):[...s.injuries,x];save();openOnboarding(step)});
+ $('#p7SkipRun')?.addEventListener('click',()=>{s.runningLevel='';s.runningGoal='';s.race=s.race||{};s.race.goal='';s.race.raceDate='';s.race.targetTime='';syncGoalModel(s.trainingGoal||'Strength');save();openOnboarding(4)})
+}
+function openOnboarding(step=0){
+ const s=migrateCanonical();step=Math.max(0,Math.min(STEPS-1,+step||0));activateBuilder(step);
+ const body=$('#builderBody');body.innerHTML=step===0?goalStep(s):step===1?availabilityStep(s):step===2?equipmentStep(s):step===3?runningStep(s):healthStep(s);
+ const back=$('#builderBack'),next=$('#builderNext');back.style.visibility='visible';back.innerHTML='← BACK';next.innerHTML=step===STEPS-1?'REVIEW PROFILE →':'NEXT →';
+ back.onclick=()=>{captureStep(step);if(step===0){s.onboardingStep=0;save();$('#builder').classList.add('hidden');document.body.classList.remove('p7-onboarding-open');setCoverVisible(true);bindCover()}else openOnboarding(step-1)};
+ next.onclick=()=>{captureStep(step);if(step===STEPS-1)openProfile(true);else openOnboarding(step+1)};
+ bindStep(step);
+ $$('input,textarea,select',body).forEach(n=>n.addEventListener('focus',()=>setTimeout(()=>n.scrollIntoView({block:'center',behavior:'smooth'}),80)))
+}
+function weightDisplay(kg,units){if(kg==null)return'';return units==='IMPERIAL'?(kg*2.2046226218).toFixed(1):kg.toFixed(1)}
+function heightDisplay(cm,units){if(cm==null)return'';return units==='IMPERIAL'?(cm/2.54).toFixed(1):cm.toFixed(1)}
+function profileHtml(s,confirm){
+ const units=s.preferredUnits==='IMPERIAL'?'IMPERIAL':'METRIC',weight=currentWeightKg(),height=currentHeightCm(),inj=s.injuries||[];
+ return `<div class="p7-profile-safe"><header class="p7-profile-head"><button class="p7-profile-back" data-p7-profile-back>‹</button><div><small>KINETIQ ATHLETE</small><h1>${confirm?'Confirm Athlete Profile':'Athlete Profile'}</h1></div><span></span></header>
+ <section class="p7-card"><div class="p7-grid2"><div class="p7-field"><label>NAME</label><input id="p7ProfName" value="${esc(s.name||'Athlete')}"></div><div class="p7-field"><label>DATE OF BIRTH</label><input id="p7Dob" type="date" value="${esc(s.dateOfBirth||'')}"></div></div><div class="p7-grid2"><div class="p7-field"><label>HEIGHT · ${units==='IMPERIAL'?'IN':'CM'}</label><input id="p7Height" inputmode="decimal" value="${heightDisplay(height,units)}"></div><div class="p7-field"><label>WEIGHT · ${units==='IMPERIAL'?'LB':'KG'}</label><input id="p7Weight" inputmode="decimal" value="${weightDisplay(weight,units)}"></div></div><div class="p7-field"><label>PREFERRED UNITS</label><select id="p7Units"><option value="METRIC" ${units==='METRIC'?'selected':''}>Metric · kg / cm</option><option value="IMPERIAL" ${units==='IMPERIAL'?'selected':''}>Imperial · lb / in</option></select></div></section>
+ <section class="p7-card"><div class="p7-field"><label>TRAINING GOAL</label><select id="p7ProfGoal">${GOALS.map(x=>`<option ${s.trainingGoal===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div><div class="p7-grid2"><div class="p7-field"><label>EXPERIENCE</label><select id="p7ProfExp">${EXPERIENCE.map(x=>`<option ${s.experience===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="p7-field"><label>TRAINING DAYS</label><select id="p7ProfDays">${[2,3,4,5,6,7].map(x=>`<option value="${x}" ${+s.days===x?'selected':''}>${x} days</option>`).join('')}</select></div></div><div class="p7-grid2"><div class="p7-field"><label>SESSION DURATION</label><select id="p7ProfMinutes">${[30,45,60,75].map(x=>`<option value="${x}" ${+s.minutes===x?'selected':''}>${x} min</option>`).join('')}</select></div><div class="p7-field"><label>EQUIPMENT</label><select id="p7ProfEquipment">${EQUIPMENT.map(x=>`<option ${s.equipment===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div></div></section>
+ <section class="p7-card"><div class="p7-grid2"><div class="p7-field"><label>RUNNING LEVEL</label><select id="p7ProfRunLevel"><option value="">Not specified</option>${RUN_LEVELS.map(x=>`<option ${s.runningLevel===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="p7-field"><label>RUNNING GOAL</label><select id="p7ProfRunGoal"><option value="">Not specified</option>${RUN_GOALS.map(x=>`<option ${s.runningGoal===x?'selected':''}>${x}</option>`).join('')}</select></div></div><div class="p7-field"><label>TARGET EVENT / DISTANCE</label><select id="p7ProfRace"><option value="">None</option>${RACES.map(x=>`<option ${s.race?.goal===x?'selected':''}>${x}</option>`).join('')}</select></div></section>
+ <section class="p7-card"><span class="p7-label">HEALTH CONSIDERATIONS</span><div class="p7-health-chips">${HEALTH_AREAS.map(x=>`<button class="${inj.includes(x)?'selected':''}" data-p7-prof-health="${x}">${x}</button>`).join('')}</div><div class="p7-field"><label>NOTES · TRAINING CONTEXT ONLY</label><textarea id="p7ProfHealth">${esc(s.healthConsiderations||'')}</textarea></div><p class="p7-note">Editing profile data does not delete workout, running, recovery or progress history.</p></section>
+ <button class="p7-save" id="p7SaveProfile">${confirm?'SAVE & CONTINUE TO KINETIQ':'SAVE PROFILE'}</button></div>`
+}
+function openProfile(confirm=false){
+ const s=migrateCanonical();ensureStyles();$('#phase7Profile')?.remove();
+ const ov=document.createElement('section');ov.id='phase7Profile';ov.className='p7-profile';ov.dataset.systemScreen='athlete-profile';ov.innerHTML=profileHtml(s,confirm);document.body.appendChild(ov);
+ $$('[data-p7-prof-health]',ov).forEach(b=>b.onclick=()=>{const x=b.dataset.p7ProfHealth;s.injuries=s.injuries.includes(x)?s.injuries.filter(v=>v!==x):[...s.injuries,x];save();openProfile(confirm)});
+ $('[data-p7-profile-back]',ov).onclick=()=>{ov.remove();if(confirm)openOnboarding(4)};
+ $('#p7Units',ov).onchange=e=>{captureProfile(ov,false);s.preferredUnits=e.target.value;s.progressUi=s.progressUi||{};s.progressUi.weightUnit=s.preferredUnits==='IMPERIAL'?'lb':'kg';save();openProfile(confirm)};
+ $('#p7SaveProfile',ov).onclick=()=>{if(!captureProfile(ov,true))return;s.profileCreated=true;
+  if(confirm){s.onboardingCompleted=true;s.onboardingStep=0;if(!s.built){try{window.PT29?.buildProgram?.()}catch(_){}s.built=true}save();ov.remove();$('#builder')?.classList.add('hidden');$('#style2Cover')?.classList.add('hidden');document.body.classList.remove('p7-onboarding-open');window.KINETIQSystem?.showPage?.('home')}
+  else{save();ov.remove();try{window.KINETIQSystem?.renderMore?.()}catch(_){}}
+ };
+ $$('input,textarea,select',ov).forEach(n=>n.addEventListener('focus',()=>setTimeout(()=>n.scrollIntoView({block:'center',behavior:'smooth'}),80)))
+}
+function captureProfile(root,withMetrics){
+ const s=st(),units=$('#p7Units',root)?.value||s.preferredUnits||'METRIC';
+ const name=($('#p7ProfName',root)?.value||'').trim();if(!name){try{window.toast?.('Name is required')}catch(_){}return false}
+ s.name=name;s.dateOfBirth=$('#p7Dob',root)?.value||'';s.preferredUnits=units;s.progressUi=s.progressUi||{};s.progressUi.weightUnit=units==='IMPERIAL'?'lb':'kg';
+ s.experience=$('#p7ProfExp',root)?.value||s.experience;s.days=+$('#p7ProfDays',root)?.value||s.days;s.minutes=+$('#p7ProfMinutes',root)?.value||s.minutes;s.equipment=$('#p7ProfEquipment',root)?.value||s.equipment;
+ s.schedule=s.schedule||{};s.schedule.sessionLength=s.minutes;
+ s.runningLevel=$('#p7ProfRunLevel',root)?.value||'';s.runningGoal=$('#p7ProfRunGoal',root)?.value||'';s.race=s.race||{};s.race.goal=$('#p7ProfRace',root)?.value||'';
+ syncGoalModel($('#p7ProfGoal',root)?.value||s.trainingGoal||'Strength');s.healthConsiderations=($('#p7ProfHealth',root)?.value||'').trim();
+ if(withMetrics){
+  const h=+$('#p7Height',root)?.value,w=+$('#p7Weight',root)?.value;
+  if(Number.isFinite(h)&&h>0)recordMetric('HEIGHT',h,units==='IMPERIAL'?'in':'cm');
+  if(Number.isFinite(w)&&w>0)recordMetric('WEIGHT',w,units==='IMPERIAL'?'lb':'kg')
+ }
+ save();return true
+}
+function installBack(){
+ if(backPatched)return;const prev=window.ptHandleBack;
+ window.ptHandleBack=function(){
+  const prof=$('#phase7Profile');if(prof){const confirm=!st().onboardingCompleted;prof.remove();if(confirm)openOnboarding(4);return'handled'}
+  const b=$('#builder');if(b?.classList.contains('phase7-onboarding')&&!b.classList.contains('hidden')){
+   const step=Math.max(0,+st().onboardingStep||0);captureStep(step);if(step>0)openOnboarding(step-1);else{b.classList.add('hidden');document.body.classList.remove('p7-onboarding-open');setCoverVisible(true);bindCover()}return'handled'
+  }
+  return prev?prev():'exit'
+ };backPatched=true
+}
+window.KINETIQPhase7={version:'7.0',routeStartup,openOnboarding,openProfile,migrateCanonical,syncGoalModel};
+ensureStyles();migrateCanonical();
 })();
