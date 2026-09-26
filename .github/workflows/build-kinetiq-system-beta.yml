@@ -126,7 +126,7 @@ jobs:
           grep -q "applicationId 'com.ilia.personaltrainer.systembeta'" personal-trainer/android-beta/app/build.gradle
           grep -q 'versionCode 48' personal-trainer/android-beta/app/build.gradle
           grep -q "versionName '3.0.3-system-beta.4'" personal-trainer/android-beta/app/build.gradle
-          grep -q '<string name="app_name">KINETIQ SYSTEM BETA</string>' personal-trainer/android-beta/app/src/main/res/values/strings.xml
+          grep -q '<string name="app_name">KINETIQ</string>' personal-trainer/android-beta/app/src/main/res/values/strings.xml
           if grep -q "applicationId 'com.ilia.personaltrainer.beta'" personal-trainer/android-beta/app/build.gradle; then echo 'ERROR: collides with frozen verified beta'; exit 1; fi
           if grep -q "applicationId 'com.ilia.personaltrainer'" personal-trainer/android-beta/app/build.gradle; then echo 'ERROR: collides with production'; exit 1; fi
           grep -q 'renderMotionKeyframes' "$A/style2-v29.js"
@@ -179,7 +179,7 @@ jobs:
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
           "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.systembeta' versionCode='48' versionName='3.0.3-system-beta.4'"
-          "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ SYSTEM BETA'"
+          "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
           unzip -l "$APK" | grep -q 'assets/system.html'
           unzip -l "$APK" | grep -q 'assets/kinetiq-system-ui.css'
           unzip -l "$APK" | grep -q 'assets/kinetiq-system-ui.js'
@@ -204,7 +204,7 @@ jobs:
           cat > release/BETA-README.txt <<'REPORT'
           KINETIQ 3.0.3 — SYSTEM BETA
           Package: com.ilia.personaltrainer.systembeta
-          Label: KINETIQ SYSTEM BETA
+          Label: KINETIQ
           Version: 3.0.3-system-beta.4 / versionCode 48
           Built from the separate kinetiq-v303-system-beta branch.
           Frozen verified baseline bff960ac6ee406345f344554e5e8874d285bbf42 remains unchanged.
