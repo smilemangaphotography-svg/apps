@@ -950,3 +950,292 @@ function patchApi(){
 function install(){ensure();ensureStyles();if(!patchApi()){setTimeout(install,120);return}document.documentElement.dataset.kinetiqPhase4='ready'}
 install();
 })();
+
+;(function phase5Installer(){
+'use strict';
+const MARK='KINETIQ_PHASE5_PROGRESS';
+if(window.__KINETIQ_PHASE5_PROGRESS__)return;
+window.__KINETIQ_PHASE5_PROGRESS__=MARK;
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>Number.isFinite(+v)?+v:null;
+const st=()=>window.S||{};
+const save=()=>{try{window.save?.()}catch(_){try{localStorage.setItem('personalTrainer.beta2',JSON.stringify(st()))}catch(__){}}};
+const DAY=86400000;
+const PERIODS=['WEEKLY','MONTHLY','YEARLY'];
+const STRENGTH_PERIODS=['1M','3M','6M','1Y','ALL'];
+const RUN_FILTERS=['ALL RUNS','EASY','TEMPO','INTERVAL','LONG','CUSTOM'];
+const BODY_TYPES=['WEIGHT','BODY FAT','LEAN MASS','WAIST','HEIGHT'];
+let cache={sig:'',data:null};
+
+function ensure(){
+ const s=st();s.progressUi=s.progressUi||{};
+ if(!PERIODS.includes(s.progressUi.overviewPeriod))s.progressUi.overviewPeriod='WEEKLY';
+ if(!STRENGTH_PERIODS.includes(s.progressUi.strengthPeriod))s.progressUi.strengthPeriod='3M';
+ if(!RUN_FILTERS.includes(s.progressUi.runFilter))s.progressUi.runFilter='ALL RUNS';
+ if(!BODY_TYPES.includes(s.progressUi.bodyMetric))s.progressUi.bodyMetric='WEIGHT';
+ const existingWeightUnit=s.weightUnit||s.units?.weight||s.unitPreferences?.weight;
+ if(!['kg','lb'].includes(s.progressUi.weightUnit))s.progressUi.weightUnit=existingWeightUnit==='lb'?'lb':'kg';
+ s.bodyMetrics=Array.isArray(s.bodyMetrics)?s.bodyMetrics:[];
+ return s.progressUi
+}
+function ms(v){
+ if(Number.isFinite(+v)&&+v>1000000000)return +v;
+ const t=Date.parse(v||'');return Number.isFinite(t)?t:0
+}
+function dayKey(t){const d=new Date(t);return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function fmtDate(t){return t?new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short',year:'2-digit'}).format(new Date(t)):'—'}
+function fmtPace(sec){sec=num(sec);if(!sec||sec<120||sec>1200)return'—';let m=Math.floor(sec/60),s=Math.round(sec%60);if(s===60){m++;s=0}return`${m}:${String(s).padStart(2,'0')}`}
+function fmtDuration(sec){sec=Math.max(0,Math.round(num(sec)||0));const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60);return h?`${h}h ${m}m`:`${m} min`}
+function exactReps(v){
+ if(Number.isFinite(+v)&&String(v).trim()!==''&&!String(v).includes('-')&&!String(v).includes('–'))return +v;
+ const s=String(v??'').trim();return /^\d+$/.test(s)?+s:null
+}
+function canonicalId(x){return String(x?.canonicalExerciseId||x?.exerciseId||x?.id||'').trim()}
+function exName(id,fallback='Exercise'){return window.PT29?.byId?.(id)?.name||fallback||id}
+function workoutSummaries(){
+ const s=st(),raw=[];
+ const add=v=>{if(Array.isArray(v))raw.push(...v);else if(v&&typeof v==='object')raw.push(v)};
+ add(s.workoutSummaries);add(s.workoutHistory);add(s.completedWorkouts);add(s.lastWorkoutSummary);
+ const out=[],seen=new Set();
+ raw.forEach(x=>{
+  if(!x||!Array.isArray(x.exercises))return;
+  const t=ms(x.completedAt||x.date||x.endedAt),id=String(x.workoutId||x.id||`${t}:${x.name||''}`);
+  if(!t||seen.has(id))return;seen.add(id);out.push({...x,_t:t,_id:id})
+ });
+ return out.sort((a,b)=>a._t-b._t)
+}
+function strengthRecords(){
+ const s=st(),out=[],seen=new Set(),push=r=>{
+  const id=canonicalId(r),t=ms(r.dateTime||r.completedAt||r.date||r.timestamp),load=num(r.loadKg??r.weightKg??r.load),sets=num(r.setsDone??r.sets),reps=r.reps;
+  if(!id||!t||!load||load<=0)return;
+  const exact=exactReps(reps),volume=sets&&sets>0&&exact&&exact>0?load*sets*exact:null;
+  const key=String(r.recordId||r.setRecordId||`${r.workoutId||''}|${t}|${id}|${load}|${sets??''}|${String(reps??'')}`);
+  if(seen.has(key))return;seen.add(key);
+  out.push({id,name:r.name||exName(id),date:t,loadKg:load,reps,exactReps:exact,sets:sets&&sets>0?sets:null,volumeKg:volume,workoutId:r.workoutId||null,source:r.source||'WORKOUT'})
+ };
+ [s.strengthHistory,s.performanceHistory,s.exercisePerformance].forEach(a=>Array.isArray(a)&&a.forEach(push));
+ workoutSummaries().forEach(w=>(w.exercises||[]).forEach(e=>push({...e,workoutId:w.workoutId||w._id,completedAt:w._t,source:'WORKOUT'})));
+ return out.sort((a,b)=>a.date-b.date)
+}
+function workoutEvents(){
+ const out=[],seen=new Set(),s=st();
+ (s.history||[]).forEach(x=>{const t=ms(x.date||x.completedAt),id=String(x.workoutId||`${t}:${x.name||''}`);if(t&&!seen.has(id)){seen.add(id);out.push({date:t,id,name:x.name||'Workout'})}});
+ workoutSummaries().forEach(x=>{if(!seen.has(x._id)){seen.add(x._id);out.push({date:x._t,id:x._id,name:x.name||'Workout'})}});
+ return out.sort((a,b)=>a.date-b.date)
+}
+function runCategory(type){
+ const x=String(type||'').toLowerCase();
+ if(x.includes('easy'))return'EASY';if(x.includes('tempo'))return'TEMPO';if(x.includes('interval'))return'INTERVAL';if(x.includes('long'))return'LONG';if(x.includes('custom'))return'CUSTOM';return'OTHER'
+}
+function runRecords(){
+ const s=st(),raw=[];if(Array.isArray(s.runHistory))raw.push(...s.runHistory);if(s.lastRunResult)raw.push(s.lastRunResult);
+ const out=[],seen=new Set();
+ raw.forEach(x=>{
+  if(!x)return;if(x.completionState&&x.completionState!=='COMPLETE')return;
+  const t=ms(x.completedAt||x.date),id=String(x.runId||x.id||`${t}:${x.name||x.runType||''}`),distance=num(x.distanceKm??x.distance),seconds=num(x.elapsedActive??x.seconds),pace=num(x.averagePace??x.avgPace);
+  if(!t||seen.has(id)||!distance||distance<=0||!seconds||seconds<=0)return;seen.add(id);
+  const validPace=pace&&pace>=120&&pace<=1200&&distance>=.2?pace:(distance>=.2?seconds/distance:null);
+  out.push({id,date:t,type:x.runType||x.type||x.name||'Run',category:runCategory(x.runType||x.type||x.name),distanceKm:distance,seconds,avgPace:validPace&&validPace>=120&&validPace<=1200?validPace:null,hr:num(x.averageHr??x.hr),trainingLoad:num(x.trainingLoad),source:x})
+ });
+ return out.sort((a,b)=>a.date-b.date)
+}
+function recoveryRecords(){
+ const checks=st().recovery?.checkHistory||[];
+ return checks.map(x=>{const t=ms(x.dateTime||x.date),pain=num(x.pain),fat=num(x.fatigue),mob=num(x.mobility),fn=num(x.functionTolerance);if(!t||pain==null)return null;
+  const score=Math.max(0,Math.min(100,Math.round(100-pain*6-(fat??3)*2-(10-(mob??7))*2-(10-(fn??7))*2+(x.trend==='Better'?6:0))));
+  return{date:t,score,state:x.readinessState||null}
+ }).filter(Boolean).sort((a,b)=>a.date-b.date)
+}
+function bodyRecords(){return (st().bodyMetrics||[]).map(x=>({...x,date:ms(x.dateTime||x.date)})).filter(x=>x.date&&num(x.value)!=null).sort((a,b)=>a.date-b.date)}
+function signature(){
+ const s=st(),parts=[(s.history||[]).length,(s.runHistory||[]).length,(s.bodyMetrics||[]).length,(s.recovery?.checkHistory||[]).length,
+  (s.strengthHistory||[]).length,(s.performanceHistory||[]).length,(s.workoutSummaries||[]).length,(s.workoutHistory||[]).length,
+  s.lastWorkoutSummary?.workoutId||'',s.lastRunResult?.runId||'',s.bodyMetrics?.at?.(-1)?.id||''];
+ return parts.join('|')
+}
+function data(){
+ const sig=signature();if(cache.sig===sig&&cache.data)return cache.data;
+ cache={sig,data:{workouts:workoutEvents(),strength:strengthRecords(),runs:runRecords(),recovery:recoveryRecords(),body:bodyRecords()}};
+ return cache.data
+}
+function invalidate(){cache={sig:'',data:null}}
+function periodBounds(period,ref=new Date()){
+ const d=new Date(ref);let start,end,prevStart,prevEnd;
+ if(period==='WEEKLY'){const dow=(d.getDay()+6)%7;start=new Date(d.getFullYear(),d.getMonth(),d.getDate()-dow);end=new Date(start.getTime()+7*DAY);prevEnd=start;prevStart=new Date(start.getTime()-7*DAY)}
+ else if(period==='MONTHLY'){start=new Date(d.getFullYear(),d.getMonth(),1);end=new Date(d.getFullYear(),d.getMonth()+1,1);prevEnd=start;prevStart=new Date(d.getFullYear(),d.getMonth()-1,1)}
+ else{start=new Date(d.getFullYear(),0,1);end=new Date(d.getFullYear()+1,0,1);prevEnd=start;prevStart=new Date(d.getFullYear()-1,0,1)}
+ return{start:+start,end:+end,prevStart:+prevStart,prevEnd:+prevEnd}
+}
+function inRange(x,a,b){return x.date>=a&&x.date<b}
+function pct(cur,prev){return prev>0&&Number.isFinite(cur)&&Number.isFinite(prev)?(cur-prev)/prev*100:null}
+function deltaText(v,lowerIsBetter=false){
+ if(v==null||!Number.isFinite(v))return'—';
+ const sign=v>0?'+':'';const txt=`${sign}${v.toFixed(0)}%`;return lowerIsBetter&&v<0?`${txt} faster`:txt
+}
+function activeDayConsistency(events,start,end){
+ const now=Date.now(),effectiveEnd=Math.min(end,now+1),days=Math.max(1,Math.ceil((effectiveEnd-start)/DAY)),active=new Set(events.filter(x=>inRange(x,start,effectiveEnd)).map(x=>dayKey(x.date))).size;
+ return active?active/days*100:null
+}
+function validPaceRuns(rs){return rs.filter(x=>x.avgPace&&x.avgPace>=120&&x.avgPace<=1200)}
+function periodSummary(period){
+ const D=data(),b=periodBounds(period),w=D.workouts.filter(x=>inRange(x,b.start,b.end)),wp=D.workouts.filter(x=>inRange(x,b.prevStart,b.prevEnd));
+ const r=D.runs.filter(x=>inRange(x,b.start,b.end)),rp=D.runs.filter(x=>inRange(x,b.prevStart,b.prevEnd));
+ const sr=D.strength.filter(x=>inRange(x,b.start,b.end)),srp=D.strength.filter(x=>inRange(x,b.prevStart,b.prevEnd));
+ const km=r.reduce((a,x)=>a+x.distanceKm,0),pkm=rp.reduce((a,x)=>a+x.distanceKm,0),vol=sr.reduce((a,x)=>a+(x.volumeKg||0),0),pvol=srp.reduce((a,x)=>a+(x.volumeKg||0),0);
+ const vr=validPaceRuns(r),vpr=validPaceRuns(rp),avg=vr.length?vr.reduce((a,x)=>a+x.seconds,0)/vr.reduce((a,x)=>a+x.distanceKm,0):null,pavg=vpr.length?vpr.reduce((a,x)=>a+x.seconds,0)/vpr.reduce((a,x)=>a+x.distanceKm,0):null;
+ const combined=[...w,...r.map(x=>({date:x.date}))],combinedPrev=[...wp,...rp.map(x=>({date:x.date}))],cons=activeDayConsistency(combined,b.start,b.end),pcons=activeDayConsistency(combinedPrev,b.prevStart,b.prevEnd);
+ return{bounds:b,workouts:w.length,workoutsDelta:pct(w.length,wp.length),km,kmDelta:pct(km,pkm),volume:vol||null,volumeDelta:vol?pct(vol,pvol):null,avgPace:avg,paceDelta:avg&&pavg?pct(avg,pavg):null,consistency:cons,consistencyDelta:cons&&pcons?pct(cons,pcons):null}
+}
+function buckets(period,bounds){
+ const out=[];
+ if(period==='WEEKLY'){for(let i=0;i<7;i++){const a=bounds.start+i*DAY;out.push({start:a,end:a+DAY,label:new Intl.DateTimeFormat('en-GB',{weekday:'short'}).format(new Date(a))})}}
+ else if(period==='MONTHLY'){let a=bounds.start,i=1;while(a<bounds.end){const e=Math.min(bounds.end,a+7*DAY);out.push({start:a,end:e,label:`W${i++}`});a=e}}
+ else{for(let m=0;m<12;m++){const a=+new Date(new Date(bounds.start).getFullYear(),m,1),e=+new Date(new Date(bounds.start).getFullYear(),m+1,1);out.push({start:a,end:e,label:new Intl.DateTimeFormat('en-GB',{month:'short'}).format(new Date(a))})}}
+ return out
+}
+function svgChart(values,labels,{line=false,invert=false}={}){
+ const vals=values.map(v=>Number.isFinite(v)?v:null),present=vals.filter(v=>v!=null);
+ if(!present.length)return`<div class="p5-empty compact">NO DATA FOR THIS PERIOD</div>`;
+ const min=Math.min(...present),max=Math.max(...present),span=Math.max(.0001,max-min),W=320,H=118,pad=16,n=Math.max(1,vals.length);
+ if(line){
+  const pts=vals.map((v,i)=>v==null?null:{x:pad+i*(W-pad*2)/Math.max(1,n-1),y:invert?pad+(v-min)/span*(H-pad*2):H-pad-(v-min)/span*(H-pad*2)}).filter(Boolean);
+  const poly=pts.length>=2?`<polyline points="${pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`:'';
+  return`<svg class="p5-chart-svg" viewBox="0 0 ${W} ${H}" role="img">${poly}${pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="3.5" fill="currentColor"/>`).join('')}</svg><div class="p5-axis">${labels.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`
+ }
+ const maxBar=Math.max(...present,1),bw=(W-pad*2)/n*.62,gap=(W-pad*2)/n;
+ return`<svg class="p5-chart-svg" viewBox="0 0 ${W} ${H}" role="img">${vals.map((v,i)=>{if(v==null)return'';const h=Math.max(2,(v/maxBar)*(H-pad*2)),x=pad+i*gap+(gap-bw)/2,y=H-pad-h;return`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="currentColor"/>`}).join('')}</svg><div class="p5-axis">${labels.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`
+}
+function overviewSeries(period,metric){
+ const D=data(),b=periodBounds(period),bs=buckets(period,b),labels=bs.map(x=>x.label);
+ const vals=bs.map(q=>{
+  if(metric==='FREQUENCY')return D.workouts.filter(x=>inRange(x,q.start,q.end)).length+D.runs.filter(x=>inRange(x,q.start,q.end)).length;
+  if(metric==='VOLUME'){const v=D.strength.filter(x=>inRange(x,q.start,q.end)).reduce((a,x)=>a+(x.volumeKg||0),0);return v||null}
+  if(metric==='DISTANCE'){const v=D.runs.filter(x=>inRange(x,q.start,q.end)).reduce((a,x)=>a+x.distanceKm,0);return v||null}
+  if(metric==='PACE'){const r=validPaceRuns(D.runs.filter(x=>inRange(x,q.start,q.end)));return r.length?r.reduce((a,x)=>a+x.seconds,0)/r.reduce((a,x)=>a+x.distanceKm,0):null}
+  const r=D.recovery.filter(x=>inRange(x,q.start,q.end));return r.length?r.reduce((a,x)=>a+x.score,0)/r.length:null
+ });
+ return{vals,labels,line:metric==='PACE'||metric==='RECOVERY',invert:metric==='PACE'}
+}
+function ensureStyles(){
+ if($('#phase5ProgressStyles'))return;const s=document.createElement('style');s.id='phase5ProgressStyles';s.textContent=`
+ .p5-overlay{position:fixed;inset:0;z-index:2700;background:#08160f;color:#edf2eb;overflow-y:auto;overflow-x:hidden}.p5-safe{min-height:100%;max-width:760px;margin:auto;padding:calc(12px + env(safe-area-inset-top)) 12px calc(104px + env(safe-area-inset-bottom))}
+ .p5-head{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px}.p5-head>button{width:42px;height:42px;border:0;border-radius:13px;background:#17281e;color:#edf2eb;font-size:28px}.p5-head small,.p5-kicker{font-size:8px;letter-spacing:.12em;font-weight:900;color:#94a198}.p5-head h1{margin:2px 0 0;font-size:24px}
+ .p5-tabs{position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(4,1fr);gap:5px;background:#08160f;padding:10px 0}.p5-tabs button,.p5-periods button,.p5-filter-row button{min-height:40px;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:#13251a;color:#aeb8b0;font-size:8px;font-weight:900}.p5-tabs button.active,.p5-periods button.active,.p5-filter-row button.active{background:#dfff74;color:#102018}
+ .p5-periods{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:9px 0}.p5-periods.five{grid-template-columns:repeat(5,1fr)}.p5-filter-row{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}.p5-filter-row button{flex:0 0 auto;padding:0 12px}
+ .p5-card{background:#eee9dc;color:#102018;border-radius:22px;padding:15px;margin:10px 0;min-width:0}.p5-card.dark{background:#13251a;color:#edf2eb;border:1px solid rgba(255,255,255,.06)}.p5-card h2,.p5-card h3{margin:3px 0 7px}.p5-sub{font-size:10px;line-height:1.45;color:#68736b}.dark .p5-sub{color:#9fac9f}
+ .p5-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.p5-stat{background:#ddd8cc;border-radius:14px;padding:11px;min-width:0}.p5-stat b{display:block;font-size:21px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.p5-stat small{display:block;font-size:7px;font-weight:900;color:#68736b;letter-spacing:.08em}.p5-stat em{display:block;font-size:8px;font-style:normal;margin-top:5px;color:#516157}
+ .p5-chart{color:#8fbd2e;background:#102018;border-radius:17px;padding:12px;margin-top:10px}.p5-chart-head{display:flex;justify-content:space-between;gap:8px;align-items:center;color:#edf2eb}.p5-chart-head b{font-size:11px}.p5-chart-head small{font-size:7px;color:#95a298}.p5-chart-svg{display:block;width:100%;height:118px;margin-top:6px;overflow:visible}.p5-axis{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;color:#87958b;font-size:6px;text-align:center;overflow:hidden}
+ .p5-chart-modes{display:flex;gap:5px;overflow-x:auto;margin-top:8px}.p5-chart-modes button{flex:0 0 auto;border:0;border-radius:999px;background:#22372a;color:#b5c0b7;padding:7px 9px;font-size:7px;font-weight:900}.p5-chart-modes button.active{background:#dfff74;color:#102018}
+ .p5-empty{border:1px dashed rgba(255,255,255,.16);border-radius:17px;padding:24px 15px;text-align:center;color:#a8b2aa;font-size:9px;font-weight:800;letter-spacing:.05em}.p5-empty.compact{padding:34px 12px;border:0;color:#839087}
+ .p5-select{width:100%;min-height:44px;border:0;border-radius:12px;background:#dad6ca;color:#102018;padding:8px;font-size:10px;font-weight:800}.p5-table{width:100%;border-collapse:collapse;margin-top:8px}.p5-table th,.p5-table td{padding:9px 5px;border-bottom:1px solid rgba(16,32,24,.1);text-align:left;font-size:8px}.p5-table th{font-size:7px;color:#6b756e;letter-spacing:.08em}.p5-table-wrap{overflow-x:auto}
+ .p5-hero{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.p5-hero strong{font-size:34px}.p5-hero small{font-size:8px;color:#6b766e}.p5-change{font-size:10px;font-weight:900;padding:7px 9px;border-radius:999px;background:#d8d4c8}
+ .p5-run-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.p5-form{display:grid;gap:9px}.p5-form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.p5-field{display:grid;gap:5px}.p5-field label{font-size:7px;color:#68736b;font-weight:900;letter-spacing:.08em}.p5-field input,.p5-field select{width:100%;min-height:42px;border:1px solid rgba(16,32,24,.14);border-radius:11px;background:#f8f2e8;color:#102018;padding:8px}
+ .p5-primary{width:100%;min-height:50px;border:0;border-radius:14px;background:#102018;color:#dfff74;font-size:9px;font-weight:950}.p5-source{font-size:7px;font-weight:900;color:#758079}.p5-history{display:grid;gap:7px}.p5-history-row{display:grid;grid-template-columns:1fr auto;gap:8px;background:#dcd7cb;border-radius:12px;padding:9px}.p5-history-row b{font-size:11px}.p5-history-row small{font-size:7px;color:#68736b}.p5-history-row span{text-align:right}
+ @media(max-width:390px){.p5-safe{padding-left:10px;padding-right:10px}.p5-tabs button{font-size:7px}.p5-periods.five{grid-template-columns:repeat(5,1fr);gap:4px}.p5-periods.five button{font-size:7px}.p5-summary-grid,.p5-run-grid{grid-template-columns:1fr 1fr}.p5-form-row{grid-template-columns:1fr 1fr}}
+ `;document.head.appendChild(s)
+}
+function closeProgress(){$('#phase5Progress')?.remove()}
+function shell(){
+ ensureStyles();let ov=$('#phase5Progress');if(!ov){ov=document.createElement('section');ov.id='phase5Progress';ov.className='p5-overlay';document.body.appendChild(ov)}
+ ov.innerHTML=`<div class="p5-safe"><header class="p5-head"><button data-p5-close>‹</button><div><small>REAL TRAINING DATA</small><h1>Progress</h1></div><span></span></header><nav class="p5-tabs">${[['overview','OVERVIEW'],['strength','STRENGTH'],['running','RUNNING'],['body','BODY']].map(([k,l])=>`<button data-p5-tab="${k}">${l}</button>`).join('')}</nav><main id="p5Content"></main></div>`;
+ $('[data-p5-close]',ov).onclick=closeProgress;$$('[data-p5-tab]',ov).forEach(b=>b.onclick=()=>renderTab(b.dataset.p5Tab));return ov
+}
+function setTabActive(tab){$$('[data-p5-tab]','#phase5Progress').forEach(b=>b.classList.toggle('active',b.dataset.p5Tab===tab))}
+function metricValue(v,fmt,empty='—'){return v==null||!Number.isFinite(v)?empty:fmt(v)}
+function renderOverview(){
+ const ui=ensure(),root=$('#p5Content');if(!root)return;setTabActive('overview');
+ root.innerHTML=`<section data-system-screen="progress-overview"><div class="p5-periods">${PERIODS.map(x=>`<button data-p5-period="${x}" class="${ui.overviewPeriod===x?'active':''}">${x}</button>`).join('')}</div><div id="p5OverviewContent"></div></section>`;
+ $$('[data-p5-period]',root).forEach(b=>b.onclick=()=>{ui.overviewPeriod=b.dataset.p5Period;save();$$('[data-p5-period]',root).forEach(x=>x.classList.toggle('active',x===b));updateOverview()});updateOverview()
+}
+function updateOverview(){
+ const ui=ensure(),host=$('#p5OverviewContent');if(!host)return;const s=periodSummary(ui.overviewPeriod),D=data();
+ const chartMetric=ui.overviewChart||'FREQUENCY',series=overviewSeries(ui.overviewPeriod,chartMetric);
+ const recoveryInPeriod=D.recovery.filter(x=>inRange(x,s.bounds.start,s.bounds.end));
+ host.innerHTML=`<div class="p5-summary-grid">
+  <div class="p5-stat"><small>WORKOUTS</small><b>${s.workouts||'—'}</b><em>${s.workouts?deltaText(s.workoutsDelta):'NO COMPLETED WORKOUTS'}</em></div>
+  <div class="p5-stat"><small>RUNNING</small><b>${s.km?`${s.km.toFixed(1)} km`:'—'}</b><em>${s.km?deltaText(s.kmDelta):'NO COMPLETED RUNS'}</em></div>
+  <div class="p5-stat"><small>TRAINING VOLUME</small><b>${s.volume?`${Math.round(s.volume).toLocaleString()} kg`:'—'}</b><em>${s.volume?deltaText(s.volumeDelta):'NO RECORDED LOAD × REPS'}</em></div>
+  <div class="p5-stat"><small>AVERAGE PACE</small><b>${s.avgPace?fmtPace(s.avgPace)+' /km':'—'}</b><em>${s.avgPace?deltaText(s.paceDelta,true):'INSUFFICIENT VALID RUN DATA'}</em></div>
+  <div class="p5-stat"><small>CONSISTENCY</small><b>${s.consistency!=null?Math.round(s.consistency)+'%':'—'}</b><em>${s.consistency!=null?deltaText(s.consistencyDelta):'NO COMPLETED SESSIONS'}</em></div>
+  <div class="p5-stat"><small>RECOVERY TREND</small><b>${recoveryInPeriod.length?Math.round(recoveryInPeriod.reduce((a,x)=>a+x.score,0)/recoveryInPeriod.length)+'/100':'—'}</b><em>${recoveryInPeriod.length?`${recoveryInPeriod.length} CHECK-IN${recoveryInPeriod.length===1?'':'S'}`:'NO RECOVERY HISTORY'}</em></div>
+ </div>
+ <section class="p5-chart"><div class="p5-chart-head"><div><small>PERIOD TREND</small><b>${esc(chartMetric)}</b></div><small>REAL RECORDED DATA</small></div><div class="p5-chart-modes">${['FREQUENCY','VOLUME','DISTANCE','PACE','RECOVERY'].map(x=>`<button data-p5-chart="${x}" class="${chartMetric===x?'active':''}">${x}</button>`).join('')}</div><div id="p5OverviewChart">${svgChart(series.vals,series.labels,{line:series.line,invert:series.invert})}</div></section>`;
+ $$('[data-p5-chart]',host).forEach(b=>b.onclick=()=>{ui.overviewChart=b.dataset.p5Chart;save();$$('[data-p5-chart]',host).forEach(x=>x.classList.toggle('active',x===b));const q=overviewSeries(ui.overviewPeriod,ui.overviewChart);$('#p5OverviewChart',host).innerHTML=svgChart(q.vals,q.labels,{line:q.line,invert:q.invert});$('.p5-chart-head b',host).textContent=ui.overviewChart})
+}
+function strengthCut(period){
+ if(period==='ALL')return 0;const months=period==='1M'?1:period==='3M'?3:period==='6M'?6:12,d=new Date();return +new Date(d.getFullYear(),d.getMonth()-months,d.getDate())
+}
+function renderStrength(){
+ const ui=ensure(),root=$('#p5Content'),D=data();if(!root)return;setTabActive('strength');
+ const ids=[...new Set(D.strength.map(x=>x.id))],selected=ids.includes(ui.strengthExerciseId)?ui.strengthExerciseId:(ids[0]||'');ui.strengthExerciseId=selected;
+ root.innerHTML=`<section data-system-screen="strength-progress"><section class="p5-card"><div class="p5-kicker">EXERCISE</div>${ids.length?`<select id="p5StrengthExercise" class="p5-select">${ids.map(id=>`<option value="${esc(id)}" ${selected===id?'selected':''}>${esc(exName(id,D.strength.find(x=>x.id===id)?.name))}</option>`).join('')}</select>`:'<div class="p5-empty">NOT ENOUGH WORKOUT HISTORY YET<br><small>Recorded exercise load is required for strength progress.</small></div>'}</section><div class="p5-periods five">${STRENGTH_PERIODS.map(x=>`<button data-p5-strength-period="${x}" class="${ui.strengthPeriod===x?'active':''}">${x}</button>`).join('')}</div><div id="p5StrengthContent"></div></section>`;
+ if(ids.length)$('#p5StrengthExercise',root).onchange=e=>{ui.strengthExerciseId=e.target.value;save();updateStrength()};
+ $$('[data-p5-strength-period]',root).forEach(b=>b.onclick=()=>{ui.strengthPeriod=b.dataset.p5StrengthPeriod;save();$$('[data-p5-strength-period]',root).forEach(x=>x.classList.toggle('active',x===b));updateStrength()});updateStrength()
+}
+function updateStrength(){
+ const ui=ensure(),host=$('#p5StrengthContent');if(!host)return;const cut=strengthCut(ui.strengthPeriod),all=data().strength.filter(x=>x.id===ui.strengthExerciseId&&x.date>=cut),latest=all.at(-1),first=all[0];
+ if(!latest){host.innerHTML='<div class="p5-empty">NOT ENOUGH WORKOUT HISTORY YET</div>';return}
+ const loadChange=all.length>=2&&first.loadKg?((latest.loadKg-first.loadKg)/first.loadKg*100):null,vol=all.reduce((a,x)=>a+(x.volumeKg||0),0)||null;
+ const oneRm=latest.exactReps&&latest.exactReps<=12?latest.loadKg*(1+latest.exactReps/30):null;
+ const vals=all.slice(-20).map(x=>x.loadKg),labels=all.slice(-20).map(x=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short'}).format(new Date(x.date)));
+ host.innerHTML=`<section class="p5-card"><div class="p5-hero"><div><div class="p5-kicker">CURRENT LOAD</div><strong>${latest.loadKg.toFixed(1)} kg</strong><small>${esc(exName(latest.id,latest.name))}</small></div><span class="p5-change">${loadChange==null?'—':deltaText(loadChange)}</span></div><div class="p5-summary-grid" style="margin-top:10px"><div class="p5-stat"><small>TOTAL RECORDED VOLUME</small><b>${vol?Math.round(vol).toLocaleString()+' kg':'—'}</b></div><div class="p5-stat"><small>ESTIMATED 1RM</small><b>${oneRm?oneRm.toFixed(1)+' kg':'—'}</b><em>${oneRm?'ESTIMATED FROM RECORDED LOAD / REPS':'EXACT REPS REQUIRED'}</em></div></div></section>
+ <section class="p5-chart"><div class="p5-chart-head"><div><small>TREND GRAPH</small><b>WORKING LOAD</b></div><small>${all.length} RECORD${all.length===1?'':'S'}</small></div>${all.length>=2?svgChart(vals,labels,{line:true}):'<div class="p5-empty compact">MORE RECORDED SESSIONS ARE NEEDED FOR A TREND</div>'}</section>
+ <section class="p5-card"><div class="p5-kicker">RECENT HISTORY</div><div class="p5-table-wrap"><table class="p5-table"><thead><tr><th>DATE</th><th>LOAD</th><th>REPS</th><th>SETS</th><th>VOLUME</th></tr></thead><tbody>${all.slice(-20).reverse().map(x=>`<tr><td>${fmtDate(x.date)}</td><td>${x.loadKg.toFixed(1)} kg</td><td>${esc(x.reps??'—')}</td><td>${x.sets??'—'}</td><td>${x.volumeKg?Math.round(x.volumeKg)+' kg':'—'}</td></tr>`).join('')}</tbody></table></div></section>`
+}
+function filterRuns(filter){const rs=data().runs;if(filter==='ALL RUNS')return rs;return rs.filter(x=>x.category===filter)}
+function weekStart(t){const d=new Date(t),dow=(d.getDay()+6)%7;return +new Date(d.getFullYear(),d.getMonth(),d.getDate()-dow)}
+function weeklyRunSeries(runs,count=8){
+ const thisWeek=weekStart(Date.now()),weeks=Array.from({length:count},(_,i)=>thisWeek-(count-1-i)*7*DAY);
+ return{labels:weeks.map(t=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short'}).format(new Date(t))),values:weeks.map(t=>runs.filter(x=>x.date>=t&&x.date<t+7*DAY).reduce((a,x)=>a+x.distanceKm,0)||null)}
+}
+function renderRunning(){
+ const ui=ensure(),root=$('#p5Content');if(!root)return;setTabActive('running');
+ root.innerHTML=`<section data-system-screen="running-progress"><div class="p5-filter-row">${RUN_FILTERS.map(x=>`<button data-p5-run-filter="${x}" class="${ui.runFilter===x?'active':''}">${x}</button>`).join('')}</div><div id="p5RunningContent"></div></section>`;
+ $$('[data-p5-run-filter]',root).forEach(b=>b.onclick=()=>{ui.runFilter=b.dataset.p5RunFilter;save();$$('[data-p5-run-filter]',root).forEach(x=>x.classList.toggle('active',x===b));updateRunning()});updateRunning()
+}
+function updateRunning(){
+ const ui=ensure(),host=$('#p5RunningContent');if(!host)return;const rs=filterRuns(ui.runFilter);
+ if(!rs.length){host.innerHTML='<div class="p5-empty">COMPLETE MORE RUNS TO BUILD A PACE TREND</div>';return}
+ const totalKm=rs.reduce((a,x)=>a+x.distanceKm,0),totalSec=rs.reduce((a,x)=>a+x.seconds,0),longest=Math.max(...rs.map(x=>x.distanceKm)),valid=validPaceRuns(rs),avg=valid.length?valid.reduce((a,x)=>a+x.seconds,0)/valid.reduce((a,x)=>a+x.distanceKm,0):null;
+ const categories=[...new Set(rs.map(x=>x.category))],comparable=ui.runFilter!=='ALL RUNS'||categories.length===1,best=comparable&&valid.length?Math.min(...valid.map(x=>x.avgPace)):null;
+ const wk=weeklyRunSeries(rs),paceRs=valid.slice(-20),paceVals=paceRs.map(x=>x.avgPace),paceLabels=paceRs.map(x=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short'}).format(new Date(x.date)));
+ host.innerHTML=`<section class="p5-card"><div class="p5-kicker">RUNNING</div><div class="p5-run-grid"><div class="p5-stat"><small>RUN COUNT</small><b>${rs.length}</b></div><div class="p5-stat"><small>TOTAL DISTANCE</small><b>${totalKm.toFixed(1)} km</b></div><div class="p5-stat"><small>AVERAGE PACE</small><b>${avg?fmtPace(avg)+' /km':'—'}</b></div><div class="p5-stat"><small>LONGEST RUN</small><b>${longest.toFixed(1)} km</b></div><div class="p5-stat"><small>BEST RECENT PACE</small><b>${best?fmtPace(best)+' /km':'—'}</b><em>${comparable?'COMPARABLE FILTER':'FILTER BY RUN TYPE TO COMPARE'}</em></div><div class="p5-stat"><small>TOTAL DURATION</small><b>${fmtDuration(totalSec)}</b></div></div></section>
+ <section class="p5-chart"><div class="p5-chart-head"><div><small>RUNNING</small><b>WEEKLY DISTANCE</b></div><small>KM</small></div>${svgChart(wk.values,wk.labels,{line:false})}</section>
+ <section class="p5-chart"><div class="p5-chart-head"><div><small>RUNNING</small><b>PACE TREND</b></div><small>VALID COMPLETED RUNS</small></div>${paceRs.length>=2?svgChart(paceVals,paceLabels,{line:true,invert:true}):'<div class="p5-empty compact">COMPLETE MORE VALID RUNS TO BUILD A PACE TREND</div>'}</section>
+ <section class="p5-card"><div class="p5-kicker">RECENT RUNS</div><div class="p5-table-wrap"><table class="p5-table"><thead><tr><th>DATE</th><th>TYPE</th><th>DISTANCE</th><th>PACE</th><th>TIME</th></tr></thead><tbody>${rs.slice(-20).reverse().map(x=>`<tr><td>${fmtDate(x.date)}</td><td>${esc(x.type)}</td><td>${x.distanceKm.toFixed(2)} km</td><td>${x.avgPace?fmtPace(x.avgPace)+'/km':'—'}</td><td>${fmtDuration(x.seconds)}</td></tr>`).join('')}</tbody></table></div></section>`
+}
+function unitFor(type,ui){
+ if(type==='WEIGHT'||type==='LEAN MASS')return ui.weightUnit;if(type==='BODY FAT')return'%';if(type==='WAIST')return ui.weightUnit==='lb'?'in':'cm';if(type==='HEIGHT')return'cm';return''
+}
+function convertBody(value,from,to,type){
+ if(from===to)return value;if((type==='WEIGHT'||type==='LEAN MASS')&&from==='kg'&&to==='lb')return value*2.2046226218;if((type==='WEIGHT'||type==='LEAN MASS')&&from==='lb'&&to==='kg')return value/2.2046226218;
+ if(type==='WAIST'&&from==='cm'&&to==='in')return value/2.54;if(type==='WAIST'&&from==='in'&&to==='cm')return value*2.54;return value
+}
+function bodyTypeRecords(type){
+ const ui=ensure(),unit=unitFor(type,ui);return data().body.filter(x=>x.metricType===type).map(x=>({...x,displayValue:convertBody(+x.value,x.unit,unit,type),displayUnit:unit})).sort((a,b)=>a.date-b.date)
+}
+function renderBody(){
+ const ui=ensure(),root=$('#p5Content');if(!root)return;setTabActive('body');
+ root.innerHTML=`<section data-system-screen="body-metrics"><section class="p5-card"><div class="p5-form-row"><div class="p5-field"><label>METRIC</label><select id="p5BodyType">${BODY_TYPES.map(x=>`<option ${ui.bodyMetric===x?'selected':''}>${x}</option>`).join('')}</select></div><div class="p5-field"><label>WEIGHT / MASS UNIT</label><select id="p5BodyUnit"><option value="kg" ${ui.weightUnit==='kg'?'selected':''}>kg</option><option value="lb" ${ui.weightUnit==='lb'?'selected':''}>lb</option></select></div></div></section><div id="p5BodyContent"></div></section>`;
+ $('#p5BodyType',root).onchange=e=>{ui.bodyMetric=e.target.value;save();updateBody()};$('#p5BodyUnit',root).onchange=e=>{ui.weightUnit=e.target.value;save();updateBody()};updateBody()
+}
+function updateBody(){
+ const ui=ensure(),host=$('#p5BodyContent');if(!host)return;const type=ui.bodyMetric,unit=unitFor(type,ui),rs=bodyTypeRecords(type),latest=rs.at(-1),first=rs[0],change=rs.length>=2?latest.displayValue-first.displayValue:null;
+ const vals=rs.slice(-30).map(x=>x.displayValue),labels=rs.slice(-30).map(x=>new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'short'}).format(new Date(x.date)));
+ host.innerHTML=`<section class="p5-card"><div class="p5-hero"><div><div class="p5-kicker">CURRENT ${esc(type)}</div><strong>${latest?latest.displayValue.toFixed(type==='BODY FAT'?1:1)+' '+unit:'—'}</strong><small>${latest?`${fmtDate(latest.date)} · ${esc(latest.source||'UNKNOWN SOURCE')}`:'NO BODY METRICS RECORDED'}</small></div><span class="p5-change">${change==null?'—':`${change>0?'+':''}${change.toFixed(1)} ${unit}`}</span></div></section>
+ <section class="p5-chart"><div class="p5-chart-head"><div><small>BODY METRICS</small><b>${esc(type)} TREND</b></div><small>${rs.length} RECORD${rs.length===1?'':'S'}</small></div>${rs.length>=2?svgChart(vals,labels,{line:true}):'<div class="p5-empty compact">NO BODY METRICS TREND YET</div>'}</section>
+ <section class="p5-card"><div class="p5-kicker">ADD MANUAL ENTRY</div><div class="p5-form"><div class="p5-form-row"><div class="p5-field"><label>VALUE</label><input id="p5BodyValue" type="number" step="0.1" min="0" placeholder="${unit}"></div><div class="p5-field"><label>DATE</label><input id="p5BodyDate" type="date" value="${new Date().toISOString().slice(0,10)}"></div></div><div class="p5-field"><label>SOURCE</label><input value="MANUAL" disabled></div><button class="p5-primary" id="p5SaveBody">SAVE MANUAL METRIC</button><p class="p5-sub">Body fat and lean mass are stored only when explicitly entered or legitimately imported. They are never estimated from weight alone.</p></div></section>
+ ${rs.length?`<section class="p5-card"><div class="p5-kicker">HISTORY</div><div class="p5-history">${rs.slice(-20).reverse().map(x=>`<div class="p5-history-row"><span><b>${x.displayValue.toFixed(1)} ${unit}</b><small>${fmtDate(x.date)}</small></span><span><b class="p5-source">${esc(x.source||'UNKNOWN')}</b><small>${esc(x.unit)}</small></span></div>`).join('')}</div></section>`:'<div class="p5-empty">NO BODY METRICS RECORDED</div>'}`;
+ $('#p5SaveBody',host).onclick=()=>{const v=num($('#p5BodyValue',host).value),date=$('#p5BodyDate',host).value;if(v==null||v<=0||!date)return;st().bodyMetrics.push({id:'body-'+Date.now(),metricType:type,value:v,unit,dateTime:+new Date(date+'T12:00:00'),source:'MANUAL'});save();invalidate();updateBody()}
+}
+function renderTab(tab){
+ if(!$('#phase5Progress'))shell();if(tab==='strength')renderStrength();else if(tab==='running')renderRunning();else if(tab==='body')renderBody();else renderOverview()
+}
+function openProgress(){ensure();ensureStyles();shell();renderOverview()}
+function patch(){
+ if(!window.PT29)return false;window.PT29.showProgress=openProgress;window.KINETIQProgress={version:'5.0',open:openProgress,getData:data,invalidate,periodSummary,strengthRecords,runRecords,bodyRecords};if(window.KINETIQSystem)window.KINETIQSystem.openProgress=openProgress;return true
+}
+function install(){ensure();ensureStyles();if(!patch()){setTimeout(install,120);return}document.documentElement.dataset.kinetiqPhase5='ready'}
+install();
+})();
