@@ -2030,3 +2030,258 @@ Do not create additional primary-navigation destinations.
 Primary navigation remains:
 
 **TODAY · JOURNEY · COACH · RUN · MORE**
+
+
+---
+
+# 23. COACH FLEXIBILITY FINAL ADDENDUM — USER INTENT, ENVIRONMENT & MISSED SESSIONS
+
+This section is authoritative for V4 Coach behavior.
+
+## A. User Intent First
+
+The canonical Coach follows this priority:
+
+**USER INTENT FIRST → PLAN INTEGRITY SECOND**
+
+Coach should follow the user's requested change wherever feasible.
+
+If the request creates an important conflict involving:
+
+- safety
+- recovery
+- session spacing
+- event preparation
+- weekly load
+- primary-goal progression
+
+Coach must:
+
+1. explicitly acknowledge the requested change
+2. explain the conflict
+3. explain why it matters
+4. propose an alternative
+
+Coach must never silently ignore or override the user's request.
+
+No plan mutation occurs until the user presses **APPLY**.
+
+## B. Train Somewhere Else
+
+Coach must support temporary environment changes such as:
+
+- "I can't go to the gym today."
+- "Give me a home workout."
+- "I only have dumbbells."
+- "I have no equipment."
+- "I'm at a hotel."
+- "I have resistance bands only."
+
+Coach starts from the existing canonical Today prescription and converts it to the available environment while preserving the original training purpose as closely as possible.
+
+Example:
+
+**BEFORE**
+
+Marathon Strength  
+42 min  
+Gym  
+6 exercises
+
+**USER REQUEST**
+
+"I only have 30 minutes, I'm at home and I have dumbbells and a band."
+
+**PROPOSED**
+
+Home Marathon Strength  
+30 min  
+Dumbbells + band  
+5 exercises
+
+Preserve where feasible:
+
+- primary goal
+- session purpose
+- muscle / movement objectives
+- safety constraints
+- future important sessions
+
+Default scope:
+
+**TODAY ONLY**
+
+## C. Equipment-Aware Substitution
+
+Coach must understand the currently available equipment context.
+
+Supported contexts include:
+
+- FULL GYM
+- HOME GYM
+- DUMBBELLS
+- RESISTANCE BANDS
+- BODYWEIGHT
+- HOTEL / LIMITED EQUIPMENT
+- CUSTOM EQUIPMENT
+
+Coach may propose exercise replacements that fit the current environment.
+
+The user must review substitutions before APPLY.
+
+Substitution must preserve training intent where feasible and continue to respect:
+
+- current safety state
+- exercise tolerance
+- known restrictions
+- session purpose
+- goal relevance
+
+## D. Missed Workout Handling
+
+A missed session must **not** be automatically moved.
+
+The user controls what happens next.
+
+Valid requests include:
+
+- "I missed yesterday. Move it to tomorrow."
+- "I missed yesterday. Skip it."
+- "Fit yesterday's run somewhere this week."
+- "Don't move my long run."
+- "I missed two sessions. Reduce this week."
+- "Continue normally from today."
+
+Coach evaluates:
+
+- today's prescription
+- missed-session purpose
+- upcoming sessions
+- recovery requirements
+- spacing
+- primary goal
+- current training block
+
+Then Coach shows a proposal.
+
+No automatic missed-workout reschedule is permitted unless the user explicitly requests a move or redistribution.
+
+## E. Explicit User Wishes / Constraints
+
+Coach must honor explicit user constraints where feasible.
+
+Examples:
+
+- **KEEP FRIDAY INTERVALS**
+- **DON'T MOVE THE LONG RUN**
+- **SKIP THE MISSED SESSION**
+- **MOVE STRENGTH TO SATURDAY**
+- **MAKE TODAY 25 MINUTES**
+- **HOME ONLY TODAY**
+- **NO LEG WORK TODAY**
+- **KEEP THE REST OF THE WEEK UNCHANGED**
+
+These constraints must appear in:
+
+**WHAT I UNDERSTOOD**
+
+and must be reflected in the proposal.
+
+Coach must not claim a constraint was preserved if the proposed plan actually changes it.
+
+## F. Protected Context
+
+Coach should explicitly identify important context that remains unchanged.
+
+Use:
+
+**WHAT STAYS PROTECTED**
+
+Examples:
+
+- Athens Marathon goal
+- Friday quality session
+- Sunday long run
+- weekly progression
+
+This makes the consequence and boundaries of the proposed change visible.
+
+## G. Conflict Handling
+
+If the exact requested change conflicts materially with the current plan, Coach must not simply reject it.
+
+The conflict flow is:
+
+### WHAT YOU ASKED
+
+State the user's requested change.
+
+### CONFLICT
+
+Identify the plan conflict.
+
+### WHY IT MATTERS
+
+Explain the consequence concisely.
+
+### SAFER / BETTER ALTERNATIVE
+
+Present a revised recommendation.
+
+Actions:
+
+- **KEEP CURRENT**
+- **APPLY RECOMMENDED CHANGE**
+
+Where appropriate, and only within acceptable product safety boundaries, Coach may also permit the user's requested version after a clear non-medical warning.
+
+Coach must not diagnose.
+
+## H. Change Scopes
+
+Preserve the canonical scopes:
+
+- TODAY ONLY
+- THIS WEEK
+- CURRENT BLOCK
+- PRIMARY GOAL
+
+Home-workout conversion defaults to:
+
+**TODAY ONLY**
+
+Missed-workout changes may affect:
+
+- TODAY ONLY
+- THIS WEEK
+
+depending on the user's request.
+
+Coach must always display the scope before APPLY.
+
+## I. Canonical Plan Rule After Apply
+
+After **APPLY**:
+
+1. update the canonical affected plan scope
+2. regenerate the affected canonical Today prescription
+3. update Journey if the plan structure changed
+4. preserve all completed history
+5. record the Coach-originated change
+6. do not create a duplicate parallel plan
+
+Today, Journey, Coach, Run, and Safe Workout must continue to read the same canonical plan / Today prescription after the change.
+
+## J. Flexibility Acceptance Contract
+
+The Coach behavior is accepted only if all of the following are true:
+
+- user intent is explicitly acknowledged
+- requested constraints are visible
+- environment changes can be converted into an appropriate session proposal
+- substitutions are equipment-aware
+- missed sessions are never silently rescheduled
+- protected future sessions are visible when relevant
+- conflicts are explained rather than silently overridden
+- no change is applied before user confirmation
+- APPLY updates the canonical plan rather than creating a competing plan
