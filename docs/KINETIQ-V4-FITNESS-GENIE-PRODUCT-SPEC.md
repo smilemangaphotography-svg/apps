@@ -1559,3 +1559,474 @@ The refined pre-workout presentation additionally requires:
 - clear MOTION labeling for dynamic exercises
 - clear GUIDE labeling where still-guide media is appropriate
 - no implication that every exercise requires animation
+
+
+---
+
+# 22. FINAL PRODUCT LOCK — PROFILES, SMART IMPORT, STARTUP & SUPPORTING SYSTEMS
+
+This section completes the KINETIQ V4 core product definition before technical architecture.
+
+## A. Multi-Profile Manager Contract
+
+KINETIQ V4 supports multiple athlete profiles.
+
+Only **one profile is active at a time**.
+
+Required capabilities:
+
+- **CREATE NEW PROFILE**
+- **SWITCH PROFILE**
+- **EDIT PROFILE**
+- **DUPLICATE PROFILE**
+- **DELETE PROFILE**
+
+Delete requires explicit confirmation.
+
+Each profile owns an independent canonical context, including:
+
+- Primary Goal
+- event / exact target date
+- secondary goals
+- training plan
+- canonical Today prescription
+- workout history
+- run history
+- recovery history
+- progress history
+- body metrics
+- exercise tolerance
+- equipment
+- preferences
+
+Histories and planning state must never be mixed between profiles.
+
+Switching the active profile must immediately switch the active context used by:
+
+- Goal Engine
+- Journey
+- Today
+- Coach
+- Run Coach
+- Safe Workout
+- Recovery
+- Progress
+
+## B. New Profile From Scratch
+
+A user must be able to create a complete new profile.
+
+Core profile fields include:
+
+- Name
+- Date of birth / age
+- Height
+- Weight
+- Sex, optional where relevant
+- Experience
+- Primary Goal
+- Target event / outcome
+- Exact target date
+- Secondary goals
+- Current fitness / baseline
+- Running level
+- Training days available
+- Normal session duration
+- Available equipment
+- Preferred units
+- Health considerations
+- User / clinician-provided restrictions
+
+The initial setup must remain concise.
+
+Advanced information must not block a user from beginning normal use if it is not yet required.
+
+The minimum viable first-run profile should collect only the information necessary to create a safe initial Goal Engine context and Today prescription.
+
+## C. Profile → Goal Engine Authority
+
+The active profile is the authoritative user context for V4.
+
+All major product surfaces must read the currently active profile and must not cache conflicting profile-specific state.
+
+Profile switching must not duplicate, merge, or overwrite another athlete's:
+
+- plans
+- prescriptions
+- histories
+- tolerances
+- body metrics
+- recovery state
+- goals
+
+## D. Smart Exercise Import
+
+Location:
+
+**MORE → EXERCISE GALLERY → ADD EXERCISE**
+
+The user may:
+
+- take a photo
+- upload one image
+- upload several explanatory images
+
+KINETIQ may analyze submitted images and suggest:
+
+- exercise name
+- category
+- target muscles
+- equipment
+- movement type
+- media type
+- goal relevance
+
+Movement-type suggestions may include:
+
+- Dynamic
+- Isometric
+- Mobility
+- Rehab
+- Running Drill
+
+Image analysis is classification assistance, not medical safety assessment.
+
+## E. User Confirmation Required for AI Classification
+
+AI classification is always a suggestion.
+
+Before saving, show a review state such as:
+
+**I FOUND:**
+
+**Exercise:** 45° Leg Press  
+**Category:** Lower Body → Strength  
+**Target:** Quads / Glutes  
+**Equipment:** Leg Press Machine  
+**Media:** GUIDE IMAGE
+
+Actions:
+
+- **EDIT**
+- **ADD TO GALLERY**
+
+The user may change every suggested field before saving.
+
+No image-classification result is silently committed to the Exercise Gallery.
+
+## F. Smart Import Safety Separation
+
+The image/classification system may identify:
+
+- likely movement
+- likely equipment
+- likely target muscles
+- likely category
+- likely movement type
+- likely media mode
+
+It must **not** independently assign:
+
+- GREEN
+- AMBER
+- RED
+
+It must not diagnose whether an exercise is medically safe.
+
+Today's safety state comes from the separate Safety / Adaptation Engine using:
+
+- active profile
+- current symptoms
+- recovery state
+- exercise tolerance
+- restrictions
+- recent response
+- program context
+
+## G. Custom Exercise Editing
+
+A custom exercise must remain editable after import.
+
+Editable fields include:
+
+- exercise name
+- images
+- category
+- target muscles
+- equipment
+- dynamic / isometric / mobility / rehab type
+- sets
+- reps
+- hold duration
+- rest
+- instructions
+- technique cues
+- notes
+
+Custom-exercise edits must not rewrite unrelated historical workout records.
+
+## H. Exercise Gallery Final Contract
+
+Exercise Gallery remains a supporting V4 system under **MORE**.
+
+Required categories:
+
+- STRENGTH
+- RUNNING SUPPORT
+- KNEE-SAFE
+- REHAB / ISOMETRICS
+- MOBILITY
+- CORE
+- UPPER BODY
+- LOWER BODY
+- CUSTOM
+
+Cards should identify, where relevant:
+
+- MOTION or GUIDE
+- category
+- target area
+- equipment
+- goal relevance
+- Today's safety state
+
+The Gallery remains discoverable and usable for Coach-driven substitutions, but it is not a primary-navigation destination.
+
+## I. Exercise Media Final Lock
+
+### Dynamic Exercises
+
+Use existing animated motion / anatomy where available.
+
+The main Motion view must be:
+
+- full-frame
+- maximum useful frame utilization
+- correct aspect ratio
+- full body visible where relevant
+- full machine / equipment visible where relevant
+- free of important head / hand / foot / equipment clipping
+- active-muscle highlighting preserved
+- technique cues preserved
+- exercise-to-motion mapping preserved
+
+Optional:
+
+- tap to expand to a focused full-screen Motion view
+
+### Isometric / Rehab Exercises
+
+Use still explanatory GUIDE media where animation adds little value.
+
+GUIDE detail may show:
+
+- starting position
+- body alignment
+- joint position
+- pressure direction
+- hold duration
+- sets
+- what to feel
+- what to avoid
+- symptom guidance
+
+Example:
+
+**QUAD ISOMETRIC**
+
+**3 × 20–30 SEC**
+
+**HOW TO DO IT**  
+Press the knee toward the support and contract the quadriceps.
+
+**WHAT TO FEEL**  
+Quadriceps working.
+
+**AVOID**  
+Sharp or increasing knee pain.
+
+Static holds must not be forced into animation merely for visual consistency.
+
+## J. Better Option Final Lock
+
+AMBER and RED exercises must provide immediate access to:
+
+**BETTER OPTION →**
+
+The substitution preview must show:
+
+**CURRENT → RECOMMENDED**
+
+plus:
+
+**WHY**
+
+Example:
+
+**45° LEG PRESS**  
+→  
+**SUPPORTED STEP-UP**
+
+Actions:
+
+- **KEEP CURRENT**
+- **USE BETTER OPTION**
+
+The user must not need to manually search the Exercise Gallery for a normal substitution flow.
+
+The replacement should preserve the intended training purpose where possible.
+
+## K. Adjust Workout Final Lock
+
+**ADJUST WORKOUT ✦** supports:
+
+- replace exercise
+- remove exercise
+- reorder exercises
+- shorten workout
+- change equipment
+- change available time
+
+These controls live in an explicit edit / adjust mode and do not clutter the normal Safe Workout prescription screen.
+
+## L. Today Strength Preview Final Lock
+
+When Today's Best Move is strength-based, Today uses a compact preview:
+
+**MARATHON STRENGTH**
+
+42 MIN  
+6 EXERCISES
+
+**5 GOOD TODAY**  
+**1 MODIFY TODAY**
+
+Actions:
+
+- **START SESSION**
+- **VIEW EXERCISES**
+
+Today remains a simple decision surface rather than becoming the full workout page.
+
+## M. Android Launcher Icon Contract
+
+KINETIQ V4 must ship with a real Android launcher icon.
+
+Use the approved KINETIQ symbolic motion / athlete logo.
+
+Do not replace it with:
+
+- generic K
+- dumbbell
+- running shoe
+- generic fitness symbol
+
+Support Android adaptive and round icon behavior with proper safe-area treatment.
+
+## N. Splash / Startup Contract
+
+### Returning User
+
+Normal startup is:
+
+**LAUNCHER ICON → SHORT KINETIQ SPLASH → TODAY**
+
+No cover screen blocks normal daily use.
+
+No repeated onboarding.
+
+No configuration step appears before Today.
+
+### First Install / No Profile
+
+First-run startup is:
+
+**LAUNCHER → KINETIQ SPLASH → CREATE PROFILE → SET PRIMARY GOAL → MINIMAL ONBOARDING → TODAY**
+
+Do not force the full advanced profile form before first useful use.
+
+Advanced profile information may be completed later.
+
+### Multiple Profiles
+
+If multiple profiles exist:
+
+- remember the last active profile
+- launch directly into that profile's Today
+- do not show a profile chooser on every launch
+
+Profile switching belongs in:
+
+**MORE → PROFILE MANAGER**
+
+## O. Canonical App Home Contract
+
+The canonical V4 home screen is:
+
+**TODAY**
+
+It is not:
+
+- Cover
+- Dashboard
+- Builder
+- Plan
+- Exercise Library
+
+Returning-user path:
+
+**APP ICON → SPLASH → TODAY**
+
+## P. Active Workout Final Contract
+
+After **START WORKOUT**:
+
+- hide standard five-tab navigation
+- switch to focused workout execution mode
+
+Dynamic exercise execution uses:
+
+**FULL-FRAME ANIMATED MOTION**
+
+Isometric / rehab execution uses:
+
+**FULL-FRAME STILL GUIDE**
+
+Preserve:
+
+- sets
+- reps
+- hold duration
+- load
+- rest
+- current set
+- next exercise
+- voice cues
+- workout persistence
+- workout summary
+
+## Q. Final Core Product Freeze
+
+The V4 core product definition consists of exactly five primary product surfaces:
+
+1. TODAY
+2. JOURNEY
+3. COACH
+4. RUN LIVE
+5. SAFE WORKOUT
+
+Supporting systems include:
+
+- PROFILE MANAGER
+- EXERCISE GALLERY
+- SMART EXERCISE IMPORT
+- RECOVERY
+- PROGRESS
+- GARMIN
+- SETTINGS
+
+Do not create additional primary-navigation destinations.
+
+Primary navigation remains:
+
+**TODAY · JOURNEY · COACH · RUN · MORE**
