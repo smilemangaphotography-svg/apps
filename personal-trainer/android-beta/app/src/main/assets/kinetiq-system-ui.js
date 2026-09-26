@@ -601,8 +601,8 @@ window.KINETIQDeviceBridge={
  onError(message){const d=deviceStore();d.garminState='ERROR';d.syncState='ERROR';d.error=String(message||'Device error');saveState();if(!$('#sheet')?.classList.contains('hidden')&&$('#sheet')?.classList.contains('system-device-surface'))openDevices()}
 };
 function renderSystemMore(){
- const root=$('#pageMore');if(!root)return;root.innerHTML=`<div class="system-page system-more-list" data-system-screen="more"><div class="more-head"><small>KINETIQ SYSTEM</small><h1>More</h1></div><div class="more-section"><button data-system-more="profile"><span>◎</span><div><b>Profile</b><small>Goals, experience and athlete profile</small></div><em>›</em></button><button data-system-more="goals"><span>⌁</span><div><b>Goals & Preferences</b><small>Training priorities and schedule</small></div><em>›</em></button><button data-system-more="equipment"><span>▦</span><div><b>Equipment</b><small>Available gym and home equipment</small></div><em>›</em></button><button data-system-more="fuel"><span>◫</span><div><b>Nutrition / Fuel</b><small>Food profile and training fuel</small></div><em>›</em></button></div><div class="more-section"><button data-system-more="recover"><span>♡</span><div><b>Recovery</b><small>Readiness, tolerance and progression</small></div><em>›</em></button><button data-system-more="progress"><span>▥</span><div><b>Progress</b><small>Strength and running trends</small></div><em>›</em></button><button data-system-more="devices"><span>⌁</span><div><b>Devices & Garmin</b><small>GPS, live metrics and sync status</small></div><em>›</em></button><button data-system-more="voice"><span>◖</span><div><b>Voice Coach</b><small>Workout and running cues</small></div><em>›</em></button></div><div class="more-section"><button data-system-more="appearance"><span>◐</span><div><b>Appearance</b><small>KINETIQ visual preferences</small></div><em>›</em></button><button data-system-more="privacy"><span>◇</span><div><b>Data & Privacy</b><small>Local data and connected sources</small></div><em>›</em></button><button data-system-more="help"><span>?</span><div><b>Help & Support</b><small>About KINETIQ System Beta</small></div><em>›</em></button></div><div class="system-build-marker">SYSTEM UI BUILD <span id="systemBuildId">${esc(window.__KINETIQ_BUILD_ID__||'DEV')}</span></div></div>`;
- $$('[data-system-more]',root).forEach(b=>b.onclick=()=>{const k=b.dataset.systemMore;if(k==='profile')window.PT29?.showProfile?.();if(k==='goals'||k==='equipment')window.showBuilder?.(k==='goals'?0:2);if(k==='fuel')infoSheet('Nutrition / Fuel','Nutrition remains part of the KINETIQ profile. This System Beta keeps nutrition separate from device and running metrics.');if(k==='recover')window.PT29?.showRecover?.();if(k==='progress')window.PT29?.showProgress?.();if(k==='devices')openDevices();if(k==='voice')infoSheet('Voice Coach','Voice coaching is used only during an active workout or active run when enabled.');if(k==='appearance')infoSheet('Appearance','KINETIQ System Beta uses the approved deep-green / cream / lime visual system.');if(k==='privacy')infoSheet('Data & Privacy','Workout and plan state are stored locally in this beta. External metrics are shown only when supplied by an authorized native integration.');if(k==='help')infoSheet('Help & Support','KINETIQ System Beta · internal verification build.')})
+ const p6=window.KINETIQPhase6;if(p6?.renderMore)return p6.renderMore();
+ const root=$('#pageMore');if(root)root.innerHTML='<div class="system-page"><p>KINETIQ Settings is initializing…</p></div>'
 }
 function wireAPI(){
  const api=window.ILIA_V7;if(!api)return;api.openAI=openAI;api.fillAI=fillAI;api.askAI=askAI;api.sendAI=applyAI;api.cancelAI=keepCurrent;api.applyAI=applySelectedAI;
@@ -1237,5 +1237,312 @@ function patch(){
  if(!window.PT29)return false;window.PT29.showProgress=openProgress;window.KINETIQProgress={version:'5.0',open:openProgress,getData:data,invalidate,periodSummary,strengthRecords,runRecords,bodyRecords};if(window.KINETIQSystem)window.KINETIQSystem.openProgress=openProgress;return true
 }
 function install(){ensure();ensureStyles();if(!patch()){setTimeout(install,120);return}document.documentElement.dataset.kinetiqPhase5='ready'}
+install();
+})();
+
+
+;(function phase6Installer(){
+'use strict';
+const MARK='KINETIQ_PHASE6_DEVICES_SETTINGS_VOICE';
+if(window.__KINETIQ_PHASE6__)return;
+window.__KINETIQ_PHASE6__=MARK;
+const $=(q,r=document)=>r.querySelector(q), $$=(q,r=document)=>Array.from(r.querySelectorAll(q));
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const st=()=>window.S||{};
+const save=()=>{try{window.save?.()}catch(_){try{localStorage.setItem('personalTrainer.beta2',JSON.stringify(st()))}catch(__){}}};
+const GOALS=['Build Muscle','Get Stronger','Lose Fat','Get Fit','Improve Health','Athletic Performance','Injury Recovery / Rehab','Running / Endurance','Custom Goal'];
+const EQUIPMENT=['Full Gym','Dumbbells + Bench','Bodyweight','Machines / Cables','Custom'];
+const FONTS=['Inter','Poppins','Montserrat','Roboto','Open Sans'];
+const DEVICE_STATES=['NOT CONNECTED','PERMISSION REQUIRED','CONNECTING','CONNECTED','SYNCING','SYNC COMPLETE','DATA UNAVAILABLE','ERROR'];
+let completionLast={text:'',at:0};
+
+function ensureVoice(){
+ const s=st(),old=s.voiceCoach||{};
+ s.voiceCoach=Object.assign({
+  enabled:true,voiceName:'',style:'NORMAL',volume:1,rate:1.02,
+  workoutCues:true,runningCues:true,techniqueCues:true,setRestAlerts:true,paceCues:true,
+  silentOutsideActiveSession:true,frequency:'Normal',countdown:true,cues:true
+ },old);
+ const v=s.voiceCoach;
+ if(typeof v.techniqueCues!=='boolean')v.techniqueCues=v.cues!==false;
+ if(typeof v.setRestAlerts!=='boolean')v.setRestAlerts=v.countdown!==false;
+ if(typeof v.workoutCues!=='boolean')v.workoutCues=true;
+ if(typeof v.runningCues!=='boolean')v.runningCues=true;
+ if(typeof v.paceCues!=='boolean')v.paceCues=true;
+ v.silentOutsideActiveSession=true;
+ if(!['CALM','NORMAL','DIRECT'].includes(String(v.style).toUpperCase()))v.style='NORMAL';
+ v.style=String(v.style).toUpperCase();
+ v.cues=v.techniqueCues!==false;
+ v.countdown=v.setRestAlerts!==false;
+ return v
+}
+function styleRate(style){return style==='CALM'?0.90:style==='DIRECT'?1.12:1.02}
+function voiceCaps(){
+ const out={native:false,available:false,voices:[],error:''};
+ try{
+  out.native=!!window.PTNative?.speak;
+  if(!out.native){out.error='Native Android text-to-speech is unavailable.';return out}
+  const raw=window.PTNative?.getTtsVoices?.();
+  const voices=raw?(typeof raw==='string'?JSON.parse(raw):raw):[];
+  out.voices=Array.isArray(voices)?voices.filter(x=>x&&x.name):[];
+  out.available=out.voices.length>0;
+  if(!out.available)out.error='Android TTS has no available English voice yet.';
+ }catch(_){out.error='Android TTS capability could not be read.'}
+ return out
+}
+function applyVoice(){
+ const v=ensureVoice();v.rate=styleRate(v.style);v.silentOutsideActiveSession=true;v.cues=v.techniqueCues!==false;v.countdown=v.setRestAlerts!==false;save();
+ try{window.PTNative?.setTtsVolume?.(Number(v.volume)||1)}catch(_){}
+ try{window.PTNative?.setTtsRate?.(Number(v.rate)||1.02)}catch(_){}
+ try{if(v.voiceName)window.PTNative?.setTtsVoice?.(v.voiceName)}catch(_){}
+ try{window.KINETIQVoice?.apply?.()}catch(_){}
+}
+function deviceStore(){
+ const s=st();s.devices=s.devices||{};
+ const d=s.devices;
+ if(!DEVICE_STATES.includes(d.garminState))d.garminState='NOT CONNECTED';
+ if(!DEVICE_STATES.includes(d.syncState))d.syncState='NOT CONNECTED';
+ if(!d.lastMetrics||typeof d.lastMetrics!=='object')d.lastMetrics={};
+ if(!Array.isArray(d.activityHistory))d.activityHistory=[];
+ if(typeof d.dataAvailable!=='boolean')d.dataAvailable=false;
+ if(!('lastSync'in d))d.lastSync=null;
+ if(!('error'in d))d.error='';
+ return d
+}
+function readCaps(){
+ const d=deviceStore();let c=null;
+ try{const raw=window.PTNative?.getDeviceCapabilities?.();if(raw)c=typeof raw==='string'?JSON.parse(raw):raw}catch(_){}
+ if(!c||typeof c!=='object')c={
+  phoneGpsPermission:!!window.PTNative?.hasLocationPermission?.(),
+  garminConnectInstalled:false,healthConnectAvailable:false,healthPermissionsGranted:false,
+  garminDataBridge:false,externalSensorBridge:false
+ };
+ d.capabilities=c;return c
+}
+function garminState(){
+ const d=deviceStore(),c=readCaps(),x=String(d.garminState||'').toUpperCase();
+ if(x==='ERROR'||x==='CONNECTING'||x==='SYNCING'||x==='SYNC COMPLETE'||x==='DATA UNAVAILABLE')return x;
+ if(!c.garminConnectInstalled)return'NOT CONNECTED';
+ if(!c.healthConnectAvailable)return'DATA UNAVAILABLE';
+ if(!c.healthPermissionsGranted)return'PERMISSION REQUIRED';
+ return'CONNECTED'
+}
+function hcState(c=readCaps()){return !c.healthConnectAvailable?'DATA UNAVAILABLE':!c.healthPermissionsGranted?'PERMISSION REQUIRED':'CONNECTED'}
+function gpsState(c=readCaps()){return c.phoneGpsPermission?'CONNECTED':'PERMISSION REQUIRED'}
+function fmtPace(sec){sec=+sec;if(!sec||!Number.isFinite(sec)||sec<60||sec>1800)return'—';let m=Math.floor(sec/60),s=Math.round(sec%60);if(s===60){m++;s=0}return m+':'+String(s).padStart(2,'0')+' /km'}
+function fmtDuration(sec){sec=+sec;if(!Number.isFinite(sec)||sec<=0)return'—';const h=Math.floor(sec/3600),m=Math.round((sec%3600)/60);return h?h+'h '+m+'m':m+' min'}
+function fmtDate(v){const t=Date.parse(v)||+v;if(!t||!Number.isFinite(t))return'—';try{return new Date(t).toLocaleString()}catch(_){return'—'}}
+function stateClass(v){return String(v).toLowerCase().replace(/\s+/g,'-')}
+
+function ensureStyles(){
+ if($('#phase6Styles'))return;
+ const x=document.createElement('style');x.id='phase6Styles';x.textContent=`
+ .p6-overlay{position:fixed;inset:0;z-index:3100;background:#07150e;color:#edf2eb;overflow:auto;overscroll-behavior:contain}
+ .p6-safe{max-width:760px;min-height:100%;margin:auto;padding:calc(12px + env(safe-area-inset-top)) 12px calc(108px + env(safe-area-inset-bottom));box-sizing:border-box}
+ .p6-head{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px;margin-bottom:12px}.p6-back{width:42px;height:42px;border:0;border-radius:13px;background:#17281e;color:#edf2eb;font-size:28px}.p6-head small,.p6-kicker{font-size:8px;letter-spacing:.12em;font-weight:900;color:#9aa89e}.p6-head h1{margin:2px 0 0;font-size:25px}
+ .p6-card{background:#eee9dc;color:#102018;border-radius:20px;padding:15px;margin:10px 0}.p6-card.dark{background:#13251a;color:#edf2eb;border:1px solid rgba(255,255,255,.07)}.p6-card h2,.p6-card h3{margin:3px 0 5px}.p6-note{font-size:9px;line-height:1.5;color:#69756c}.dark .p6-note{color:#a4b0a7}
+ .p6-status-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.p6-status-row b{font-size:21px}.p6-chip{font-size:7px;font-weight:950;padding:8px 10px;border-radius:999px;background:#dfff74;color:#102018;white-space:nowrap}.p6-chip.error,.p6-chip.permission-required{background:#ffd5a1}.p6-chip.data-unavailable,.p6-chip.not-connected{background:#d7d4cb}
+ .p6-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.p6-actions button,.p6-primary,.p6-secondary{min-height:44px;border:0;border-radius:12px;padding:0 13px;font-size:8px;font-weight:950}.p6-primary{background:#102018;color:#dfff74}.dark .p6-primary{background:#dfff74;color:#102018}.p6-secondary,.p6-actions button{background:#dcd7cb;color:#102018}.dark .p6-secondary,.dark .p6-actions button{background:#21352a;color:#edf2eb}.p6-actions button:disabled{opacity:.5}
+ .p6-source{display:grid;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(16,32,24,.1)}.dark .p6-source{border-color:rgba(255,255,255,.08)}.p6-source small{font-size:7px;font-weight:900;letter-spacing:.08em;color:#758078}.p6-source b{font-size:10px;overflow-wrap:anywhere}
+ .p6-metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.p6-metric{background:#dad6ca;border-radius:13px;padding:10px;min-width:0}.p6-metric small{display:block;font-size:7px;font-weight:900;color:#667169;letter-spacing:.06em}.p6-metric b{display:block;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .p6-history{display:grid;gap:7px;margin-top:10px}.p6-history>div{display:grid;grid-template-columns:1fr auto;gap:8px;background:#ddd8cc;border-radius:12px;padding:10px}.p6-history b{font-size:10px}.p6-history small{display:block;font-size:7px;color:#69746c;margin-top:2px}.p6-empty{border:1px dashed rgba(16,32,24,.18);border-radius:14px;padding:18px;text-align:center;font-size:8px;font-weight:850;color:#6f7972}.dark .p6-empty{border-color:rgba(255,255,255,.15);color:#9caaa0}
+ .p6-more{padding:4px 0 calc(116px + env(safe-area-inset-bottom))}.p6-more-head small{font-size:8px;letter-spacing:.14em;font-weight:950;color:#9ba89f}.p6-more-head h1{font-size:30px;margin:2px 0 16px}.p6-section{margin:15px 0}.p6-section>small{display:block;font-size:7px;font-weight:950;letter-spacing:.13em;color:#819087;margin:0 5px 7px}.p6-list{background:#eee9dc;border-radius:18px;overflow:hidden}.p6-list button{width:100%;min-height:62px;border:0;border-bottom:1px solid rgba(16,32,24,.09);background:transparent;color:#102018;display:grid;grid-template-columns:35px 1fr 20px;gap:8px;align-items:center;text-align:left;padding:9px 12px}.p6-list button:last-child{border-bottom:0}.p6-list button>span{width:32px;height:32px;border-radius:10px;background:#d9d5c9;display:grid;place-items:center;font-weight:900}.p6-list b{display:block;font-size:11px}.p6-list small{display:block;font-size:8px;color:#68736b;margin-top:3px}.p6-list em{font-style:normal;font-size:22px}
+ .p6-form{display:grid;gap:10px}.p6-field{display:grid;gap:5px}.p6-field label{font-size:7px;font-weight:950;letter-spacing:.09em;color:#68736b}.p6-field input,.p6-field select{width:100%;min-height:44px;box-sizing:border-box;border:1px solid rgba(16,32,24,.14);border-radius:11px;background:#f8f2e8;color:#102018;padding:8px}.p6-grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.p6-choice{display:flex;flex-wrap:wrap;gap:6px}.p6-choice button{border:1px solid rgba(16,32,24,.12);border-radius:999px;background:#ddd8cc;color:#102018;padding:9px 11px;font-size:8px;font-weight:900}.p6-choice button.active{background:#102018;color:#dfff74}
+ .p6-toggle-list{display:grid;gap:8px}.p6-toggle-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:#dad6ca;border-radius:13px;padding:11px}.p6-toggle-row b{font-size:10px}.p6-toggle-row small{display:block;font-size:7px;color:#68736b;margin-top:2px}.p6-toggle{width:52px;height:29px;border:0;border-radius:999px;background:#9ba39d;padding:3px;display:flex;justify-content:flex-start}.p6-toggle i{display:block;width:23px;height:23px;border-radius:50%;background:#fff}.p6-toggle.on{background:#173326;justify-content:flex-end}.p6-toggle.on i{background:#dfff74}
+ .p6-volume{width:100%;accent-color:#173326}.p6-warning{background:#fde5c5;border-radius:13px;padding:11px;font-size:8px;line-height:1.5;color:#503b25}.p6-danger{background:#6e211c!important;color:#fff!important}.p6-engine{display:flex;justify-content:space-between;align-items:center;gap:8px}.p6-engine strong{font-size:13px}
+ @media(max-width:390px){.p6-safe{padding-left:10px;padding-right:10px}.p6-grid2{grid-template-columns:1fr 1fr}.p6-status-row b{font-size:18px}.p6-metric b{font-size:16px}}
+ `;
+ document.head.appendChild(x)
+}
+function closeSurface(){$('#phase6Surface')?.remove()}
+function surface(title,screen,body){
+ ensureStyles();closeSurface();const ov=document.createElement('section');ov.id='phase6Surface';ov.className='p6-overlay';ov.dataset.systemScreen=screen;
+ ov.innerHTML='<div class="p6-safe"><header class="p6-head"><button class="p6-back" data-p6-back>‹</button><div><small>KINETIQ SYSTEM</small><h1>'+esc(title)+'</h1></div><span></span></header><main>'+body+'</main></div>';
+ document.body.appendChild(ov);$('[data-p6-back]',ov).onclick=closeSurface;return ov
+}
+function toast(msg){try{window.toast?.(msg)}catch(_){}}
+
+function renderMore(){
+ ensureStyles();const root=$('#pageMore');if(!root)return;
+ const sec=(name,rows)=>'<section class="p6-section"><small>'+esc(name)+'</small><div class="p6-list">'+rows.map(r=>'<button data-p6-more="'+r[0]+'"><span>'+r[1]+'</span><div><b>'+esc(r[2])+'</b><small>'+esc(r[3])+'</small></div><em>›</em></button>').join('')+'</div></section>';
+ root.innerHTML='<div class="system-page p6-more" data-system-screen="more-settings"><header class="p6-more-head"><small>KINETIQ SYSTEM</small><h1>More & Settings</h1></header>'+
+  sec('ATHLETE PROFILE',[['profile','◎','Athlete Profile','Name, experience and health context']])+
+  sec('GOALS & PREFERENCES',[['goals','⌁','Goals & Preferences','Training priorities and goals']])+
+  sec('TRAINING SETTINGS',[['training','▣','Training Settings','Days, duration and units'],['equipment','▦','Equipment','Available training setup']])+
+  sec('RUNNING SETTINGS',[['running','↗','Running Settings','Distance, pace, intervals and GPS mode']])+
+  sec('RECOVERY SETTINGS',[['recovery','♡','Recovery Settings','Symptoms, rehab and progression']])+
+  sec('DEVICES & GARMIN',[['devices','⌁','Devices & Garmin','Health Connect, Garmin-origin data and phone GPS']])+
+  sec('VOICE COACH',[['voice','◖','Voice Coach','Workout and running speech cues']])+
+  sec('APPEARANCE',[['appearance','◐','Appearance','Font preference']])+
+  sec('DATA & PRIVACY',[['privacy','◇','Data & Privacy','Local data, permissions and connected sources']])+
+  sec('HELP / ABOUT',[['help','?','Help / About','KINETIQ System Beta information']])+
+  '</div>';
+ $$('[data-p6-more]',root).forEach(b=>b.onclick=()=>openSetting(b.dataset.p6More))
+}
+function openSetting(k){
+ if(k==='profile')return openProfile();
+ if(k==='goals')return openGoals();
+ if(k==='training')return openTraining();
+ if(k==='equipment')return openEquipment();
+ if(k==='running'){closeSurface();try{window.ILIA_V7?.runSettings?.()}catch(_){toast('Running Settings unavailable')}return}
+ if(k==='recovery'){closeSurface();try{window.PT29?.showRecover?.()}catch(_){toast('Recovery Settings unavailable')}return}
+ if(k==='devices')return openDevices();
+ if(k==='voice')return openVoice();
+ if(k==='appearance')return openAppearance();
+ if(k==='privacy')return openPrivacy();
+ if(k==='help')return openHelp()
+}
+function openProfile(){
+ const s=st(),inj=Array.isArray(s.injuries)?s.injuries:[];
+ const ov=surface('Athlete Profile','athlete-profile','<section class="p6-card"><div class="p6-form"><div class="p6-field"><label>NAME</label><input id="p6Name" value="'+esc(s.name||'Athlete')+'"></div><div class="p6-field"><label>EXPERIENCE</label><select id="p6Experience">'+['Beginner','Intermediate','Advanced'].map(x=>'<option '+(s.experience===x?'selected':'')+'>'+x+'</option>').join('')+'</select></div><div class="p6-source"><small>HEALTH CONSIDERATIONS</small><b>'+(inj.length?esc(inj.join(', ')):'None recorded')+'</b></div><button class="p6-primary" id="p6SaveProfile">SAVE PROFILE</button><button class="p6-secondary" id="p6OpenRecovery">OPEN RECOVERY SETTINGS</button></div></section>');
+ $('#p6SaveProfile',ov).onclick=()=>{s.name=($('#p6Name',ov).value||'Athlete').trim()||'Athlete';s.experience=$('#p6Experience',ov).value;save();toast('Profile saved')};
+ $('#p6OpenRecovery',ov).onclick=()=>{closeSurface();window.PT29?.showRecover?.()}
+}
+function openGoals(){
+ const s=st();s.goals=Array.isArray(s.goals)&&s.goals.length?s.goals:['Get Stronger'];
+ const draw=()=>{const ov=surface('Goals & Preferences','goals-preferences','<section class="p6-card"><div class="p6-kicker">TRAINING GOALS</div><div class="p6-choice" id="p6Goals">'+GOALS.map(g=>'<button class="'+(s.goals.includes(g)?'active':'')+'" data-goal="'+esc(g)+'">'+esc(g)+'</button>').join('')+'</div><p class="p6-note">These are the same canonical goals used by your KINETIQ plan.</p><button class="p6-primary" id="p6SaveGoals">SAVE GOALS</button></section>');
+ $$('[data-goal]',ov).forEach(b=>b.onclick=()=>{const g=b.dataset.goal;if(s.goals.includes(g)){if(s.goals.length>1)s.goals=s.goals.filter(x=>x!==g)}else s.goals.push(g);save();draw()});
+ $('#p6SaveGoals',ov).onclick=()=>{save();toast('Goals saved');closeSurface()}};draw()
+}
+function openTraining(){
+ const s=st();s.progressUi=s.progressUi||{};if(!['kg','lb'].includes(s.progressUi.weightUnit))s.progressUi.weightUnit='kg';
+ const ov=surface('Training Settings','training-settings','<section class="p6-card"><div class="p6-form"><div class="p6-grid2"><div class="p6-field"><label>TRAINING DAYS / WEEK</label><select id="p6Days">'+[2,3,4,5,6,7].map(x=>'<option value="'+x+'" '+(+s.days===x?'selected':'')+'>'+x+'</option>').join('')+'</select></div><div class="p6-field"><label>SESSION DURATION</label><select id="p6Minutes">'+[30,45,60,75].map(x=>'<option value="'+x+'" '+(+s.minutes===x?'selected':'')+'>'+x+' min</option>').join('')+'</select></div></div><div class="p6-field"><label>WEIGHT / BODY METRIC UNIT</label><select id="p6Units"><option value="kg" '+(s.progressUi.weightUnit==='kg'?'selected':'')+'>kg</option><option value="lb" '+(s.progressUi.weightUnit==='lb'?'selected':'')+'>lb</option></select></div><p class="p6-note">Running distance and pace remain in km / min·km in this System Beta. The unit selector controls recorded weight/body-metric display only.</p><button class="p6-primary" id="p6SaveTraining">SAVE TRAINING SETTINGS</button></div></section>');
+ $('#p6SaveTraining',ov).onclick=()=>{s.days=+$('#p6Days',ov).value||s.days;s.minutes=+$('#p6Minutes',ov).value||s.minutes;s.schedule=s.schedule||{};s.schedule.sessionLength=s.minutes;s.progressUi.weightUnit=$('#p6Units',ov).value;save();toast('Training settings saved')}
+}
+function openEquipment(){
+ const s=st();if(!EQUIPMENT.includes(s.equipment))s.equipment='Full Gym';
+ const draw=()=>{const ov=surface('Equipment','equipment-settings','<section class="p6-card"><div class="p6-kicker">AVAILABLE EQUIPMENT</div><div class="p6-choice">'+EQUIPMENT.map(x=>'<button data-equip="'+esc(x)+'" class="'+(s.equipment===x?'active':'')+'">'+esc(x)+'</button>').join('')+'</div><p class="p6-note">This updates the canonical equipment profile used by the plan and exercise availability.</p><button class="p6-primary" id="p6SaveEquipment">SAVE EQUIPMENT</button></section>');
+ $$('[data-equip]',ov).forEach(b=>b.onclick=()=>{s.equipment=b.dataset.equip;save();draw()});
+ $('#p6SaveEquipment',ov).onclick=()=>{save();try{window.KINETIQSystem?.afterEquipmentChange?.()}catch(_){}toast('Equipment saved');closeSurface()}};draw()
+}
+function openAppearance(){
+ const s=st();if(!FONTS.includes(s.uiFont))s.uiFont='Inter';
+ const ov=surface('Appearance','appearance-settings','<section class="p6-card"><div class="p6-form"><div class="p6-field"><label>APP FONT</label><select id="p6Font">'+FONTS.map(x=>'<option '+(s.uiFont===x?'selected':'')+'>'+x+'</option>').join('')+'</select></div><p class="p6-note">KINETIQ keeps the approved deep-green / cream / lime system. Only the supported typography preference is exposed here.</p><button class="p6-primary" id="p6SaveAppearance">SAVE APPEARANCE</button></div></section>');
+ $('#p6SaveAppearance',ov).onclick=()=>{s.uiFont=$('#p6Font',ov).value;save();try{window.PT29?.applyFont?.()}catch(_){}toast('Appearance saved')}
+}
+function openPrivacy(){
+ const c=readCaps(),d=deviceStore(),hc=hcState(c),garmin=garminState();
+ const body='<section class="p6-card"><div class="p6-kicker">LOCAL APP DATA</div><h2>Stored on this device</h2><p class="p6-note">KINETIQ stores your profile, plans, workouts, runs, recovery records, body metrics, device sync results and settings in local app storage for this beta.</p></section>'+
+ '<section class="p6-card"><div class="p6-kicker">HEALTH CONNECT PERMISSIONS</div><div class="p6-status-row"><b>'+esc(hc)+'</b><span class="p6-chip '+stateClass(hc)+'">'+esc(hc)+'</span></div><p class="p6-note">Health data is read only after Android permission is granted.</p>'+(c.healthConnectAvailable?'<div class="p6-actions"><button data-p6-hc>MANAGE PERMISSIONS</button></div>':'')+'</section>'+
+ '<section class="p6-card"><div class="p6-kicker">CONNECTED DATA SOURCES</div><div class="p6-source"><small>GARMIN</small><b>'+esc(garmin)+'</b></div><div class="p6-source"><small>SOURCE IDENTIFICATION</small><b>'+esc(c.garminDataSourcePackage||'com.garmin.android.apps.connectmobile')+' via Health Connect</b></div><div class="p6-source"><small>LAST SYNC</small><b>'+(d.lastSync?esc(new Date(d.lastSync).toLocaleString()):'Never')+'</b></div></section>'+
+ '<section class="p6-card"><div class="p6-kicker">RESET</div><p class="p6-warning">Clearing local KINETIQ data removes local plans, workout/run history, recovery entries, body metrics and settings from this app. Health Connect data itself is not deleted.</p><div class="p6-actions"><button class="p6-danger" id="p6ClearData">CLEAR LOCAL APP DATA</button></div></section>';
+ const ov=surface('Data & Privacy','data-privacy',body);
+ $('[data-p6-hc]',ov)?.addEventListener('click',()=>{try{window.PTNative?.openHealthConnectPermissions?.()}catch(_){toast('Health Connect unavailable')}});
+ $('#p6ClearData',ov).onclick=()=>{if(!window.confirm('Clear all local KINETIQ app data? This cannot be undone inside the app.'))return;try{window.KINETIQVoice?.stop?.()}catch(_){}localStorage.clear();location.reload()}
+}
+function openHelp(){
+ surface('Help / About','help-about','<section class="p6-card"><div class="p6-kicker">KINETIQ SYSTEM BETA</div><h2>Adaptive training system</h2><p class="p6-note">This build combines training, running, recovery, progress, devices and voice coaching. Device data is shown only when supplied by the native Android integration and authorized data sources.</p><div class="p6-source"><small>BUILD</small><b>'+esc(window.__KINETIQ_BUILD_ID__||'3.0.3 System Beta')+'</b></div><div class="p6-source"><small>DEVICE DATA POLICY</small><b>No fabricated Garmin metrics</b></div></section>')
+}
+
+function metricRows(m){
+ const rows=[];
+ const add=(label,val)=>{if(val!==null&&val!==undefined&&val!==''&&val!=='—')rows.push([label,val])};
+ if(m.activityTitle)add('ACTIVITY',esc(m.activityTitle));
+ if(Number.isFinite(+m.duration)&&+m.duration>0)add('DURATION',fmtDuration(m.duration));
+ if(Number.isFinite(+m.heartRate)&&+m.heartRate>0)add('HEART RATE',Math.round(+m.heartRate)+' bpm');
+ if(Number.isFinite(+m.averageHeartRate)&&+m.averageHeartRate>0)add('AVG HEART RATE',Math.round(+m.averageHeartRate)+' bpm');
+ if(Number.isFinite(+m.maxHeartRate)&&+m.maxHeartRate>0)add('MAX HEART RATE',Math.round(+m.maxHeartRate)+' bpm');
+ if(Number.isFinite(+m.distance)&&+m.distance>0)add('DISTANCE',Number(m.distance).toFixed(2)+' km');
+ if(Number.isFinite(+m.speed)&&+m.speed>0)add('SPEED',Number(m.speed).toFixed(2)+' m/s');
+ const p=Number.isFinite(+m.averagePace)&&+m.averagePace>0?m.averagePace:(Number.isFinite(+m.pace)&&+m.pace>0?m.pace:null);if(p)add('PACE',fmtPace(p));
+ if(Number.isFinite(+m.cadence)&&+m.cadence>0)add('CADENCE',Math.round(+m.cadence)+' spm');
+ if(Number.isFinite(+m.averageCadence)&&+m.averageCadence>0)add('AVG CADENCE',Math.round(+m.averageCadence)+' spm');
+ return rows
+}
+function openDevices(){
+ const d=deviceStore(),c=readCaps(),g=garminState(),h=hcState(c),gps=gpsState(c),rows=metricRows(d.lastMetrics||{}),history=d.activityHistory||[];
+ const actionsGarmin=[
+  (!c.healthPermissionsGranted&&c.healthConnectAvailable)?'<button data-p6-connect>CONNECT</button>':'',
+  c.healthPermissionsGranted?'<button data-p6-sync '+(d.syncState==='SYNCING'?'disabled':'')+'>'+(d.syncState==='SYNCING'?'SYNCING…':'SYNC NOW')+'</button>':'',
+  '<button data-p6-garmin>OPEN GARMIN CONNECT</button>'
+ ].filter(Boolean).join('');
+ const body=
+ '<section class="p6-card dark"><div class="p6-kicker">DEVICES</div><h2>Connected training sources</h2><p class="p6-note">Phone GPS is independent. Garmin-origin history is accepted only when Health Connect identifies Garmin Connect as the data origin.</p></section>'+
+ '<section class="p6-card"><div class="p6-status-row"><div><div class="p6-kicker">GARMIN</div><b>'+esc(g)+'</b></div><span class="p6-chip '+stateClass(g)+'">'+esc(g)+'</span></div><p class="p6-note">'+(c.garminConnectInstalled?'Garmin Connect is installed. “Connected” here means KINETIQ has permission to read Garmin-origin Health Connect records; it does not claim a direct watch connection.':'Garmin Connect is not detected on this device.')+'</p>'+(d.error?'<p class="p6-warning">'+esc(d.error)+'</p>':'')+'<div class="p6-actions">'+actionsGarmin+'</div></section>'+
+ '<section class="p6-card"><div class="p6-status-row"><div><div class="p6-kicker">HEALTH CONNECT</div><b>'+esc(h)+'</b></div><span class="p6-chip '+stateClass(h)+'">'+esc(h)+'</span></div><div class="p6-source"><small>AVAILABILITY</small><b>'+(c.healthConnectAvailable?'AVAILABLE':'NOT AVAILABLE')+'</b></div><div class="p6-source"><small>READ PERMISSIONS</small><b>'+(c.healthPermissionsGranted?'GRANTED':'NOT GRANTED')+'</b></div>'+(c.healthConnectAvailable?'<div class="p6-actions"><button data-p6-hc>MANAGE PERMISSIONS</button></div>':'')+'</section>'+
+ '<section class="p6-card"><div class="p6-status-row"><div><div class="p6-kicker">PHONE GPS</div><b>'+esc(gps)+'</b></div><span class="p6-chip '+stateClass(gps)+'">'+esc(gps)+'</span></div><p class="p6-note">Used only for live KINETIQ outdoor runs. It is never labeled as Garmin data.</p>'+(!c.phoneGpsPermission?'<div class="p6-actions"><button data-p6-gps>ALLOW PHONE GPS</button></div>':'')+'</section>'+
+ '<section class="p6-card"><div class="p6-kicker">SYNC STATUS</div><div class="p6-source"><small>STATE</small><b>'+esc(d.syncState||g)+'</b></div><div class="p6-source"><small>LAST SYNC</small><b>'+(d.lastSync?esc(new Date(d.lastSync).toLocaleString()):'Never')+'</b></div><div class="p6-source"><small>GARMIN SOURCE IDENTIFICATION</small><b>'+esc(c.garminDataSourcePackage||'com.garmin.android.apps.connectmobile')+' → Health Connect</b></div></section>'+
+ '<section class="p6-card"><div class="p6-kicker">LIVE / RECENT DATA</div><p class="p6-note">The values below are recent Garmin-origin Health Connect activity data, not fabricated live sensor values.</p>'+(rows.length?'<div class="p6-metric-grid">'+rows.map(r=>'<div class="p6-metric"><small>'+r[0]+'</small><b>'+r[1]+'</b></div>').join('')+'</div>':'<div class="p6-empty">NO GARMIN-ORIGIN METRICS AVAILABLE</div>')+'</section>'+
+ '<section class="p6-card"><div class="p6-kicker">RECENT ACTIVITY RECORDS</div>'+(history.length?'<div class="p6-history">'+history.slice(0,8).map(x=>'<div><span><b>'+esc(x.title||'Garmin activity')+'</b><small>'+esc(fmtDate(x.start))+'</small></span><span><b>'+fmtDuration(x.duration)+'</b><small>GARMIN ORIGIN</small></span></div>').join('')+'</div>':'<div class="p6-empty">NO GARMIN-ORIGIN ACTIVITY RECORDS AVAILABLE</div>')+'</section>'+
+ '<section class="p6-card dark"><div class="p6-kicker">SUPPORTED REAL METRICS</div><p class="p6-note">Exercise/activity records, heart rate, distance, speed, pace derived from valid distance/speed, duration and step cadence where Garmin Connect has supplied them to Health Connect.</p><div class="p6-kicker" style="margin-top:12px">NOT SUPPORTED BY THIS BRIDGE</div><p class="p6-note">HRV, Garmin readiness, recovery score, training status, proprietary Garmin metrics, sleep and daily step count are not shown because this native bridge does not currently read them.</p></section>';
+ const ov=surface('Garmin / Devices','devices',body);
+ $('[data-p6-connect]',ov)?.addEventListener('click',connectGarmin);
+ $('[data-p6-sync]',ov)?.addEventListener('click',syncDevices);
+ $('[data-p6-garmin]',ov)?.addEventListener('click',()=>{try{window.PTNative?.openGarminConnect?.()}catch(_){toast('Garmin Connect unavailable')}});
+ $('[data-p6-hc]',ov)?.addEventListener('click',()=>{try{window.PTNative?.openHealthConnectPermissions?.()}catch(_){toast('Health Connect unavailable')}});
+ $('[data-p6-gps]',ov)?.addEventListener('click',()=>{try{window.PTNative?.requestLocationPermission?.()}catch(_){toast('GPS permission unavailable')}setTimeout(()=>{if($('#phase6Surface')?.dataset.systemScreen==='devices')openDevices()},300)})
+}
+function connectGarmin(){
+ const d=deviceStore(),c=readCaps();
+ if(!c.healthConnectAvailable){d.garminState='DATA UNAVAILABLE';d.syncState='DATA UNAVAILABLE';d.error='Health Connect is not available on this Android version.';save();openDevices();return}
+ d.garminState='CONNECTING';d.syncState='CONNECTING';d.error='';save();openDevices();
+ try{window.PTNative?.openHealthConnectPermissions?.()}catch(_){d.garminState='ERROR';d.syncState='ERROR';d.error='Could not open Health Connect permissions.';save();openDevices()}
+}
+function syncDevices(){
+ const d=deviceStore(),c=readCaps();
+ if(!c.healthConnectAvailable){d.garminState='DATA UNAVAILABLE';d.syncState='DATA UNAVAILABLE';d.error='Health Connect unavailable.';save();openDevices();return}
+ if(!c.healthPermissionsGranted){d.garminState='PERMISSION REQUIRED';d.syncState='PERMISSION REQUIRED';d.error='';save();openDevices();return}
+ d.garminState='SYNCING';d.syncState='SYNCING';d.error='';save();openDevices();
+ try{window.PTNative?.syncGarminHealth?.()}catch(_){d.garminState='ERROR';d.syncState='ERROR';d.error='Native Health Connect sync could not start.';save();openDevices()}
+}
+function refreshDeviceSurface(){if($('#phase6Surface')?.dataset.systemScreen==='devices')openDevices()}
+window.KINETIQDeviceBridge={
+ onGarminState(status){const d=deviceStore(),x=String(status||'').toUpperCase();d.garminState=DEVICE_STATES.includes(x)?x:'ERROR';d.syncState=d.garminState;save();refreshDeviceSurface()},
+ onMetrics(payload){let m={};try{m=typeof payload==='string'?JSON.parse(payload):(payload||{})}catch(_){}const d=deviceStore();d.lastMetrics=Object.assign({},d.lastMetrics||{},m,{updatedAt:Date.now()});save()},
+ onSyncComplete(payload){let p={};try{p=typeof payload==='string'?JSON.parse(payload):(payload||{})}catch(_){}const d=deviceStore();d.dataAvailable=!!p.dataAvailable;d.activityHistory=Array.isArray(p.activities)?p.activities:[];d.lastMetrics=p.metrics&&typeof p.metrics==='object'?p.metrics:{};d.unavailableMetrics=p.unavailableMetrics||{};d.source=p.source||'Health Connect · Garmin Connect';d.lastSync=Date.now();d.error='';d.garminState=d.dataAvailable?'SYNC COMPLETE':'DATA UNAVAILABLE';d.syncState=d.garminState;save();refreshDeviceSurface()},
+ onError(message){const d=deviceStore();d.garminState='ERROR';d.syncState='ERROR';d.error=String(message||'Device integration error');save();refreshDeviceSurface()}
+};
+
+function toggleRow(key,label,note){
+ const v=ensureVoice(),on=v[key]!==false;return '<div class="p6-toggle-row"><div><b>'+esc(label)+'</b><small>'+esc(note)+'</small></div><button class="p6-toggle '+(on?'on':'')+'" data-vtoggle="'+key+'" aria-pressed="'+on+'"><i></i></button></div>'
+}
+function openVoice(){
+ const v=ensureVoice(),caps=voiceCaps();if(v.voiceName&&!caps.voices.some(x=>x.name===v.voiceName))v.voiceName='';
+ const engine=caps.available?'AVAILABLE':'UNAVAILABLE';
+ const body='<section class="p6-card"><div class="p6-engine"><div><div class="p6-kicker">VOICE ENGINE</div><strong>ANDROID TEXT-TO-SPEECH</strong></div><span class="p6-chip '+(caps.available?'connected':'data-unavailable')+'">'+engine+'</span></div>'+(caps.error?'<p class="p6-warning">'+esc(caps.error)+'</p>':'')+'</section>'+
+ '<section class="p6-card"><div class="p6-toggle-list">'+toggleRow('enabled','VOICE COACH','Master voice control')+'</div></section>'+
+ '<section class="p6-card"><div class="p6-form"><div class="p6-field"><label>VOICE</label>'+(caps.voices.length?'<select id="p6Voice">'+caps.voices.map(x=>'<option value="'+esc(x.name)+'" '+(v.voiceName===x.name?'selected':'')+'>'+esc((x.locale||'English')+' · '+x.name)+'</option>').join('')+'</select>':'<input value="No selectable native voice available" disabled>')+'</div><div class="p6-field"><label>SPEAKING STYLE</label><div class="p6-choice" id="p6VoiceStyle">'+['CALM','NORMAL','DIRECT'].map(x=>'<button data-style="'+x+'" class="'+(v.style===x?'active':'')+'">'+x+'</button>').join('')+'</div></div><div class="p6-field"><label>VOLUME · '+Math.round((Number(v.volume)||1)*100)+'%</label><input class="p6-volume" id="p6Volume" type="range" min="0.2" max="1" step="0.05" value="'+(Number(v.volume)||1)+'"></div></div></section>'+
+ '<section class="p6-card"><div class="p6-kicker">CUE TYPES</div><div class="p6-toggle-list">'+
+ toggleRow('workoutCues','WORKOUT CUES','Set start, set complete, next exercise and workout complete')+
+ toggleRow('runningCues','RUNNING CUES','Run start, interval/recovery changes and run complete')+
+ toggleRow('techniqueCues','FORM / TECHNIQUE CUES','Exercise coaching cues during an active workout')+
+ toggleRow('setRestAlerts','SET / REST ALERTS','Rest start, countdown and rest ending')+
+ toggleRow('paceCues','PACE CUES','Too fast, on target and too slow cues from the Phase 3 run state')+
+ '</div></section>'+
+ '<section class="p6-card dark"><div class="p6-toggle-row" style="background:#21352a;color:#edf2eb"><div><b>SILENT OUTSIDE ACTIVE SESSION</b><small style="color:#aab5ad">Always enforced. Voice cannot speak randomly elsewhere in KINETIQ.</small></div><button class="p6-toggle on" disabled aria-pressed="true"><i></i></button></div><p class="p6-note">Duplicate cues are suppressed and rapid repeats are rate-limited. Paused runs/workouts do not generate new speech.</p></section>';
+ const ov=surface('Voice Coach','voice-coach',body);
+ $$('[data-vtoggle]',ov).forEach(b=>b.onclick=()=>{const k=b.dataset.vtoggle;v[k]=!(v[k]!==false);if(k==='enabled'&&!v.enabled)try{window.KINETIQVoice?.stop?.()}catch(_){}applyVoice();openVoice()});
+ $$('[data-style]',ov).forEach(b=>b.onclick=()=>{v.style=b.dataset.style;applyVoice();openVoice()});
+ $('#p6Volume',ov)?.addEventListener('change',e=>{v.volume=Math.max(.2,Math.min(1,+e.target.value||1));applyVoice();openVoice()});
+ $('#p6Voice',ov)?.addEventListener('change',e=>{v.voiceName=e.target.value;applyVoice();openVoice()});
+ applyVoice()
+}
+function completionSpeak(kind,text,wasActive){
+ if(!wasActive)return;const v=ensureVoice();if(!v.enabled)return;
+ if(kind==='run'&&v.runningCues===false)return;if(kind==='workout'&&v.workoutCues===false)return;
+ const n=Date.now();if(completionLast.text===text&&n-completionLast.at<4000)return;completionLast={text,at:n};
+ setTimeout(()=>{try{applyVoice();window.PTNative?.speak?.(text)}catch(_){}},100)
+}
+function installCompletionHooks(){
+ if(window.ILIA_V7?.stopRun&&!window.ILIA_V7.stopRun.__p6Voice){
+  const old=window.ILIA_V7.stopRun;
+  const wrapped=function(){const s=st(),was=!!(s.activeRun?.active||s.beta303?.liveRun?.active),out=old.apply(this,arguments);completionSpeak('run','Run complete.',was);return out};wrapped.__p6Voice=true;window.ILIA_V7.stopRun=wrapped
+ }
+ if(typeof window.finishWorkout==='function'&&!window.finishWorkout.__p6Voice){
+  const old=window.finishWorkout;
+  const wrapped=function(){const was=!!st().activeWorkout?.active,out=old.apply(this,arguments);completionSpeak('workout','Workout complete.',was);return out};wrapped.__p6Voice=true;window.finishWorkout=wrapped
+ }
+}
+function patchSystem(){
+ const api=window.KINETIQSystem;if(!api)return false;
+ api.renderMore=renderMore;api.openDevices=openDevices;api.connectGarminHealth=connectGarmin;api.syncDevices=syncDevices;api.openVoice=openVoice;api.openSettings=openSetting;
+ installCompletionHooks();applyVoice();return true
+}
+window.KINETIQPhase6={version:'6.0',renderMore,openSetting,openDevices,connectGarmin,syncDevices,openVoice,openPrivacy,readCaps,voiceCaps,ensureVoice,applyVoice,completionSpeak};
+function install(){
+ ensureStyles();ensureVoice();
+ if(!patchSystem()||!window.KINETIQVoice){setTimeout(install,120);return}
+ installCompletionHooks();document.documentElement.dataset.kinetiqPhase6='ready'
+}
 install();
 })();

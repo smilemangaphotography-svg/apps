@@ -4,7 +4,7 @@ const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.quer
 let currentExerciseId=null,undoTimer=null,undoId=null,planBusy=false,detailBusy=false;
 let leafletPromise=null,map=null,mapHost=null,liveLine=null,guideLine=null,liveMarker=null;
 let routeSlide=0,runPatched=false,locationPatched=false,detailPatched=false,datePatched=false,workoutPatched=false;
-let voiceTimers=[],restVoiceSeen=new Set();
+let voiceTimers=[],restVoiceSeen=new Set(),lastVoiceText='',lastVoiceAt=0;
 
 function S0(){return window.S||null}
 function beta(){
@@ -22,11 +22,15 @@ function beta(){
 }
 function voiceState(){
   const s=S0();if(!s)return null;const b=s.beta303||(s.beta303={});
-  if(!b.voiceUnifiedV1){const old=b.voice||{},home=s.voiceCoach||{},enabled=typeof home.enabled==='boolean'?home.enabled:(typeof old.enabled==='boolean'?old.enabled:true);s.voiceCoach=Object.assign({enabled:true,frequency:'Normal',countdown:true,cues:true,volume:1,rate:1.02,voiceName:''},home,old,{enabled});delete b.voice;b.voiceUnifiedV1=true;persist()}
-  s.voiceCoach=Object.assign({enabled:true,frequency:'Normal',countdown:true,cues:true,volume:1,rate:1.02,voiceName:''},s.voiceCoach||{});return s.voiceCoach;
+  const defaults={enabled:true,frequency:'Normal',countdown:true,cues:true,volume:1,rate:1.02,voiceName:'',style:'NORMAL',workoutCues:true,runningCues:true,techniqueCues:true,setRestAlerts:true,paceCues:true,silentOutsideActiveSession:true};
+  if(!b.voiceUnifiedV1){const old=b.voice||{},home=s.voiceCoach||{},enabled=typeof home.enabled==='boolean'?home.enabled:(typeof old.enabled==='boolean'?old.enabled:true);s.voiceCoach=Object.assign({},defaults,home,old,{enabled});delete b.voice;b.voiceUnifiedV1=true;persist()}
+  s.voiceCoach=Object.assign({},defaults,s.voiceCoach||{});const v=s.voiceCoach;
+  if(typeof v.techniqueCues!=='boolean')v.techniqueCues=v.cues!==false;if(typeof v.setRestAlerts!=='boolean')v.setRestAlerts=v.countdown!==false;
+  v.silentOutsideActiveSession=true;v.cues=v.techniqueCues!==false;v.countdown=v.setRestAlerts!==false;return v;
 }
 function stopNativeVoice(){try{window.PTNative?.stopTts?.()}catch(_){} }
-function voiceContextActive(){const b=beta(),s=S0();return !!(s?.activeWorkout?.active||b?.liveRun?.active)}
+function voiceContext(){const b=beta(),s=S0(),aw=s?.activeWorkout,ar=s?.activeRun,lr=b?.liveRun;const workout=!!(aw?.active&&!aw?.paused),run=!!((ar?.active&&!ar?.paused)||(lr?.active&&!lr?.paused));return{workout,run,any:workout||run}}
+function voiceContextActive(){return voiceContext().any}
 function setVoiceEnabled(on){const v=voiceState();if(!v)return;v.enabled=!!on;if(!v.enabled){clearVoiceTimers();stopNativeVoice()}persist();applyVoiceSettings()}
 function persist(){try{save()}catch(e){}}
 function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
@@ -45,7 +49,26 @@ function setDone(date,id,v){doneMap(date)[id]=!!v;persist()}
 function allSetsDone(date,id,e){const r=rxFor(e),a=setState(date,id,r.sets);return a.length===r.sets&&a.every(Boolean)}
 function syncDoneFromSets(date,id,e){setDone(date,id,allSetsDone(date,id,e))}
 
-function speak(t){const v=voiceState();if(!v?.enabled||!t||!voiceContextActive())return;try{window.PTNative?.speak(String(t))}catch(e){}}
+function voiceCueAllowed(text){
+  const v=voiceState(),ctx=voiceContext(),x=String(text||'').toLowerCase();if(!ctx.any)return false;
+  if(ctx.run){
+    if(v.runningCues===false)return false;
+    const pace=/(above target|below target|on target|increase pace|ease back|hold this pace|too fast|too slow|slightly slow|gradually increase)/.test(x);
+    if(pace&&v.paceCues===false)return false;return true
+  }
+  if(ctx.workout){
+    if(v.workoutCues===false)return false;
+    const setRest=/\b(set|rest|seconds|ready|prepare|start|exercise complete|workout complete)\b/.test(x)||/^(3|2|1)$/.test(x);
+    if(setRest&&v.setRestAlerts===false)return false;
+    if(!setRest&&v.techniqueCues===false)return false;return true
+  }
+  return false
+}
+function speak(t){
+  const v=voiceState(),text=String(t||'').trim();if(!v?.enabled||!text||!voiceCueAllowed(text))return;
+  const now=Date.now(),key=text.toLowerCase();if(key===lastVoiceText&&now-lastVoiceAt<8000)return;if(now-lastVoiceAt<650)return;
+  lastVoiceText=key;lastVoiceAt=now;try{window.PTNative?.speak(text)}catch(e){}
+}
 function clearVoiceTimers(){voiceTimers.forEach(clearTimeout);voiceTimers=[]}
 function queueVoice(lines){
   clearVoiceTimers(); let delay=0;
@@ -67,8 +90,10 @@ function startSetVoice(e,setIndex){
 }
 function applyVoiceSettings(){
   const v=voiceState();if(!v)return;
+  const style=String(v.style||'NORMAL').toUpperCase();v.rate=style==='CALM'?0.90:style==='DIRECT'?1.12:1.02;
   try{window.PTNative?.setTtsVolume?.(Number(v.volume)||1)}catch(e){}
   try{window.PTNative?.setTtsRate?.(Number(v.rate)||1.02)}catch(e){}
+  try{if(v.voiceName)window.PTNative?.setTtsVoice?.(v.voiceName)}catch(e){}
 }
 
 function installCover(){
@@ -446,7 +471,7 @@ function enhanceAll(){installCover();patchDates();patchDetail();patchWorkout();p
 function observe(){return false}
 function init(){
  if(!window.S||!window.PT29||!window.ILIA_V7||!window.ILIA_V73){setTimeout(init,140);return}
- beta();voiceState();window.KINETIQVoice={get:voiceState,setEnabled:setVoiceEnabled,speak:t=>{const v=voiceState();if(v?.enabled&&t&&voiceContextActive())speak(String(t))},stop:()=>{clearVoiceTimers();stopNativeVoice()},active:voiceContextActive};applyVoiceSettings();installSwipeUndo();enhanceAll();
+ beta();voiceState();window.KINETIQVoice={get:voiceState,setEnabled:setVoiceEnabled,speak:t=>speak(String(t||'')),stop:()=>{clearVoiceTimers();stopNativeVoice()},active:voiceContextActive,apply:applyVoiceSettings};applyVoiceSettings();installSwipeUndo();enhanceAll();
  window.KINETIQBeta303={enhancePlan,enhanceDetail,enhanceWorkout,enhanceRunPage,enhanceExistingRest,addRunPoint,saveLiveRoute,refresh:enhanceAll};
  document.documentElement.dataset.kinetiqBeta303='ready';window.__KINETIQ_BETA303__=VERSION;
 }
