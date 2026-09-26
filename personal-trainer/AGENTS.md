@@ -54,6 +54,86 @@ and continue only with safe deterministic non-browser checks if available.
 
 Then STOP.
 
+
+
+### VALIDATION FAILURE DISTINCTION
+
+Treat these categories differently:
+
+**VALIDATION SCRIPT DEFECT**
+
+A parser / syntax defect in the validation script itself, such as a malformed regular expression, missing quote, missing bracket, or other parse/load failure.
+
+Recovery:
+fix that syntax defect once, keep the same validation strategy, then run the same deterministic validation once.
+
+**VALIDATION ENVIRONMENT FAILURE**
+
+An external environment, tool, sandbox, or dependency failure, including:
+
+- Chromium unavailable
+- `file://` blocked
+- browser unavailable
+- Playwright unavailable
+- missing external renderer
+- sandbox restriction
+- unavailable system dependency
+
+For an environment failure:
+
+- do NOT change harness strategy
+- do NOT install or replace browser tooling
+- do NOT switch browsers
+- do NOT switch from `file://` to another browser-loading strategy
+- do NOT retry with a different renderer
+
+Report:
+
+`VALIDATION ENVIRONMENT BLOCKED`
+
+and STOP.
+
+## 4A. VALIDATION SCRIPT PRE-FLIGHT
+
+Before the ONE permitted validation execution:
+
+- syntax-check the validation script itself
+- verify it parses / loads
+- verify required imports / references exist
+
+This pre-flight syntax check does NOT count as a validation execution.
+
+It must NOT execute application assertions.
+
+It exists only to prevent a malformed validation script from consuming the single allowed validation attempt.
+
+## 4B. VALIDATION SCRIPT SYNTAX ERROR RECOVERY
+
+A syntax / parsing error in a Repository-created validation script is NOT a validation environment failure.
+
+It is an immediate task-local validation-script defect.
+
+Examples include:
+
+- JavaScript parser error in the validation file
+- missing quote
+- missing bracket
+- malformed regular expression
+
+If such an error occurs:
+
+1. fix ONLY the syntax / parsing defect
+2. do NOT change validation strategy
+3. do NOT introduce a new harness
+4. do NOT switch to Playwright, Chromium, or another browser strategy
+5. run the same deterministic validation ONCE
+
+This syntax-recovery allowance may be used one time.
+
+The maximum number of actual assertion executions remains bounded by the existing validation rules.
+
+A syntax pre-flight and a one-time syntax-only repair do not authorize additional application assertion runs beyond those limits.
+
 ## 4. ONE DETERMINISTIC VALIDATION
 
 Default maximum:
