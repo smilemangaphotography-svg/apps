@@ -150,6 +150,120 @@ Validation should prefer:
 
 Do NOT use browser automation when the same requirement can be verified statically.
 
+
+## 4C. LOCAL-FIRST VALIDATION
+
+KINETIQ validation MUST use the local checked-out repository whenever possible.
+
+After the initial task audit, validation must NOT repeatedly call:
+
+- GitHub connector
+- GitHub fetch
+- remote file reads
+- remote hash lookups
+- per-file repository tools
+
+for information already available locally.
+
+Prefer:
+
+- `git`
+- local filesystem
+- Node
+- shell
+- static source inspection
+
+A successful local validation is sufficient.
+
+## 4D. ONE-DIFF FROZEN ENGINE PROOF
+
+Do NOT validate frozen engines by fetching or hashing every frozen file.
+
+Use ONE local Git diff as the authoritative proof.
+
+Example principle:
+
+`git diff --name-only <STARTING_HEAD>`
+
+or repository-equivalent including current working-tree changes.
+
+Compare the resulting changed paths against the task's allowed paths.
+
+If no frozen engine path appears:
+
+`FROZEN ENGINE INTEGRITY = PASS`
+
+Do NOT then inspect each frozen file separately.
+
+## 4E. ALLOWED-PATH VALIDATION
+
+Each implementation task should define its allowed changed paths.
+
+Validation must prove:
+
+`CHANGED PATHS ⊆ ALLOWED PATHS`
+
+with one local diff operation.
+
+If an unexpected path appears:
+
+FAIL and report that path.
+
+If expected paths only appear:
+
+PASS.
+
+Do not perform per-file remote verification afterward.
+
+## 4F. TOOL-CALL BUDGET LOCK
+
+After implementation begins, minimize external / connector tool calls.
+
+Validation must not consume connector calls for:
+
+- counting files
+- checking lengths
+- calculating hashes
+- rereading unchanged files
+- proving frozen files unchanged
+- post-pass verification
+
+All such checks should use the local repository.
+
+A successful local validation is sufficient.
+
+## 4G. NO REDUNDANT INTEGRITY CHECKS
+
+Once a local Git diff / allowed-path validation proves frozen engine files are untouched, DO NOT additionally:
+
+- fetch those files
+- hash those files
+- compare their contents
+- inspect their lengths
+- run a second integrity pass
+
+One proof is enough.
+
+## 4H. ASSERTION VALIDATION
+
+A single local validation script may perform many assertions internally.
+
+It should load or read the minimum local files once and check all relevant contracts in memory.
+
+Do NOT turn each assertion into a separate Repository tool call.
+
+## 4I. LOCAL VALIDATION ENVIRONMENT FAILURE
+
+If local Git, local filesystem, or Node required for the declared validation is genuinely unavailable:
+
+report:
+
+`VALIDATION ENVIRONMENT BLOCKED`
+
+and STOP.
+
+Do not switch to remote per-file verification as a fallback.
+
 ## 5. SECOND VALIDATION ONLY FOR CODE FAILURE
 
 A second validation is permitted ONLY when:
