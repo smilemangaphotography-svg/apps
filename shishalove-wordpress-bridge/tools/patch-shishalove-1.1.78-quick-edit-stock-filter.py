@@ -10,10 +10,265 @@ for rel,spec in payload.items():
  lines=data.decode("utf-8").splitlines(keepends=True)
  for i1,i2,text in reversed(spec["ops"]): lines[i1:i2]=text.splitlines(keepends=True)
  p.write_text("".join(lines),encoding="utf-8")
+
+# VISUAL INDEX WORKER ROOT-CAUSE CORRECTION
+# Same Bridge version for live acceptance. Do not bump/package a forward version until acceptance passes.
+pfile=root/"shishalove-app-bridge.php"
+p=pfile.read_text(encoding="utf-8")
+
+def php_function_bounds(text,name):
+ marker="function "+name+"("
+ start=text.find(marker)
+ if start<0: raise SystemExit("missing PHP function: "+name)
+ brace=text.find("{",start)
+ if brace<0: raise SystemExit("missing opening brace: "+name)
+ depth=0
+ quote=None
+ esc=False
+ for i in range(brace,len(text)):
+  ch=text[i]
+  if quote:
+   if esc: esc=False
+   elif ch=="\\": esc=True
+   elif ch==quote: quote=None
+   continue
+  if ch in ("'",'"'): quote=ch; continue
+  if ch=="{": depth+=1
+  elif ch=="}":
+   depth-=1
+   if depth==0: return start,i+1
+ raise SystemExit("unbalanced PHP function: "+name)
+
+def replace_php_function(text,name,new_text):
+ a,b=php_function_bounds(text,name)
+ return text[:a]+new_text+text[b:]
+
+def enclosing_php_function(text,needle):
+ pos=text.find(needle)
+ if pos<0: raise SystemExit("worker marker missing")
+ scan=pos
+ while True:
+  start=text.rfind("function ",0,scan)
+  if start<0: raise SystemExit("worker function not found")
+  m=re.match(r"function\s+([A-Za-z0-9_]+)\s*\(",text[start:])
+  if m:
+   name=m.group(1)
+   a,b=php_function_bounds(text,name)
+   if a<=pos<b: return name
+  scan=start
+
+import re
+
+new_index=r'''function slb_visual_existing_row_178($a){global $wpdb;$table=slb_visual_table_160();return (int)$wpdb->get_var($wpdb->prepare("SELECT id FROM {$table} WHERE product_id=%d AND variation_id=%d AND image_id=%d AND image_role=%s LIMIT 1",(int)$a['product_id'],(int)$a['variation_id'],(int)$a['image_id'],(string)$a['image_role']));}
+function slb_visual_index_one_product_177($product_id){
+    global $wpdb;
+    $product_id=absint($product_id);
+    $p=$product_id?wc_get_product($product_id):null;
+    if(!$p){
+        slb_visual_retry_clear_177($product_id);
+        return array('status'=>'permanent_failed','product_id'=>$product_id,'indexed_images'=>0,'error'=>new WP_Error('visual_product_missing','Product no longer exists.',array('status'=>404)));
+    }
+    if($p->is_type('variation')){$product_id=(int)$p->get_parent_id();$p=wc_get_product($product_id);}
+    $assets=slb_visual_assets_for_product_160($product_id);
+    if(!$assets){
+        slb_visual_clear_failed_product_161($product_id);
+        slb_visual_retry_clear_177($product_id);
+        return array('status'=>'skipped_ineligible','product_id'=>$product_id,'indexed_images'=>0,'inserted_images'=>0,'updated_images'=>0);
+    }
+    $needed=array();$existing=array();
+    foreach($assets as $a){
+        if(!slb_visual_asset_is_current_177($a)){
+            $needed[]=$a;
+            $existing[]=slb_visual_existing_row_178($a)>0;
+        }
+    }
+    if(!$needed){
+        slb_visual_cleanup_product_rows_177($product_id,$assets);
+        update_post_meta($product_id,'_slb_visual_identity_fp_160',slb_visual_product_fingerprint_160($product_id));
+        slb_visual_clear_failed_product_161($product_id);
+        slb_visual_retry_clear_177($product_id);
+        return array('status'=>'already_valid','product_id'=>$product_id,'indexed_images'=>0,'inserted_images'=>0,'updated_images'=>0);
+    }
+    $vectors=slb_visual_embed_asset_chunk_161($needed);
+    if(!is_wp_error($vectors)){
+        $written=0;$inserted=0;$updated=0;
+        foreach($needed as $i=>$a){
+            if(!slb_visual_store_single_asset_177($a,$vectors[$i])){
+                $db_error=new WP_Error('visual_index_db_write','Visual index database write failed.',array('status'=>500));
+                slb_visual_failed_item_161($product_id,$a['image_id'],$db_error->get_error_message());
+                return array('status'=>'permanent_failed','product_id'=>$product_id,'indexed_images'=>$written,'inserted_images'=>$inserted,'updated_images'=>$updated,'error'=>$db_error);
+            }
+            $written++;
+            if(!empty($existing[$i]))$updated++;else $inserted++;
+        }
+        slb_visual_cleanup_product_rows_177($product_id,$assets);
+        update_post_meta($product_id,'_slb_visual_identity_fp_160',slb_visual_product_fingerprint_160($product_id));
+        slb_visual_clear_failed_product_161($product_id);
+        slb_visual_retry_clear_177($product_id);
+        return array('status'=>$inserted>0?'inserted':'updated','product_id'=>$product_id,'indexed_images'=>$written,'inserted_images'=>$inserted,'updated_images'=>$updated);
+    }
+    if(slb_visual_error_hard_177($vectors))return $vectors;
+    if(slb_visual_error_transient_177($vectors)){
+        slb_visual_retry_record_177($product_id,$vectors);
+        return array('status'=>'transient_failed','product_id'=>$product_id,'indexed_images'=>0,'inserted_images'=>0,'updated_images'=>0,'error'=>$vectors);
+    }
+    $stored=0;$inserted=0;$updated=0;$permanent=0;$transient=false;$last_error=$vectors;
+    foreach($needed as $i=>$a){
+        $one=slb_visual_embed_asset_chunk_161(array($a));
+        if(is_wp_error($one)){
+            if(slb_visual_error_hard_177($one))return $one;
+            if(slb_visual_error_transient_177($one)){$transient=true;$last_error=$one;slb_visual_retry_record_177($product_id,$one);continue;}
+            $permanent++;$last_error=$one;slb_visual_failed_item_161($product_id,$a['image_id'],$one->get_error_message());continue;
+        }
+        if(slb_visual_store_single_asset_177($a,$one[0])){
+            $stored++;
+            if(!empty($existing[$i]))$updated++;else $inserted++;
+        }
+    }
+    if($transient)return array('status'=>'transient_failed','product_id'=>$product_id,'indexed_images'=>$stored,'inserted_images'=>$inserted,'updated_images'=>$updated,'error'=>$last_error);
+    if($permanent){slb_visual_retry_clear_177($product_id);return array('status'=>'permanent_failed','product_id'=>$product_id,'indexed_images'=>$stored,'inserted_images'=>$inserted,'updated_images'=>$updated,'error'=>$last_error);}
+    $all_current=true;foreach($assets as $a)if(!slb_visual_asset_is_current_177($a)){$all_current=false;break;}
+    if($all_current){
+        slb_visual_cleanup_product_rows_177($product_id,$assets);
+        update_post_meta($product_id,'_slb_visual_identity_fp_160',slb_visual_product_fingerprint_160($product_id));
+        slb_visual_clear_failed_product_161($product_id);
+        slb_visual_retry_clear_177($product_id);
+        return array('status'=>$inserted>0?'inserted':($updated>0?'updated':'already_valid'),'product_id'=>$product_id,'indexed_images'=>$stored,'inserted_images'=>$inserted,'updated_images'=>$updated);
+    }
+    return array('status'=>'permanent_failed','product_id'=>$product_id,'indexed_images'=>$stored,'inserted_images'=>$inserted,'updated_images'=>$updated,'error'=>$last_error);
+}'''
+p=replace_php_function(p,"slb_visual_index_one_product_177",new_index)
+
+new_queue=r'''function slb_visual_queue_product_160($product_id){
+    $product_id=absint($product_id);
+    if(!$product_id||!slb_visual_api_key_160())return false;
+    $product=wc_get_product($product_id);
+    if($product&&$product->is_type('variation'))$product_id=(int)$product->get_parent_id();
+    delete_transient('slb_visual_eligible_images_177');
+    $q=get_option('slb_visual_dirty_160',array());if(!is_array($q))$q=array();
+    if(!$product_id||!slb_visual_assets_for_product_160($product_id)){
+        if(isset($q[$product_id])){unset($q[$product_id]);update_option('slb_visual_dirty_160',$q,false);}
+        slb_visual_retry_clear_177($product_id);
+        return false;
+    }
+    $q[$product_id]=1;
+    update_option('slb_visual_dirty_160',$q,false);
+    if(!wp_next_scheduled('slb_visual_index_tick_160'))wp_schedule_single_event(time()+8,'slb_visual_index_tick_160');
+    return true;
+}'''
+p=replace_php_function(p,"slb_visual_queue_product_160",new_queue)
+
+worker_name=enclosing_php_function(p,"slb_visual_worker_lock_acquire_177()")
+new_worker=r'''function __WORKER_NAME__(){
+    if(!slb_visual_api_key_160())return;
+    slb_visual_install_table_160();
+    $token=slb_visual_worker_lock_acquire_177();
+    if(!$token){slb_visual_schedule_worker_177(20);return;}
+    $started=microtime(true);
+    $attempted=0;$dirty_attempted=0;$sequential_attempted=0;
+    $inserted=0;$updated=0;$already_valid=0;$skipped_ineligible=0;$transient_failed=0;$permanent_failed=0;
+    $hard_error=null;
+    slb_visual_state_patch_177(array('last_worker_start'=>time(),'worker_lock_owner'=>$token,'status'=>'building'));
+    try{
+        $dirty=get_option('slb_visual_dirty_160',array());if(!is_array($dirty))$dirty=array();
+        $due=array();
+        foreach(array_map('intval',array_keys($dirty)) as $pid){
+            if(slb_visual_retry_due_177($pid))$due[]=$pid;
+            if(count($due)>=2)break;
+        }
+        foreach($due as $pid){
+            $attempted++;$dirty_attempted++;
+            $r=slb_visual_index_one_product_177($pid);
+            $patch=array('last_processed_product'=>$pid);
+            if(is_wp_error($r)){
+                $hard_error=$r;$patch['last_error']=$r->get_error_message();$patch['status']='failed';slb_visual_state_patch_177($patch);break;
+            }
+            $kind=(string)($r['status']??'permanent_failed');
+            if($kind==='inserted'){$inserted++;unset($dirty[$pid]);$patch['last_successful_product']=$pid;$patch['last_error']='';}
+            elseif($kind==='updated'){$updated++;unset($dirty[$pid]);$patch['last_successful_product']=$pid;$patch['last_error']='';}
+            elseif($kind==='already_valid'){$already_valid++;unset($dirty[$pid]);$patch['last_successful_product']=$pid;$patch['last_error']='';}
+            elseif($kind==='skipped_ineligible'){$skipped_ineligible++;unset($dirty[$pid]);$patch['last_error']='';}
+            elseif($kind==='transient_failed'){$transient_failed++;$patch['last_error']=is_wp_error($r['error']??null)?$r['error']->get_error_message():'Transient indexing failure';}
+            else{$permanent_failed++;unset($dirty[$pid]);$patch['last_error']=is_wp_error($r['error']??null)?$r['error']->get_error_message():'Permanent indexing failure';}
+            slb_visual_state_patch_177($patch);
+        }
+        update_option('slb_visual_dirty_160',$dirty,false);
+
+        if(!$hard_error){
+            $state=slb_visual_index_state_160();
+            if(($state['status']??'')==='building'){
+                $cursor=(int)($state['cursor']??0);
+                global $wpdb;
+                $seq_limit=max(6,max(1,(int)slb_visual_index_batch_size_161()-2));
+                $ids=$wpdb->get_col($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE post_type='product' AND post_status IN ('publish','draft','pending','private') AND ID>%d ORDER BY ID ASC LIMIT %d",$cursor,$seq_limit));
+                $ids=array_map('intval',(array)$ids);
+                if(!$ids){
+                    $dirty_now=get_option('slb_visual_dirty_160',array());if(!is_array($dirty_now))$dirty_now=array();
+                    $status=$dirty_now?'building':((int)($state['failed_count']??0)>0?'partial':'ready');
+                    slb_visual_state_patch_177(array('status'=>$status,'last_error'=>'','cursor'=>$cursor));
+                }else{
+                    foreach($ids as $pid){
+                        $attempted++;$sequential_attempted++;
+                        $r=slb_visual_index_one_product_177($pid);
+                        $patch=array('cursor'=>$pid,'last_processed_product'=>$pid,'status'=>'building');
+                        if(is_wp_error($r)){
+                            $hard_error=$r;$patch['last_error']=$r->get_error_message();$patch['status']='failed';slb_visual_state_patch_177($patch);break;
+                        }
+                        $kind=(string)($r['status']??'permanent_failed');
+                        if($kind==='inserted'){$inserted++;$patch['last_successful_product']=$pid;$patch['last_error']='';}
+                        elseif($kind==='updated'){$updated++;$patch['last_successful_product']=$pid;$patch['last_error']='';}
+                        elseif($kind==='already_valid'){$already_valid++;$patch['last_successful_product']=$pid;$patch['last_error']='';}
+                        elseif($kind==='skipped_ineligible'){$skipped_ineligible++;$patch['last_error']='';}
+                        elseif($kind==='transient_failed'){$transient_failed++;slb_visual_queue_product_160($pid);$patch['last_error']=is_wp_error($r['error']??null)?$r['error']->get_error_message():'Transient indexing failure';}
+                        else{$permanent_failed++;$patch['last_error']=is_wp_error($r['error']??null)?$r['error']->get_error_message():'Permanent indexing failure';}
+                        slb_visual_state_patch_177($patch);
+                    }
+                }
+            }
+        }
+    }catch(Throwable $e){
+        $hard_error=new WP_Error('visual_index_worker_exception',$e->getMessage());
+        slb_visual_state_patch_177(array('last_error'=>sanitize_text_field($e->getMessage()),'last_worker_exception'=>get_class($e),'status'=>'building'));
+    }finally{
+        $duration=round((microtime(true)-$started)*1000,2);
+        global $wpdb;$table=slb_visual_table_160();
+        $live_products=(int)$wpdb->get_var("SELECT COUNT(DISTINCT product_id) FROM {$table}");
+        $live_images=(int)$wpdb->get_var("SELECT COUNT(*) FROM {$table}");
+        $succeeded=$inserted+$updated+$already_valid;
+        slb_visual_state_patch_177(array(
+            'last_worker_end'=>time(),'last_worker_duration_ms'=>$duration,
+            'last_batch_attempted'=>$attempted,'last_batch_succeeded'=>$succeeded,
+            'last_batch_transient'=>$transient_failed,'last_batch_permanent'=>$permanent_failed,
+            'last_batch_dirty_attempted'=>$dirty_attempted,'last_batch_sequential_attempted'=>$sequential_attempted,
+            'last_batch_inserted'=>$inserted,'last_batch_updated'=>$updated,'last_batch_already_valid'=>$already_valid,
+            'last_batch_skipped_ineligible'=>$skipped_ineligible,'last_batch_transient_failed'=>$transient_failed,'last_batch_permanent_failed'=>$permanent_failed,
+            'indexed_products'=>$live_products,'indexed_images'=>$live_images,'worker_lock_owner'=>''
+        ));
+        slb_visual_worker_lock_release_177($token);
+        $state=slb_visual_index_state_160();
+        if(($state['status']??'')!=='failed'){
+            $dirty=get_option('slb_visual_dirty_160',array());if(!is_array($dirty))$dirty=array();
+            /* Enforce eligibility on the persistent dirty queue so any legacy refill path cannot re-add image-less products. */
+            $changed=false;
+            foreach(array_map('intval',array_keys($dirty)) as $pid){
+                if(!slb_visual_assets_for_product_160($pid)){unset($dirty[$pid]);slb_visual_retry_clear_177($pid);$changed=true;}
+            }
+            if($changed)update_option('slb_visual_dirty_160',$dirty,false);
+            $next_retry=slb_visual_retry_next_177();$delay=10;
+            if($dirty&&$next_retry>time())$delay=max(10,min(120,$next_retry-time()));
+            if(($state['status']??'')==='building'||$dirty)slb_visual_schedule_worker_177($delay);
+        }
+    }
+}'''.replace("__WORKER_NAME__",worker_name)
+a,b=php_function_bounds(p,worker_name)
+p=p[:a]+new_worker+p[b:]
+pfile.write_text(p,encoding="utf-8")
+
+
 for rel,sha in {"assets/bridge.css":"8b6bd8205ab195336b761ae1138fe623d049fb48c5a3f7059fe118781bf7f2c6","assets/customer.js":"bc3d794decaae688ae97ae3a19ff520b9fc71cefa8c332f8aab0d7372818b5d4"}.items():
  if hashlib.sha256((root/rel).read_bytes()).hexdigest()!=sha: raise SystemExit("preservation lock failed: "+rel)
 p=(root/"shishalove-app-bridge.php").read_text();m=(root/"assets/merchant.js").read_text()
-for token in ["Version: 1.1.78","merchant_quick_stock_sync","Product ID: ","stock_status:qv>=1?'instock':'outofstock'","Filter · All","scheduleLiveTextSearch","slb_visual_search_160","captureMerchantListState"]:
+for token in ["Version: 1.1.78","merchant_quick_stock_sync","Product ID: ","stock_status:qv>=1?'instock':'outofstock'","Filter · All","scheduleLiveTextSearch","slb_visual_search_160","captureMerchantListState","skipped_ineligible","last_batch_sequential_attempted","last_batch_inserted","last_batch_updated","last_batch_already_valid","last_batch_skipped_ineligible","transient_failed","permanent_failed","seq_limit=max(6"]:
  if token not in p+m: raise SystemExit("missing required token: "+token)
 q=m[m.index("function quickEditPanel(){"):m.index("var dashboardStats=",m.index("function quickEditPanel(){"))]
 f=m[m.index("function filterModeMarkup(){"):m.index("function productsBody",m.index("function filterModeMarkup(){"))]
