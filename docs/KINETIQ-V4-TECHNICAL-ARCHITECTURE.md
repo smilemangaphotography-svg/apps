@@ -282,8 +282,6 @@ Fields:
 - lifecycleState
 - eventOrOutcomeId
 - targetOutcome
-- exactTargetDate
-- eventTimezone
 - currentBaseline
 - constraints
 - secondaryGoalIds
@@ -294,6 +292,8 @@ Fields:
 - revision
 
 Only one active PrimaryGoal is allowed per profile.
+
+**Event-date authority rule:** PrimaryGoal references **eventOrOutcomeId** and does **not** own a second independently mutable persisted event date or event timezone. If a PrimaryGoal read model exposes event date/timezone for UI convenience, those values are **DERIVED / READ-ONLY** from the linked GoalEventOutcome.
 
 ## 3.4 SecondaryGoal
 
@@ -328,7 +328,20 @@ Fields:
 - resultSource
 - completedAt
 
-This is the canonical exact-date source for event goals.
+**GoalEventOutcome.exactTargetDate is the ONE persisted canonical exact event date for an event-based goal.** GoalEventOutcome.eventTimezone is the corresponding canonical timezone context where known.
+
+No duplicated mutable event-date authority is permitted. PrimaryGoal, Journey, Today, Coach and UI projections may expose the date only as a derived/read-only value resolved from GoalEventOutcome.
+
+All of the following derive from this canonical event date:
+
+- countdown
+- Journey dates
+- training phase
+- block/week position
+- taper
+- event week
+- event day
+- post-event transition
 
 ## 3.6 Constraints
 
@@ -422,13 +435,14 @@ Fields:
 - phaseId
 - blockId
 - weekId
-- sessionInstanceId
-- sessionType
-- title
-- purpose
-- expectedDuration
-- runTargets when applicable
-- exercisePrescriptions when applicable
+- primarySessionInstanceId
+- sessionInstanceIds[]
+- primarySessionType
+- primaryTitle
+- primaryPurpose
+- primaryExpectedDuration
+- runTargets for applicable prescribed run sessions
+- exercisePrescriptions for applicable prescribed workout sessions
 - safetySummary
 - recoveryStateRef
 - modifications
@@ -436,7 +450,7 @@ Fields:
 - sourcePlanRevision
 - prescriptionRevision
 - generatedAt
-- changedBy: GOAL_ENGINE / COACH_APPLY / RECOVERY_ADAPTATION / USER_EDIT
+- changedBy: GOAL_ENGINE / COACH_APPLY / USER_CONFIRMED_RECOVERY_APPLY / USER_EDIT / HARD_SAFETY_INTERVENTION
 - changeAuditIds
 
 Unique logical key:
@@ -444,6 +458,12 @@ Unique logical key:
 **profileId + localDate**
 
 There may be historical revisions, but only one active canonical revision for that profile/date.
+
+A TodayPrescription may contain one or more ordered SessionInstances. **primarySessionInstanceId** identifies **TODAY'S BEST MOVE** and remains the dominant Today card. **sessionInstanceIds[]** is the canonical ordered collection for optional supporting sessions.
+
+Single-session days remain the normal simple case. Multi-session support exists for legitimate prescriptions such as run + recovery, morning + evening training, hybrid endurance + strength, or future triathlon / Ironman sessions.
+
+Today, Journey, Coach, Run and Safe Workout must resolve the same TodayPrescription ID and revision; supporting sessions do not create additional competing daily prescriptions.
 
 ## 3.12 SessionDefinition
 
@@ -1011,7 +1031,11 @@ Derived from that source only:
 - current block week
 - event-plan position
 - taper timing
-- event-day transition
+- event week
+- event day
+- post-event transition
+
+PrimaryGoal does not persist another mutable event date. Any PrimaryGoal event-date field exposed to consumers is derived/read-only from GoalEventOutcome.
 
 Mockup dates are never persisted as product constants.
 
@@ -1059,9 +1083,15 @@ Consumers:
 
 No consumer independently calculates today's workout.
 
-## 7.2 Run fields
+## 7.2 Session collection and primary-session projection
 
-For a run TodayPrescription:
+TodayPrescription owns an ordered **sessionInstanceIds[]** collection and one **primarySessionInstanceId**.
+
+The primary session is the product projection for **TODAY'S BEST MOVE**. Supporting sessions remain subordinate and are shown only when legitimately prescribed.
+
+Each SessionInstance retains its own execution type and payload.
+
+For an applicable run SessionInstance:
 
 - runSessionId
 - run type
@@ -1073,22 +1103,22 @@ For a run TodayPrescription:
 - interval structure
 - source plan revision
 
-## 7.3 Strength fields
+## 7.3 Strength / recovery session fields
 
-For a strength TodayPrescription:
+For an applicable strength, recovery, mobility or rehab SessionInstance:
 
 - exercisePrescriptionIds
 - order
 - sets/reps/hold/rest
 - safety-state snapshot
-- modifications
+- recommended modifications
 - replacements if already applied
 - purpose
 - duration
 
 ## 7.4 Completion
 
-TodayPrescription completionState is derived from the linked SessionInstance / execution history and may be:
+TodayPrescription completionState is the daily aggregate derived from its linked SessionInstances / execution history. Each SessionInstance retains its own completion state. Daily state may be:
 
 - PLANNED
 - IN_PROGRESS
@@ -1105,10 +1135,13 @@ Regenerate TodayPrescription only through controlled services:
 - initial plan materialization
 - Goal/Plan revision
 - Coach Apply
-- explicit recovery adaptation
+- explicit user-confirmed recovery adaptation Apply
 - explicit user edit
+- hard safety intervention only for the affected unsafe action/state, never silent unrelated replanning
 
 A regeneration increments prescriptionRevision and writes an AuditRecord.
+
+Regeneration preserves the invariant of one daily prescription: changes to primary or supporting sessions update the same TodayPrescription revision rather than creating parallel daily prescriptions.
 
 ---
 
@@ -1294,7 +1327,7 @@ SafetyAssessment:
 
 - state: GREEN / AMBER / RED
 - reason
-- Today modification
+- recommended Today modification guidance
 - replacement candidates
 - escalation action where appropriate
 - context revision / timestamp
@@ -1310,6 +1343,37 @@ RED means avoid today and present a better option where possible.
 No state is a medical diagnosis.
 
 No exercise has a universal permanent GREEN/AMBER/RED truth.
+
+## 10.5 Mutation authority boundary
+
+SafetyEngine may automatically **derive** GREEN / AMBER / RED and may:
+
+- display modification guidance
+- flag an exercise
+- expose Better Option candidates
+- recommend reassessment / professional assessment where appropriate
+- prevent or stop a specific unsafe action when a hard safety rule requires it
+
+SafetyEngine must **not silently**:
+
+- reschedule the training week
+- replace exercises in the canonical prescription
+- shorten sessions
+- move workouts
+- change the PrimaryGoal
+- rewrite the training block
+
+RecoveryState is context/data, not a planning authority. It must not silently create or mutate a competing plan.
+
+Normal adaptation flow is:
+
+**SAFETY / RECOVERY CONTEXT → RECOMMENDATION → USER ACTION / COACH PROPOSAL → PREVIEW → APPLY**
+
+Example: an AMBER 45° Leg Press may immediately show **Reduced depth** and **BETTER OPTION →**, but the canonical ExercisePrescription is replaced only after explicit user action or an applied Coach proposal.
+
+Coach-driven recovery adaptation continues to use **PREVIEW → APPLY**.
+
+A hard safety intervention may block or stop the specific unsafe action immediately, but it must not silently re-plan unrelated future sessions.
 
 ---
 
@@ -1457,11 +1521,24 @@ The Gallery never becomes a sixth primary navigation tab.
 
 **IMAGE(S) → ANALYSIS → IMPORT CANDIDATE → USER REVIEW → USER CONFIRMATION → EXERCISE GALLERY**
 
-## 14.2 Input
+## 14.2 Image acquisition
 
-Use the existing Android/WebView file-picker capability for one or multiple images.
+Smart Exercise Import must support two acquisition paths:
 
-A future camera capture path may feed the same importer.
+**A. Existing file/image picker**
+- one image
+- several explanatory images
+
+**B. Android camera capture**
+- take a new photo from ADD EXERCISE
+
+Both paths feed the same canonical acquisition boundary:
+
+**IMAGE(S) → ANALYSIS → SmartImportCandidate → USER REVIEW → USER CONFIRMATION → EXERCISE GALLERY**
+
+Introduce an **ExerciseImageAcquisitionAdapter** so file-picker and Android-camera results are normalized into the same temporary media input model before classification.
+
+Camera capture is part of the Phase 6 V4 contract. It is not implemented during architecture work, but it must not be deferred as an undefined future feature.
 
 ## 14.3 Analysis boundary
 
@@ -2298,10 +2375,13 @@ Gate: existing workout engine executes V4 prescription without motion/rest regre
 - Guide media renderer
 - full-frame Motion renderer contract
 - SmartImportCandidate
+- existing file/image picker acquisition
+- Android camera capture acquisition
+- shared ExerciseImageAcquisitionAdapter
 - image storage/review/confirm
 - custom exercise editing
 
-Gate: import requires confirmation; image classifier never assigns safety state.
+Gate: both file-picker and camera acquisition reach the same review/confirmation pipeline; import requires confirmation; image classifier never assigns safety state.
 
 ## PHASE 7 — Run Live + live coaching state machine
 
@@ -2367,15 +2447,21 @@ Prove:
 Prove:
 
 - exactly one active PrimaryGoal
-- event date stored once canonically
-- countdown, phase, block/week dates and Journey position derive from it
+- GoalEventOutcome.exactTargetDate is the one persisted canonical event date
+- PrimaryGoal has no second independently mutable persisted event date
+- any PrimaryGoal date exposed to consumers is derived/read-only
+- countdown, Journey dates, phase, block/week position, taper, event week/day and post-event transition derive from the canonical event date
 - no hard-coded mockup dates drive logic
 
 ## 30.3 Canonical Today
 
 Prove:
 
-- Today/Journey/Coach/Run/Safe Workout resolve same prescription ID/revision
+- Today/Journey/Coach/Run/Safe Workout resolve the same prescription ID/revision
+- exactly one TodayPrescription exists per profileId + localDate
+- TodayPrescription supports one primarySessionInstanceId plus ordered sessionInstanceIds[]
+- TODAY'S BEST MOVE remains the primary session projection
+- optional supporting sessions do not create parallel daily prescriptions
 - no screen builds an independent Today session
 
 ## 30.4 Coach preview-first
@@ -2395,6 +2481,10 @@ Prove:
 - same exercise may be GREEN for one context and AMBER/RED for another
 - reason/modification is visible
 - image classification has no authority to assign safety
+- SafetyEngine does not silently reschedule, replace, shorten, move, change goals, or rewrite blocks
+- RecoveryState does not silently create a competing plan
+- normal safety/recovery adaptations require user action or Coach PREVIEW → APPLY
+- hard safety rules may block/stop the affected action without silently replanning unrelated sessions
 - no diagnostic claim is generated by SafetyEngine
 
 ## 30.6 Motion / Guide
@@ -2411,6 +2501,9 @@ Prove:
 Prove:
 
 - candidate exists before ExerciseDefinition
+- file/image picker can create a candidate
+- Android camera capture can create a candidate
+- both acquisition paths normalize through the same Smart Import pipeline
 - every field can be edited
 - Cancel does not add to Gallery
 - Add to Gallery requires confirmation
