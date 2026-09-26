@@ -632,3 +632,321 @@ function init(){
 window.KINETIQSystem={version:VERSION,showPage,renderHome:renderSystemHome,renderPlan:renderSystemPlan,renderTrain:renderSystemTrain,renderRun:renderSystemRun,renderMore:renderSystemMore,openAI,openCoachResult,fillAI,askAI,applyAI,keepCurrent,applySelectedAI,applyWeekAI,keepWeekAI,aiProposal,startExerciseFromDetail,resumeWorkout,openExerciseFilters,showWorkoutOverview,showWorkoutSummary,openDevices,openGarminApp,connectGarminHealth,requestGps,syncDevices,syncLegacy,afterEquipmentChange:()=>{syncLegacy();showPage($('.page.active')?.dataset.page||'home')}};
 setTimeout(init,700);
 })();
+
+;(function phase4Installer(){
+'use strict';
+const MARK='KINETIQ_PHASE4_RECOVERY_PHYSIO';
+if(window.__KINETIQ_PHASE4_RECOVERY_PHYSIO__)return;
+window.__KINETIQ_PHASE4_RECOVERY_PHYSIO__=MARK;
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=(v,d=0)=>Number.isFinite(+v)?+v:d, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const st=()=>window.S||{};
+const save=()=>{try{window.save?.()}catch(_){try{localStorage.setItem('personalTrainer.beta2',JSON.stringify(st()))}catch(__){}}};
+const LOCATIONS=['Knee','Hip','Ankle','Back','Shoulder','Elbow','Other'];
+const BEHAVIORS=['At rest','During exercise','After exercise','Walking','Stairs','Sitting','Bending','Running','Lifting'];
+const SYMPTOMS=['Swelling','Stiffness','Weakness','Instability / giving way','Locking / catching','Numbness / tingling','Reduced motion','General fatigue','Next-day worsening'];
+const RED_FLAGS=[
+ ['majorAcuteTrauma','Major acute trauma'],
+ ['cannotBearWeight','Unable to bear weight / use the limb'],
+ ['deformity','Obvious deformity'],
+ ['rapidSwelling','Rapidly increasing swelling'],
+ ['trueLocking','True joint locking'],
+ ['repeatedGivingWay','Repeated giving way'],
+ ['progressiveNeuro','Progressive weakness / numbness'],
+ ['severeUnexplained','Severe unexplained pain'],
+ ['systemicSevere','Systemic illness symptoms with severe musculoskeletal symptoms']
+];
+const PROFILES=[
+ ['anterior-knee','Anterior knee / patellofemoral-type rehabilitation','Knee'],
+ ['hip-discomfort','Hip discomfort','Hip'],
+ ['ankle-recovery','Ankle recovery','Ankle'],
+ ['shoulder-irritation','Shoulder irritation','Shoulder'],
+ ['lateral-elbow','Lateral elbow loading','Elbow'],
+ ['general-return','General return-to-training','Other']
+];
+const EXERCISES={
+ 'quad-set':{name:'Quad Isometric / Quad Set',area:'Knee · quadriceps',mode:'hold',sets:4,holdMin:20,holdMax:45,rest:45,cue:'Tighten the thigh without forcing painful joint compression.',instructions:['Use a supported position with the knee comfortable.','Contract the quadriceps gradually and hold without breath-holding.','Keep symptoms stable during the hold and after release.'],easier:'Shorter 10–20 second holds with more support.',harder:'Longer holds or a clinician-approved supported loading variation.',search:['quad','isometric']},
+ 'wall-iso':{name:'Supported Wall / Machine Isometric',area:'Knee · lower limb',mode:'hold',sets:3,holdMin:20,holdMax:40,rest:60,cue:'Choose a shallow symptom-tolerated angle; do not chase depth.',instructions:['Use a wall or stable machine support.','Select an angle that does not escalate symptoms.','Maintain even pressure and controlled breathing.'],easier:'More upright position and shorter hold.',harder:'Slightly more knee bend or load only after good response.',search:['wall','isometric']},
+ 'bridge-hold':{name:'Glute Bridge Hold',area:'Hip · glutes',mode:'hold',sets:3,holdMin:20,holdMax:45,rest:45,cue:'Hold a level pelvis without pushing into painful range.',instructions:['Feet stable and comfortable.','Lift only as high as you can control.','Keep ribs and pelvis controlled through the hold.'],easier:'Shorter hold or lower bridge height.',harder:'Longer hold or supported single-leg bias.',search:['hipthrust','bridge']},
+ 'calf-iso':{name:'Calf Isometric',area:'Ankle · calf',mode:'hold',sets:3,holdMin:20,holdMax:45,rest:45,cue:'Use a supported stance and a comfortable ankle position.',instructions:['Hold a stable rail or machine.','Rise only to a symptom-tolerated position.','Keep pressure controlled rather than bouncing.'],easier:'Two-leg supported hold.',harder:'Longer hold or more single-leg contribution.',search:['calf']},
+ 'straight-leg-raise':{name:'Straight-Leg Raise',area:'Knee · quadriceps / hip',mode:'reps',sets:3,reps:'8–12',rest:45,cue:'Keep the knee straight and lift without pelvic rotation.',instructions:['Set the thigh first.','Lift slowly through a comfortable range.','Lower with control; stop if symptoms escalate.'],easier:'Smaller range or fewer reps.',harder:'More reps or light ankle load after tolerance.',search:['straight','leg','raise']},
+ 'hip-abduction':{name:'Hip Abduction',area:'Hip · lateral hip',mode:'reps',sets:3,reps:'10–15',rest:45,cue:'Move from the hip without rolling the pelvis backward.',instructions:['Use support as needed.','Keep the trunk quiet.','Use a slow, controlled return.'],easier:'Supported standing or smaller range.',harder:'Band or cable resistance after tolerance.',search:['abduction','hip']},
+ 'glute-bridge':{name:'Glute Bridge',area:'Hip · posterior chain',mode:'reps',sets:3,reps:'10–15',rest:45,cue:'Drive through a comfortable range without lumbar overextension.',instructions:['Feet stable.','Lift smoothly.','Pause briefly, then lower under control.'],easier:'Shorter range.',harder:'Longer pause or additional load after tolerance.',search:['hipthrust','bridge']},
+ 'hamstring':{name:'Controlled Hamstring Work',area:'Knee / hip · hamstrings',mode:'reps',sets:3,reps:'8–12',rest:60,cue:'Use a slow tempo and avoid abrupt loading.',instructions:['Choose a comfortable setup.','Curl through tolerated range.','Control the lowering phase.'],easier:'Lighter load or partial range.',harder:'Gradually add range or resistance.',search:['hamcurl','hamstring']},
+ 'leg-press':{name:'Controlled Leg Press',area:'Knee / hip · lower limb',mode:'reps',sets:3,reps:'8–10',rest:75,cue:'Use symptom-tolerated ROM; depth is not the goal.',instructions:['Set feet so the knee tracks comfortably.','Lower only to a range that remains controlled.','Use smooth pressure without locking out aggressively.'],easier:'Less load and shallower range.',harder:'Small load or ROM increase only after stable response.',search:['legpress','leg press']},
+ 'calf-work':{name:'Controlled Calf Work',area:'Ankle · calf',mode:'reps',sets:3,reps:'10–15',rest:45,cue:'Move slowly with support and no bouncing.',instructions:['Use stable support.','Rise and lower under control.','Keep symptoms within the planned zone.'],easier:'Two-leg supported raise.',harder:'Single-leg bias or additional load.',search:['seatedcalf','calf']},
+ 'hip-control':{name:'Hip Control Drill',area:'Hip · pelvis control',mode:'reps',sets:3,reps:'8 / side',rest:45,cue:'Prioritize pelvis control over range.',instructions:['Use a wall or rail for balance.','Move slowly.','Stop before compensatory trunk movement.'],easier:'More hand support.',harder:'Less support or light resistance.',search:['sideplank','pallof']},
+ 'ankle-mobility':{name:'Ankle Mobility',area:'Ankle · mobility',mode:'reps',sets:2,reps:'8–12',rest:30,cue:'Work within a comfortable, non-forced range.',instructions:['Keep the heel stable.','Move gradually toward available range.','Avoid forcing a painful end range.'],easier:'Smaller range.',harder:'Slightly greater range once tolerated.',search:['calf','stepup']},
+ 'balance':{name:'Supported Balance / Stability',area:'Ankle / lower limb',mode:'hold',sets:3,holdMin:20,holdMax:40,rest:30,cue:'Keep fingertip support available and avoid repeated giving way.',instructions:['Stand near a stable support.','Maintain alignment and steady breathing.','Stop if instability is increasing rather than improving.'],easier:'Two-leg or strong hand support.',harder:'Less hand support or more challenging surface only when safe.',search:['stepup','sideplank']},
+ 'wrist-iso':{name:'Wrist-Extensor Isometric',area:'Elbow · forearm extensors',mode:'hold',sets:4,holdMin:20,holdMax:45,rest:45,cue:'Build tension gradually without gripping excessively.',instructions:['Support the forearm.','Hold the wrist neutral or slightly extended.','Use tolerable resistance and steady breathing.'],easier:'Lower resistance and shorter hold.',harder:'Longer hold or more resistance after stable response.',search:['biceps','row']},
+ 'forearm-load':{name:'Controlled Forearm Loading',area:'Elbow · forearm',mode:'reps',sets:3,reps:'8–12',rest:60,cue:'Use slow loading; avoid sudden or maximal effort.',instructions:['Support the forearm.','Use a slow lift and slower lower.','Monitor symptoms after the session.'],easier:'Lighter resistance.',harder:'Small resistance increase with stable next-day response.',search:['biceps']},
+ 'grip-load':{name:'Progressive Grip Loading',area:'Elbow · grip',mode:'hold',sets:3,holdMin:20,holdMax:30,rest:45,cue:'Use submaximal grip rather than all-out squeezing.',instructions:['Keep wrist position controlled.','Build force gradually.','Stop if symptoms spread or worsen.'],easier:'Softer implement / lighter squeeze.',harder:'Slightly firmer or longer hold.',search:['biceps']},
+ 'scapular':{name:'Shoulder / Scapular Support',area:'Shoulder · scapular control',mode:'reps',sets:3,reps:'10–15',rest:45,cue:'Keep the shoulder blade controlled without shrugging.',instructions:['Use a light, stable setup.','Move slowly.','Stay in a comfortable shoulder range.'],easier:'No load / smaller range.',harder:'Light resistance after stable response.',search:['facepull','row']},
+ 'general-control':{name:'General Controlled Loading',area:'Return to training',mode:'reps',sets:2,reps:'8–12',rest:60,cue:'Choose a familiar movement and keep effort submaximal.',instructions:['Use a known comfortable pattern.','Reduce load, volume or ROM if needed.','Judge both immediate and next-day response.'],easier:'Less load, less range, more support.',harder:'Increase one variable only after repeated good response.',search:['pallof','sideplank']}
+};
+const PROFILE_EX={
+ 'anterior-knee':['quad-set','wall-iso','straight-leg-raise','hip-abduction','glute-bridge','hamstring','leg-press','calf-work','hip-control'],
+ 'hip-discomfort':['bridge-hold','hip-abduction','glute-bridge','hamstring','hip-control','leg-press'],
+ 'ankle-recovery':['calf-iso','ankle-mobility','balance','calf-work','hip-control'],
+ 'shoulder-irritation':['scapular','general-control'],
+ 'lateral-elbow':['wrist-iso','forearm-load','grip-load','scapular'],
+ 'general-return':['general-control','bridge-hold','calf-iso','hip-control','balance']
+};
+function ensure(){
+ const s=st();s.recovery=s.recovery||{};
+ s.recovery.checkHistory=Array.isArray(s.recovery.checkHistory)?s.recovery.checkHistory:[];
+ s.recovery.exerciseResponses=Array.isArray(s.recovery.exerciseResponses)?s.recovery.exerciseResponses:[];
+ s.recovery.rehabProgram=s.recovery.rehabProgram||null;
+ s.recovery.progress=s.recovery.progress||null;
+ s.recovery.latestCheck=s.recovery.latestCheck||null;
+ s.recovery.selectedProfile=s.recovery.selectedProfile||profileFromExisting();
+ if(!PROFILE_EX[s.recovery.selectedProfile])s.recovery.selectedProfile='general-return';
+ s.recovery.activeScreen=s.recovery.activeScreen||'dashboard';
+ return s.recovery
+}
+function profileFromExisting(){
+ const list=(st().injuries||[]).map(x=>String(x).toLowerCase());
+ if(list.some(x=>x.includes('knee')))return'anterior-knee';
+ if(list.some(x=>x.includes('hip')))return'hip-discomfort';
+ if(list.some(x=>x.includes('ankle')||x.includes('achilles')))return'ankle-recovery';
+ if(list.some(x=>x.includes('shoulder')))return'shoulder-irritation';
+ if(list.some(x=>x.includes('elbow')))return'lateral-elbow';
+ return'general-return'
+}
+function profile(){const r=ensure();return PROFILES.find(x=>x[0]===r.selectedProfile)||PROFILES[5]}
+function deviceData(){
+ const d=st().devices?.lastMetrics||{},sensor=st().lastSensor||{};
+ const finite=v=>Number.isFinite(+v)&&+v>0?+v:null;
+ return{hrv:finite(d.hrv??d.hrvMs??sensor.hrv),sleep:finite(d.sleepHours??d.sleep??sensor.sleepHours??sensor.sleep)}
+}
+function recentLoad(){
+ const cutoff=Date.now()-7*864e5,h=(st().history||[]).filter(x=>{const t=+x.date||Date.parse(x.date||'');return t>=cutoff}),r=(st().runHistory||[]).filter(x=>Date.parse(x.date||'')>=cutoff);
+ if(!h.length&&!r.length)return null;return{sessions:h.length+r.length,strength:h.length,runs:r.length}
+}
+function blankDraft(){
+ return{location:'Knee',pain:0,behaviors:[],symptoms:[],trend:'Same',soreness:0,mobility:7,functionTolerance:7,fatigue:3,redFlags:{},notes:''}
+}
+function redFlag(check){return RED_FLAGS.some(([k])=>!!check?.redFlags?.[k])}
+function has(check,text){return (check?.symptoms||[]).some(x=>x===text)}
+function hasBehavior(check,text){return (check?.behaviors||[]).some(x=>x===text)}
+function readiness(check){
+ if(!check)return{state:'NO DATA',score:null,reason:'Complete a symptom check to create today’s recovery guidance.',decision:'MAINTAIN',runState:'MODIFIED'};
+ if(redFlag(check))return{state:'RED',score:0,reason:'A concerning symptom pattern was reported. Stop affected training and seek professional assessment.',decision:'PROFESSIONAL REVIEW',runState:'NOT RECOMMENDED TODAY'};
+ const p=clamp(num(check.pain),0,10),fat=clamp(num(check.fatigue,3),0,10),mob=clamp(num(check.mobility,7),0,10),fn=clamp(num(check.functionTolerance,7),0,10);
+ const worsening=check.trend==='Worse'||has(check,'Next-day worsening')||hasBehavior(check,'After exercise')&&p>=5;
+ const loadSignals=(has(check,'Swelling')?2:0)+(has(check,'Weakness')?1:0)+(has(check,'Instability / giving way')?2:0)+(has(check,'Reduced motion')?1:0)+(worsening?2:0);
+ let state='GREEN';
+ if(p>=5||loadSignals>=3||fn<=4||mob<=4)state='ORANGE';
+ else if(p>=3||loadSignals>0||fat>=7||fn<=6||mob<=6)state='YELLOW';
+ if(p>=7&&(hasBehavior(check,'At rest')||worsening))state='ORANGE';
+ const score=clamp(Math.round(100-p*6-fat*2-(10-mob)*2-(10-fn)*2-loadSignals*5+(check.trend==='Better'?6:0)),0,100);
+ const reason=state==='GREEN'?'Symptoms and function support normal training with continued monitoring.':state==='YELLOW'?'Symptoms suggest modifying load, volume or range of motion today.':'Use a recovery-focused session and reduce or stop aggravating load while reassessing response.';
+ const decision=state==='GREEN'?'PROGRESS':state==='YELLOW'?'MAINTAIN':'RECOVERY DAY';
+ const runState=state==='GREEN'?'ALLOWED':state==='YELLOW'?'MODIFIED':'NOT RECOMMENDED TODAY';
+ return{state,score,reason,decision,runState}
+}
+function responseTrend(exerciseId){
+ const rs=ensure().exerciseResponses.filter(x=>!exerciseId||x.exerciseId===exerciseId).slice(-6);
+ if(!rs.length)return{good:0,bad:0,total:0};
+ let good=0,bad=0;rs.forEach(x=>{if(x.feels==='Better'&&num(x.painAfter)<=3&&num(x.nextDayPain??x.painAfter)<=3)good++;if(x.feels==='Worse'||num(x.painAfter)>=5||num(x.nextDayPain)>=5)bad++});return{good,bad,total:rs.length}
+}
+function progression(){
+ const r=ensure(),c=r.latestCheck,ready=readiness(c),rs=r.exerciseResponses.slice(-8),completed=rs.filter(x=>x.completed).length;
+ if(ready.state==='RED')return{decision:'PROFESSIONAL REVIEW',reason:'Safety gate is active.'};
+ if(!c)return{decision:'MAINTAIN',reason:'Complete a symptom check before changing the rehab load.'};
+ const poor=rs.some(x=>x.feels==='Worse'||num(x.painAfter)>=5||num(x.nextDayPain)>=5);
+ if(ready.state==='ORANGE'||poor)return{decision:'REGRESS',reason:'Recent symptoms or exercise response do not support progression.'};
+ const good=rs.filter(x=>x.feels==='Better'&&num(x.painAfter)<=3&&(x.nextDayPain==null||num(x.nextDayPain)<=3)).length;
+ if(ready.state==='GREEN'&&completed>=3&&good>=2&&c.trend!=='Worse')return{decision:'PROGRESS',reason:'Repeated tolerated sessions and current symptom trend support a small progression.'};
+ if(ready.state==='YELLOW')return{decision:'MAINTAIN',reason:'Keep the current level or reduce one variable and reassess the next-day response.'};
+ return{decision:'MAINTAIN',reason:'More repeated tolerance data is needed before progression.'}
+}
+function recoveryContract(){
+ const r=ensure(),rd=readiness(r.latestCheck),pg=progression(),p=profile();
+ return{
+  updatedAt:Date.now(),readiness:rd.state,readinessScore:rd.score,painLocation:r.latestCheck?.location||null,painSeverity:r.latestCheck?.pain??null,
+  symptomBehavior:[...(r.latestCheck?.behaviors||[])],symptoms:[...(r.latestCheck?.symptoms||[])],trend:r.latestCheck?.trend||null,
+  rehabProgram:r.rehabProgram?{profile:r.rehabProgram.profile,phase:r.rehabProgram.phase,week:r.rehabProgram.week}:null,
+  toleratedExercises:r.exerciseResponses.filter(x=>x.feels==='Better'||(x.feels==='Same'&&num(x.painAfter)<=3)).slice(-20).map(x=>x.exerciseId),
+  aggravatedExercises:r.exerciseResponses.filter(x=>x.feels==='Worse'||num(x.painAfter)>=5).slice(-20).map(x=>x.exerciseId),
+  progressionStatus:pg.decision,returnToRun:{state:rd.runState,reason:rd.reason}
+ }
+}
+function persistDerived(){
+ const r=ensure(),pg=progression(),rd=readiness(r.latestCheck);
+ r.progress={updatedAt:Date.now(),phaseStatus:pg.decision,completion:programCompletion(),trend:r.latestCheck?.trend||'No data',nextRecommendation:pg.reason};
+ st().recoveryStatus=recoveryContract();save()
+}
+function programCompletion(){
+ const r=ensure(),p=r.rehabProgram;if(!p)return 0;const ids=p.exercises||[],done=new Set(r.exerciseResponses.filter(x=>x.completed).map(x=>x.exerciseId));return ids.length?Math.round(ids.filter(id=>done.has(id)).length/ids.length*100):0
+}
+function ensureProgram(){
+ const r=ensure(),pf=profile(),ids=PROFILE_EX[r.selectedProfile]||PROFILE_EX['general-return'];
+ if(!r.rehabProgram||r.rehabProgram.profile!==r.selectedProfile){
+  r.rehabProgram={profile:r.selectedProfile,name:pf[1],conditionProfile:pf[1],phase:1,week:1,weeks:8,exercises:[...ids],progressionCriteria:['Stable or improving symptom trend','Tolerated exercise response','No meaningful next-day worsening','Functional tolerance supports the next step','Strength/load milestone when measured']};
+  save()
+ }
+ return r.rehabProgram
+}
+function approvedAsset(ex){
+ const cat=window.PT29?.catalog?.()||[];let found=null;
+ for(const token of ex.search||[]){found=cat.find(e=>String(e.id||'').toLowerCase()===token||String(e.name||'').toLowerCase().includes(token));if(found)break}
+ if(!found)return null;
+ const poster=window.PT29?.mediaPoster?.(found)||found.media||'',motion=window.PT29?.motionSrc?.(found)||'';
+ return{id:found.id,name:found.name,poster,motion}
+}
+function closeRecovery(){const ov=$('#phase4Recovery');if(ov){$$('video',ov).forEach(v=>{try{v.pause()}catch(_){}});ov.remove()}}
+function shell(html,screen){
+ let ov=$('#phase4Recovery');if(!ov){ov=document.createElement('section');ov.id='phase4Recovery';ov.className='p4-overlay';document.body.appendChild(ov)}
+ ov.dataset.screen=screen;ov.innerHTML=`<div class="p4-safe"><header class="p4-head"><button data-p4-close aria-label="Close">‹</button><div><small>RECOVERY GUIDANCE</small><h1>${screen==='dashboard'?'Recovery':screen==='check'?'Symptom Check':screen==='exercise'?'Rehab Exercise':'Recovery Progress'}</h1></div><span></span></header>${html}</div>`;
+ $('[data-p4-close]',ov).onclick=()=>{if(screen!=='dashboard')renderDashboard();else closeRecovery()};window.scrollTo(0,0);return ov
+}
+function ensureStyles(){
+ if($('#phase4RecoveryStyles'))return;const s=document.createElement('style');s.id='phase4RecoveryStyles';s.textContent=`
+ .p4-overlay{position:fixed;inset:0;z-index:2600;background:#08160f;color:#edf2eb;overflow-y:auto;overflow-x:hidden}.p4-safe{min-height:100%;max-width:760px;margin:auto;padding:calc(12px + env(safe-area-inset-top)) 12px calc(90px + env(safe-area-inset-bottom))}
+ .p4-head{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px;margin-bottom:13px}.p4-head>button{width:42px;height:42px;border:0;border-radius:13px;background:#17281e;color:#eff3ed;font-size:28px}.p4-head small,.p4-kicker{font-size:8px;letter-spacing:.12em;font-weight:900;color:#94a198}.p4-head h1{font-size:24px;margin:2px 0 0}
+ .p4-card{background:#eee9dc;color:#102018;border-radius:22px;padding:15px;margin:10px 0}.p4-card.dark{background:#13251a;color:#eef2eb;border:1px solid rgba(255,255,255,.07)}.p4-card h2,.p4-card h3{margin:4px 0 7px}.p4-sub{font-size:10px;line-height:1.5;color:#667168}.dark .p4-sub{color:#aeb8b0}
+ .p4-status{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.p4-state{font-size:11px;font-weight:950;padding:7px 9px;border-radius:999px;background:#dae1d9}.p4-state.green{background:#dfff74}.p4-state.yellow{background:#f0df7d}.p4-state.orange{background:#edb473}.p4-state.red{background:#df8b82}.p4-score{font-size:38px;font-weight:950}.p4-score small{font-size:10px;font-weight:800;color:#6e786f}
+ .p4-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.p4-metric{background:#dcd7cb;border-radius:14px;padding:11px;min-width:0}.p4-metric b{display:block;font-size:16px;overflow:hidden;text-overflow:ellipsis}.p4-metric small{font-size:7px;color:#6d786f;font-weight:900;letter-spacing:.08em}.p4-menu{display:grid;gap:8px;margin-top:12px}.p4-menu button,.p4-ex-row{display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:10px;width:100%;min-height:62px;border:0;border-radius:16px;background:#13251a;color:#edf2eb;padding:10px;text-align:left}.p4-menu button span:first-child{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:#203326;color:#dfff74}.p4-menu b,.p4-ex-row b{display:block;font-size:12px}.p4-menu small,.p4-ex-row small{display:block;font-size:8px;color:#9ba69e;margin-top:3px}
+ .p4-primary,.p4-secondary{width:100%;min-height:52px;border-radius:15px;font-size:10px;font-weight:950}.p4-primary{border:0;background:#dfff74;color:#102018}.p4-secondary{border:1px solid #839188;background:#15271c;color:#eef2eb}.p4-section-label{display:block;margin:13px 0 7px;font-size:8px;font-weight:900;letter-spacing:.09em;color:#8d9990}
+ .p4-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.p4-choice-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.p4-choice{min-height:44px;border:1px solid rgba(255,255,255,.08);border-radius:12px;background:#14261b;color:#edf2eb;padding:8px;font-size:9px;font-weight:800}.p4-choice.active{background:#dfff74;color:#102018}.p4-range{width:100%}.p4-range-line{display:flex;justify-content:space-between;align-items:center}.p4-range-line b{font-size:20px}
+ .p4-warning{border-left:4px solid #cf685f;background:#f0d7d1;color:#4b2320;border-radius:6px 15px 15px 6px;padding:12px;font-size:10px;line-height:1.5}.p4-form{padding-bottom:12px}.p4-notes{width:100%;min-height:76px;border:0;border-radius:12px;background:#f7f2e7;padding:10px;color:#102018}
+ .p4-program-head{display:flex;justify-content:space-between;gap:10px}.p4-program-head select{max-width:54%;min-height:38px;border:0;border-radius:10px;background:#d8d3c7;color:#102018;padding:7px}.p4-progressbar{height:8px;background:#d6d2c7;border-radius:999px;overflow:hidden;margin:8px 0}.p4-progressbar i{display:block;height:100%;background:#35523e}
+ .p4-ex-list{display:grid;gap:7px}.p4-ex-row{grid-template-columns:58px 1fr auto;background:#eee9dc;color:#102018}.p4-ex-row img,.p4-ex-thumb{width:58px;height:58px;object-fit:cover;border-radius:12px;background:#d3d0c5}.p4-ex-row small{color:#68736b}.p4-ex-row em{font-style:normal;font-size:8px;color:#657068}
+ .p4-media{aspect-ratio:4/3;border-radius:18px;background:#d6d2c6;overflow:hidden;display:grid;place-items:center}.p4-media img,.p4-media video{width:100%;height:100%;object-fit:cover}.p4-rx{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}.p4-rx div{background:#dcd7cb;border-radius:13px;padding:10px}.p4-rx b{display:block;font-size:17px}.p4-rx small{font-size:7px;color:#69746c}.p4-steps{padding-left:20px;font-size:10px;line-height:1.6}.p4-version-grid{display:grid;grid-template-columns:1fr;gap:7px}.p4-version-grid div{border-radius:12px;background:#dcd7cb;padding:10px}.p4-version-grid small{display:block;font-size:7px;color:#68736b}.p4-version-grid b{display:block;margin-top:3px;font-size:10px}
+ .p4-response{display:grid;gap:10px}.p4-feels{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.p4-feels button{min-height:44px;border:1px solid rgba(16,32,24,.12);border-radius:11px;background:#ddd8cb;color:#102018;font-size:9px;font-weight:900}.p4-feels button.active{background:#102018;color:#dfff74}.p4-number{width:100%;min-height:42px;border:1px solid rgba(16,32,24,.15);border-radius:11px;background:#f8f2e7;padding:8px}
+ .p4-domain{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(16,32,24,.1)}.p4-domain:last-child{border-bottom:0}.p4-domain b{font-size:11px}.p4-domain small{display:block;font-size:8px;color:#68736b;margin-top:3px}.p4-decision{font-weight:950;font-size:20px}.p4-contract{display:grid;grid-template-columns:1fr 1fr;gap:8px}.p4-contract div{background:#15271c;border-radius:14px;padding:11px}.p4-contract small{font-size:7px;color:#94a198}.p4-contract b{display:block;margin-top:4px;color:#edf2eb;font-size:11px}
+ @media(max-width:390px){.p4-safe{padding-left:10px;padding-right:10px}.p4-choice-grid.three{grid-template-columns:1fr 1fr}.p4-grid{grid-template-columns:1fr 1fr}.p4-rx{grid-template-columns:1fr 1fr}.p4-contract{grid-template-columns:1fr}}
+ `;document.head.appendChild(s)
+}
+function recommendationText(rd){
+ if(rd.state==='GREEN')return'Train normally, while continuing to monitor symptoms and next-day response.';
+ if(rd.state==='YELLOW')return'Modify load, volume or range of motion. Keep the session controlled.';
+ if(rd.state==='ORANGE')return'Use a recovery-focused session and avoid aggravating load today.';
+ if(rd.state==='RED')return'Stop affected training and seek appropriate professional assessment.';
+ return'Complete a symptom check to generate a symptom-aware recommendation.'
+}
+function renderDashboard(){
+ ensureStyles();const r=ensure(),rd=readiness(r.latestCheck),dev=deviceData(),load=recentLoad(),prog=ensureProgram(),pg=progression(),pf=profile();persistDerived();
+ const check=r.latestCheck;
+ const html=`<main data-system-screen="recovery-dashboard">
+  <section class="p4-card"><div class="p4-status"><div><div class="p4-kicker">READINESS</div><h2>${rd.state==='NO DATA'?'NO DATA':rd.state}</h2><p class="p4-sub">${esc(recommendationText(rd))}</p></div><div class="p4-state ${rd.state.toLowerCase().replace(' ','-')}">${rd.score==null?'—':rd.score+'/100'}</div></div>
+   <div class="p4-grid">
+    <div class="p4-metric"><small>SLEEP</small><b>${dev.sleep!=null?dev.sleep.toFixed(1)+' h':'—'}</b></div>
+    <div class="p4-metric"><small>HRV</small><b>${dev.hrv!=null?Math.round(dev.hrv)+' ms':'—'}</b></div>
+    <div class="p4-metric"><small>FATIGUE</small><b>${check?check.fatigue+'/10':'—'}</b></div>
+    <div class="p4-metric"><small>MUSCLE SORENESS</small><b>${check?check.soreness+'/10':'—'}</b></div>
+    <div class="p4-metric"><small>MOBILITY</small><b>${check?check.mobility+'/10':'—'}</b></div>
+    <div class="p4-metric"><small>RECENT LOAD</small><b>${load?load.sessions+' sessions':'—'}</b></div>
+   </div></section>
+  <section class="p4-card dark"><div class="p4-kicker">TODAY'S RECOVERY RECOMMENDATION</div><h2>${esc(pg.decision)}</h2><p class="p4-sub">${esc(pg.reason)}</p><div class="p4-contract"><div><small>RUN</small><b>${esc(rd.runState)}</b></div><div><small>REHAB PROGRAM</small><b>${esc(pf[1])}</b></div></div></section>
+  <div class="p4-menu">
+   <button data-p4-nav="check"><span>◎</span><div><b>SYMPTOMS</b><small>${check?esc(check.location)+' · '+check.pain+'/10 · '+esc(check.trend):'Complete today’s check-in'}</small></div><em>›</em></button>
+   <button data-p4-nav="mobility"><span>↔</span><div><b>MOBILITY</b><small>${check?'Current self-rating '+check.mobility+'/10':'No current mobility data'}</small></div><em>›</em></button>
+   <button data-p4-nav="program"><span>◇</span><div><b>REHAB PROGRAM</b><small>${esc(prog.name)} · Phase ${prog.phase}</small></div><em>›</em></button>
+   <button data-p4-nav="tools"><span>⌁</span><div><b>RECOVERY TOOLS</b><small>Load modification · symptom monitoring · controlled rehab</small></div><em>›</em></button>
+   <button data-p4-nav="progress"><span>▥</span><div><b>RECOVERY PROGRESS</b><small>${programCompletion()}% recorded · ${esc(pg.decision)}</small></div><em>›</em></button>
+  </div>
+ </main>`;
+ const ov=shell(html,'dashboard');
+ $$('[data-p4-nav]',ov).forEach(b=>b.onclick=()=>{const k=b.dataset.p4Nav;if(k==='check')renderCheck();else if(k==='program')renderProgram();else if(k==='progress')renderProgress();else renderTools(k)})
+}
+function renderTools(kind){
+ const r=ensure(),rd=readiness(r.latestCheck);
+ const body=kind==='mobility'?`<section class="p4-card"><div class="p4-kicker">MOBILITY</div><h2>Use movement quality, not forced range.</h2><p class="p4-sub">Current mobility data: ${r.latestCheck?r.latestCheck.mobility+'/10':'—'}. Mobility guidance should stay symptom-tolerated and should not be used to force painful end range.</p><button class="p4-primary" data-tools-back>BACK TO RECOVERY</button></section>`:`<section class="p4-card"><div class="p4-kicker">RECOVERY TOOLS</div><h2>${esc(rd.state)} guidance</h2><p class="p4-sub">Adjust one variable at a time: load, volume, range of motion, support, or exercise version. Judge the immediate and next-day response before progressing.</p><div class="p4-version-grid"><div><small>LOAD</small><b>Reduce resistance before abandoning all movement.</b></div><div><small>RANGE</small><b>Use a comfortable symptom-tolerated ROM.</b></div><div><small>SUPPORT</small><b>Add wall, rail, machine or bilateral support.</b></div><div><small>RESPONSE</small><b>Track pain during, after and next day.</b></div></div><button class="p4-primary" data-tools-back>BACK TO RECOVERY</button></section>`;
+ const ov=shell(body,kind==='mobility'?'mobility':'tools');$('[data-tools-back]',ov).onclick=renderDashboard
+}
+function renderCheck(){
+ const r=ensure(),d=Object.assign(blankDraft(),r.checkDraft||r.latestCheck||{});d.redFlags=Object.assign({},d.redFlags||{});
+ const pills=(list,selected,attr)=>list.map(x=>`<button class="p4-choice ${selected.includes(x)?'active':''}" ${attr}="${esc(x)}">${esc(x)}</button>`).join('');
+ const html=`<main class="p4-form" data-system-screen="symptom-check">
+  <section class="p4-card dark"><div class="p4-kicker">SHORT STRUCTURED CHECK-IN</div><p class="p4-sub">Recovery guidance does not diagnose an injury. It uses your reported symptoms, function and recent response to guide today’s training load.</p></section>
+  <span class="p4-section-label">PAIN LOCATION</span><div class="p4-choice-grid three">${LOCATIONS.map(x=>`<button class="p4-choice ${d.location===x?'active':''}" data-location="${x}">${x}</button>`).join('')}</div>
+  <section class="p4-card"><div class="p4-range-line"><b>PAIN INTENSITY</b><b id="p4PainOut">${d.pain}/10</b></div><input class="p4-range" id="p4Pain" type="range" min="0" max="10" value="${d.pain}">
+   <div class="p4-range-line"><span>Muscle soreness</span><b id="p4SoreOut">${d.soreness}/10</b></div><input class="p4-range" id="p4Sore" type="range" min="0" max="10" value="${d.soreness}">
+   <div class="p4-range-line"><span>General fatigue</span><b id="p4FatigueOut">${d.fatigue}/10</b></div><input class="p4-range" id="p4Fatigue" type="range" min="0" max="10" value="${d.fatigue}">
+   <div class="p4-range-line"><span>Mobility / comfortable motion</span><b id="p4MobilityOut">${d.mobility}/10</b></div><input class="p4-range" id="p4Mobility" type="range" min="0" max="10" value="${d.mobility}">
+   <div class="p4-range-line"><span>Functional tolerance</span><b id="p4FunctionOut">${d.functionTolerance}/10</b></div><input class="p4-range" id="p4Function" type="range" min="0" max="10" value="${d.functionTolerance}">
+  </section>
+  <span class="p4-section-label">PAIN BEHAVIOR</span><div class="p4-choice-grid">${pills(BEHAVIORS,d.behaviors,'data-behavior')}</div>
+  <span class="p4-section-label">OTHER SYMPTOMS</span><div class="p4-choice-grid">${pills(SYMPTOMS,d.symptoms,'data-symptom')}</div>
+  <span class="p4-section-label">RECENT CHANGE</span><div class="p4-choice-grid three">${['Better','Same','Worse'].map(x=>`<button class="p4-choice ${d.trend===x?'active':''}" data-trend="${x}">${x.toUpperCase()}</button>`).join('')}</div>
+  <section class="p4-card dark"><div class="p4-kicker">SAFETY GATE</div><h3>Concerning presentation</h3><p class="p4-sub">Select any item that is actually present. These do not diagnose a condition; they change the safety recommendation.</p><div class="p4-choice-grid">${RED_FLAGS.map(([k,label])=>`<button class="p4-choice ${d.redFlags[k]?'active':''}" data-redflag="${k}">${esc(label)}</button>`).join('')}</div></section>
+  <span class="p4-section-label">NOTES · OPTIONAL</span><textarea id="p4Notes" class="p4-notes" placeholder="What changed, what aggravated it, what felt okay?">${esc(d.notes||'')}</textarea>
+  <button class="p4-primary" id="p4SaveCheck">SAVE CHECK-IN</button>
+ </main>`;
+ const ov=shell(html,'check');
+ const updateDraft=()=>{r.checkDraft=d;save()};
+ $$('[data-location]',ov).forEach(b=>b.onclick=()=>{d.location=b.dataset.location;renderCheck()});
+ $$('[data-behavior]',ov).forEach(b=>b.onclick=()=>{const x=b.dataset.behavior;d.behaviors=d.behaviors.includes(x)?d.behaviors.filter(v=>v!==x):[...d.behaviors,x];updateDraft();b.classList.toggle('active')});
+ $$('[data-symptom]',ov).forEach(b=>b.onclick=()=>{const x=b.dataset.symptom;d.symptoms=d.symptoms.includes(x)?d.symptoms.filter(v=>v!==x):[...d.symptoms,x];updateDraft();b.classList.toggle('active')});
+ $$('[data-trend]',ov).forEach(b=>b.onclick=()=>{d.trend=b.dataset.trend;renderCheck()});
+ $$('[data-redflag]',ov).forEach(b=>b.onclick=()=>{const k=b.dataset.redflag;d.redFlags[k]=!d.redFlags[k];updateDraft();b.classList.toggle('active')});
+ const range=(id,key,out)=>{$(id,ov).oninput=e=>{d[key]=+e.target.value;$(out,ov).textContent=d[key]+'/10';updateDraft()}};
+ range('#p4Pain','pain','#p4PainOut');range('#p4Sore','soreness','#p4SoreOut');range('#p4Fatigue','fatigue','#p4FatigueOut');range('#p4Mobility','mobility','#p4MobilityOut');range('#p4Function','functionTolerance','#p4FunctionOut');
+ $('#p4Notes',ov).oninput=e=>{d.notes=e.target.value;updateDraft()};
+ $('#p4SaveCheck',ov).onclick=()=>{const check={...d,dateTime:Date.now(),readinessState:readiness(d).state};delete check.date;r.latestCheck=check;r.checkHistory.push(check);r.checkDraft=null;ensureProgram();persistDerived();renderCheckResult()}
+}
+function renderCheckResult(){
+ const r=ensure(),rd=readiness(r.latestCheck),warn=rd.state==='RED'?`<div class="p4-warning"><b>STOP / PROFESSIONAL ASSESSMENT</b><br>${esc(rd.reason)}</div>`:'';
+ const html=`<main data-system-screen="symptom-check-result"><section class="p4-card"><div class="p4-status"><div><div class="p4-kicker">RECOVERY STATUS</div><h2>${rd.state}</h2><p class="p4-sub">${esc(rd.reason)}</p></div><span class="p4-state ${rd.state.toLowerCase()}">${rd.score==null?'—':rd.score+'/100'}</span></div>${warn}<div class="p4-contract"><div><small>TODAY</small><b>${esc(recommendationText(rd))}</b></div><div><small>RUN</small><b>${esc(rd.runState)}</b></div></div></section><button class="p4-primary" data-result-dashboard>RECOVERY DASHBOARD</button></main>`;
+ const ov=shell(html,'check');$('[data-result-dashboard]',ov).onclick=renderDashboard
+}
+function renderProgram(){
+ const r=ensure(),p=ensureProgram(),rd=readiness(r.latestCheck),ids=(p.exercises||[]),pf=profile();
+ const rows=ids.map(id=>{const ex=EXERCISES[id],asset=approvedAsset(ex),rx=ex.mode==='hold'?`${ex.sets} × ${ex.holdMin}–${ex.holdMax} sec`:`${ex.sets} × ${ex.reps}`;return`<button class="p4-ex-row" data-rehab-ex="${id}">${asset?.poster?`<img src="${esc(asset.poster)}" alt="">`:'<span class="p4-ex-thumb">◇</span>'}<span><b>${esc(ex.name)}</b><small>${esc(ex.area)}</small><em>${esc(rx)} · ${ex.rest}s rest</em></span><strong>›</strong></button>`}).join('');
+ const html=`<main data-system-screen="rehab-program"><section class="p4-card"><div class="p4-program-head"><div><div class="p4-kicker">REHAB PROGRAM</div><h2>${esc(p.name)}</h2><p class="p4-sub">Profile selected from your recovery program/user profile. KINETIQ is not diagnosing the condition.</p></div><select id="p4Profile">${PROFILES.map(x=>`<option value="${x[0]}" ${r.selectedProfile===x[0]?'selected':''}>${esc(x[1])}</option>`).join('')}</select></div><div class="p4-progressbar"><i style="width:${programCompletion()}%"></i></div><small>Phase ${p.phase} · Week ${p.week} of ${p.weeks} · ${programCompletion()}% recorded</small></section>
+ <section class="p4-card dark"><div class="p4-kicker">TODAY'S LOAD</div><h3>${esc(rd.state)} · ${esc(progression().decision)}</h3><p class="p4-sub">${esc(rd.reason)}</p></section>
+ <div class="p4-ex-list">${rows}</div></main>`;
+ const ov=shell(html,'program');$('#p4Profile',ov).onchange=e=>{r.selectedProfile=e.target.value;r.rehabProgram=null;ensureProgram();persistDerived();renderProgram()};$$('[data-rehab-ex]',ov).forEach(b=>b.onclick=()=>renderExercise(b.dataset.rehabEx))
+}
+function renderExercise(id){
+ const r=ensure(),ex=EXERCISES[id];if(!ex){renderProgram();return}const asset=approvedAsset(ex),trend=responseTrend(id),rd=readiness(r.latestCheck);
+ const media=asset?.motion?`<video muted loop playsinline autoplay preload="metadata" src="${esc(asset.motion)}" ${asset.poster?`poster="${esc(asset.poster)}"`:''}></video>`:asset?.poster?`<img src="${esc(asset.poster)}" alt="${esc(ex.name)}">`:`<div class="p4-ex-thumb">APPROVED ASSET NOT AVAILABLE</div>`;
+ const prescription=ex.mode==='hold'?`${ex.holdMin}–${ex.holdMax} sec`:`${ex.reps} reps`;
+ const html=`<main data-system-screen="rehab-exercise"><section class="p4-media">${media}</section><section class="p4-card"><div class="p4-kicker">${esc(ex.area.toUpperCase())}</div><h2>${esc(ex.name)}</h2><div class="p4-rx"><div><b>${ex.sets}</b><small>SETS</small></div><div><b>${esc(prescription)}</b><small>${ex.mode==='hold'?'HOLD':'REPS'}</small></div><div><b>${ex.rest}s</b><small>REST</small></div></div><p class="p4-sub">${esc(ex.cue)}</p></section>
+ <section class="p4-card"><div class="p4-kicker">INSTRUCTIONS</div><ol class="p4-steps">${ex.instructions.map(x=>`<li>${esc(x)}</li>`).join('')}</ol><div class="p4-kicker">SYMPTOM GUIDANCE</div><p class="p4-sub">${rd.state==='RED'?'Do not start the exercise while the safety gate is active. Seek appropriate assessment.':'Use a symptom-tolerated version. If pain clearly increases during the exercise, function worsens, swelling/instability appears, or symptoms are meaningfully worse afterward/next day, reduce or stop the aggravating load and reassess.'}</p></section>
+ <section class="p4-card"><div class="p4-kicker">VERSION</div><div class="p4-version-grid"><div><small>EASIER VERSION</small><b>${esc(ex.easier)}</b></div><div><small>CURRENT VERSION</small><b>${esc(ex.cue)}</b></div><div><small>HARDER VERSION</small><b>${esc(ex.harder)}</b></div></div><p class="p4-sub">Progress based on response, not calendar time alone. Recorded response: ${trend.good} good / ${trend.bad} aggravated in the last ${trend.total} entries.</p></section>
+ <button class="p4-primary" id="p4StartRehab" ${rd.state==='RED'?'disabled':''}>${rd.state==='RED'?'SAFETY GATE ACTIVE':'START EXERCISE'}</button></main>`;
+ const ov=shell(html,'exercise');$('#p4StartRehab',ov).onclick=()=>renderResponse(id)
+}
+function renderResponse(id){
+ const r=ensure(),ex=EXERCISES[id],draft={painDuring:0,painAfter:0,feels:'Same',nextDayPain:'',completed:true,completedLoad:ex.mode==='hold'?`${ex.sets} × ${ex.holdMin}–${ex.holdMax} sec`:`${ex.sets} × ${ex.reps}`};
+ const html=`<main data-system-screen="rehab-exercise-response"><section class="p4-card"><div class="p4-kicker">EXERCISE RESPONSE</div><h2>${esc(ex.name)}</h2><div class="p4-response"><label>PAIN DURING · <b id="p4DuringOut">0/10</b><input id="p4During" class="p4-range" type="range" min="0" max="10" value="0"></label><label>PAIN AFTER · <b id="p4AfterOut">0/10</b><input id="p4After" class="p4-range" type="range" min="0" max="10" value="0"></label><div><span class="p4-section-label">FEELS</span><div class="p4-feels">${['Better','Same','Worse'].map(x=>`<button class="${draft.feels===x?'active':''}" data-feels="${x}">${x.toUpperCase()}</button>`).join('')}</div></div><label>OPTIONAL NEXT-DAY PAIN<input id="p4NextDay" class="p4-number" type="number" min="0" max="10" placeholder="—"></label><label>COMPLETED LOAD / DURATION<input id="p4CompletedLoad" class="p4-number" value="${esc(draft.completedLoad)}"></label></div></section><button class="p4-primary" id="p4SaveResponse">SAVE RESPONSE</button></main>`;
+ const ov=shell(html,'response');$('#p4During',ov).oninput=e=>{$('#p4DuringOut',ov).textContent=e.target.value+'/10';draft.painDuring=+e.target.value};$('#p4After',ov).oninput=e=>{$('#p4AfterOut',ov).textContent=e.target.value+'/10';draft.painAfter=+e.target.value};$$('[data-feels]',ov).forEach(b=>b.onclick=()=>{draft.feels=b.dataset.feels;$$('[data-feels]',ov).forEach(x=>x.classList.toggle('active',x===b))});$('#p4NextDay',ov).oninput=e=>draft.nextDayPain=e.target.value===''?null:+e.target.value;$('#p4CompletedLoad',ov).oninput=e=>draft.completedLoad=e.target.value;
+ $('#p4SaveResponse',ov).onclick=()=>{r.exerciseResponses.push({dateTime:Date.now(),exerciseId:id,...draft});if(r.exerciseResponses.length>300)r.exerciseResponses=r.exerciseResponses.slice(-250);persistDerived();renderProgress()}
+}
+function domains(){
+ const r=ensure(),c=r.latestCheck,rd=readiness(c),resp=r.exerciseResponses,done=new Set(resp.filter(x=>x.completed).map(x=>x.exerciseId)),prog=ensureProgram(),ids=prog.exercises||[];
+ const pain=c?clamp(100-num(c.pain)*10,0,100):0,mob=c?clamp(num(c.mobility)*10,0,100):0,strength=ids.length?Math.round(ids.filter(x=>done.has(x)).length/ids.length*100):0;
+ const cap=resp.length?Math.round(resp.slice(-6).filter(x=>x.feels!=='Worse'&&num(x.painAfter)<=4).length/Math.min(6,resp.length)*100):0,func=c?num(c.functionTolerance)*10:0;
+ return[
+  ['Pain management',pain,c?'Based on current symptom intensity.':'No current check-in.'],
+  ['Mobility',mob,c?'Based on self-reported comfortable motion.':'No current mobility data.'],
+  ['Strength / activation',strength,'Recorded rehab exercise completion.'],
+  ['Strength capacity',cap,'Recent tolerated exercise responses.'],
+  ['Functional integration',func,c?'Based on functional tolerance input.':'No current function data.'],
+  ['Return to normal training',rd.state==='GREEN'?100:rd.state==='YELLOW'?60:rd.state==='ORANGE'?25:0,'Driven by symptoms, function and response.'],
+  ['Return to running',rd.runState==='ALLOWED'?100:rd.runState==='MODIFIED'?55:0,rd.runState]
+ ]
+}
+function renderProgress(){
+ const r=ensure(),p=ensureProgram(),pg=progression(),rd=readiness(r.latestCheck),ds=domains();persistDerived();
+ const html=`<main data-system-screen="recovery-progress"><section class="p4-card"><div class="p4-kicker">SELECTED REHAB PROGRAM</div><h2>${esc(p.name)}</h2><h3>WEEK ${p.week} OF ${p.weeks} · PHASE ${p.phase}</h3><div class="p4-progressbar"><i style="width:${programCompletion()}%"></i></div><small>${programCompletion()}% exercise coverage recorded</small></section>
+ <section class="p4-card"><div class="p4-kicker">PROGRESSION DOMAINS</div>${ds.map(([n,v,why])=>`<div class="p4-domain"><span><b>${esc(n)}</b><small>${esc(why)}</small></span><strong>${Math.round(v)}%</strong></div>`).join('')}</section>
+ <section class="p4-card dark"><div class="p4-kicker">NEXT DECISION</div><div class="p4-decision">${esc(pg.decision)}</div><p class="p4-sub">${esc(pg.reason)}</p><div class="p4-contract"><div><small>RUN</small><b>${esc(rd.runState)}</b></div><div><small>READINESS</small><b>${esc(rd.state)}</b></div></div></section>
+ <section class="p4-card"><div class="p4-kicker">PROGRESSION CRITERIA</div><ul class="p4-steps">${p.progressionCriteria.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p class="p4-sub">Calendar week alone never advances the program. A progress decision requires symptom trend, exercise response, session completion and function data.</p></section>
+ <button class="p4-primary" data-progress-program>OPEN REHAB PROGRAM</button></main>`;
+ const ov=shell(html,'progress');$('[data-progress-program]',ov).onclick=renderProgram
+}
+function openRecovery(){ensureStyles();ensure();ensureProgram();persistDerived();renderDashboard()}
+function patchApi(){
+ if(!window.PT29)return false;window.PT29.showRecover=openRecovery;
+ window.KINETIQRecovery={version:'4.0',open:openRecovery,renderDashboard,renderCheck,renderProgram,renderProgress,readiness,progression,getContract:()=>recoveryContract(),getState:()=>ensure()};
+ if(window.KINETIQSystem)window.KINETIQSystem.openRecovery=openRecovery;
+ return true
+}
+function install(){ensure();ensureStyles();if(!patchApi()){setTimeout(install,120);return}document.documentElement.dataset.kinetiqPhase4='ready'}
+install();
+})();
