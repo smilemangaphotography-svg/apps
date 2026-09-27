@@ -68,6 +68,7 @@ public class MainActivity extends Activity {
     private String phonePolishJs;
     private String orderWatchJs;
     private View startupGate;
+    private boolean runtimeJsAppliedForPage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -339,14 +340,14 @@ public class MainActivity extends Activity {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
+                runtimeJsAppliedForPage = false;
                 showLastSnapshot();
-                applyRuntimeJs(view);
             }
 
             @Override
             public void onPageCommitVisible(WebView view, String url) {
                 super.onPageCommitVisible(view, url);
-                applyRuntimeJs(view);
+                applyRuntimeJsOnce(view);
                 progressBar.setVisibility(View.GONE);
                 hideLastSnapshot();
             }
@@ -354,7 +355,7 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                applyRuntimeJs(view);
+                applyRuntimeJsOnce(view);
                 progressBar.setVisibility(View.GONE);
                 hideLastSnapshot();
                 captureSnapshot();
@@ -376,7 +377,6 @@ public class MainActivity extends Activity {
             @Override
             public void onProgressChanged(WebView view, int newProgress) {
                 progressBar.setVisibility(View.GONE);
-                if (newProgress >= 5) applyRuntimeJs(view);
             }
 
             @Override
@@ -427,6 +427,12 @@ public class MainActivity extends Activity {
                 }
             }
         });
+    }
+
+    private void applyRuntimeJsOnce(WebView view) {
+        if (runtimeJsAppliedForPage) return;
+        runtimeJsAppliedForPage = true;
+        applyRuntimeJs(view);
     }
 
     private void applyRuntimeJs(WebView view) {
