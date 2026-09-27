@@ -62,18 +62,31 @@ const path = require('path');
   page.on('pageerror',e=>errors.push(String(e.stack||e)));
   const url=process.env.GOLDEN_URL||'http://127.0.0.1:4173/system.html';
   await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
-  await page.waitForFunction(()=>document.documentElement.classList.contains('v4-owned'),null,{timeout:20000});
-  await page.waitForSelector('#v4Root .v4-today',{state:'visible',timeout:20000});
-  await page.evaluate(()=>scrollTo(0,0));
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(8000);
+  const runtime=await page.evaluate(async()=>{
+    const v4=window.KINETIQV4||{};
+    const safe=async p=>{try{return await p}catch(e){return {error:String(e?.message||e)}}};
+    return {
+      htmlClass:document.documentElement.className,
+      v4Owned:document.documentElement.classList.contains('v4-owned'),
+      phase0:{readyState:v4.phase0?.readyState,error:v4.phase0?.error||null},
+      phase1:{readyState:v4.phase1?.readyState,error:v4.phase1?.error||null,lastResult:v4.phase1?.startup?.lastResult||null},
+      phase2:{readyState:(v4.phase2b||v4.phase2a)?.readyState,error:(v4.phase2b||v4.phase2a)?.error||null,lastResult:(v4.phase2b||v4.phase2a)?.startup?.lastResult||null},
+      phase10:{status:v4.phase10Startup?.status,error:v4.phase10Startup?.error||null,result:v4.phase10Startup?.ready?await safe(v4.phase10Startup.ready):null},
+      hasShell:!!window.KINETIQV4UI?.shell,
+      rootExists:!!document.getElementById('v4Root'),
+      bodyText:(document.body?.innerText||'').slice(0,6000)
+    };
+  });
   const nav=await page.locator('.v4-bottom-nav button').allTextContents().catch(()=>[]);
-  const screenText=await page.locator('#v4Root').innerText();
+  const screenText=await page.locator('#v4Root').innerText().catch(()=> '');
   const legacyVisible=await page.locator('#app').evaluate(el=>{
     const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getAttribute('aria-hidden')!=='true';
   }).catch(()=>false);
-  const meta={url,nav,legacyVisible,screenText,console:consoleLines,errors};
+  const meta={url,nav,legacyVisible,screenText,runtime,console:consoleLines,errors};
   fs.writeFileSync(path.join(out,'today-runtime.json'),JSON.stringify(meta,null,2));
   await page.screenshot({path:path.join(out,'KINETIQ-TODAY-A54-ACTUAL.png'),fullPage:false});
+  if(!runtime.v4Owned) throw new Error('V4 did not take ownership: '+JSON.stringify(runtime));
   if(nav.map(x=>x.trim().replace(/\s+/g,' ')).join('|')!=='TODAY|JOURNEY|COACH|RUN|MORE') throw new Error('Primary nav mismatch: '+nav.join('|'));
   if(legacyVisible) throw new Error('Legacy UI still visible');
   if(!/TODAY'S BEST MOVE/i.test(screenText)) throw new Error('Today Best Move missing');
