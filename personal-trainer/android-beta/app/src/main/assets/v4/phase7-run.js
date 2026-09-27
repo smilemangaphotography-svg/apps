@@ -81,5 +81,5 @@ class RunExecutionService{
  async canSwitchProfile(fromProfileId,toProfileId){if(fromProfileId===toProfileId)return true;return !(await this.hasActive(fromProfileId))}
 }
 const runtimeStore=v4.phase0?.store||null,runtime=runtimeStore?new RunExecutionService(runtimeStore):null;
-v4.phase7=frozen({version:'7',SOURCE,GPS_STATE,LIVE_STATUS,RunSessionProjector,LegacyRunExecutionAdapter,RunCoachService,RunHistoryService,RunExecutionService,phaseAt,packetFromEngine,runService:runtime});
+v4.phase7=Object.freeze({version:'7',SOURCE,GPS_STATE,LIVE_STATUS,RunSessionProjector,LegacyRunExecutionAdapter,RunCoachService,RunHistoryService,RunExecutionService,phaseAt,packetFromEngine,runService:runtime});
 })();

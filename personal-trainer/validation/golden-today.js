@@ -15,14 +15,6 @@ const path = require('path');
     userAgent:'Mozilla/5.0 (Linux; Android 16; SM-A546B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
   });
   await context.addInitScript(()=>{
-    const fixed=Date.parse('2026-09-20T09:00:00+03:00');
-    const RealDate=Date;
-    class FixedDate extends RealDate{
-      constructor(...a){super(...(a.length?a:[fixed]));}
-      static now(){return fixed;}
-    }
-    Object.setPrototypeOf(FixedDate,RealDate);
-    window.Date=FixedDate;
     const legacy={
       name:'Ilias',
       experience:'Intermediate',
