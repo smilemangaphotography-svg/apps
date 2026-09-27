@@ -67,6 +67,7 @@ jobs:
           node personal-trainer/validation/golden-today.js
 
       - name: Compare actual with approved preview
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
@@ -100,6 +101,7 @@ jobs:
           PY
 
       - name: Upload Golden TODAY evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: KINETIQ-GOLDEN-TODAY-A54
