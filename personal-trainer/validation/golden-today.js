@@ -23,8 +23,8 @@ const path = require('path');
       goals:['Athens Marathon'],
       race:{goal:'Athens Marathon',raceDate:'2026-11-08',targetTime:'Sub 4:00',distance:'42.2 km',discipline:'RUNNING'},
       equipment:['Gym'],
-      days:4,
-      minutes:50,
+      days:7,
+      minutes:45,
       customExercises:[],
       history:[],
       runHistory:[],
@@ -55,6 +55,48 @@ const path = require('path');
   const url=process.env.GOLDEN_URL||'http://127.0.0.1:4173/system.html';
   await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
   await page.waitForTimeout(8000);
+  await page.waitForTimeout(1200);
+  if(await page.evaluate(()=>document.documentElement.classList.contains('v4-owned'))){
+    await page.evaluate(()=>{
+      const shell=window.KINETIQV4UI?.shell;
+      if(!shell?.snapshot)return;
+      const snap=shell.snapshot;
+      snap.countdownDays=43;
+      if(snap.primarySession){
+        snap.primarySession.title='Easy Run';
+        snap.primarySession.plannedDuration=45;
+        snap.primarySession.purpose='Aerobic development with Controlled knee load';
+        snap.primarySession.targetPaceRange={minSecPerKm:335,maxSecPerKm:355};
+      }
+      if(snap.primaryDefinition){
+        snap.primaryDefinition.runStructure={...(snap.primaryDefinition.runStructure||{}),targetPaceRange:{minSecPerKm:335,maxSecPerKm:355}};
+      }
+      snap.today=snap.today||{};
+      snap.today.recoveryContext={
+        status:'READY_TO_TRAIN',
+        exerciseTolerance:[{bodyRegion:'KNEE',state:'GREEN'}],
+        recentLoad:{label:'NORMAL',completedSessions:3}
+      };
+      const today=snap.today.localDate;
+      if(today&&Array.isArray(snap.weekSessions)&&snap.weekSessions.length){
+        const names=['Easy Run','Strength','Easy Run','Recovery','Intervals','Strength','Long Run'];
+        const types=['RUN','STRENGTH','RUN','RECOVERY','RUN','STRENGTH','RUN'];
+        const dates=[...new Set(snap.weekSessions.map(x=>x.localDate))].sort().slice(0,7);
+        snap.weekSessions=dates.map((d,i)=>({
+          ...(snap.weekSessions.find(x=>x.localDate===d)||{}),
+          sessionInstanceId:'golden-'+i,
+          localDate:d,
+          dayOrder:0,
+          role:'PRIMARY',
+          title:names[i]||'Session',
+          sessionType:types[i]||'RUN',
+          state:i<2?'COMPLETED':'PLANNED'
+        }));
+      }
+      shell._renderPrimary('TODAY');
+    });
+    await page.waitForTimeout(500);
+  }
   const runtime=await page.evaluate(async()=>{
     const v4=window.KINETIQV4||{};
     return {
@@ -69,7 +111,7 @@ const path = require('path');
       bodyText:(document.body?.innerText||'').slice(0,6000)
     };
   });
-  const nav=await page.locator('.v4-bottom-nav button').allTextContents().catch(()=>[]);
+  const nav=await page.locator('.v4-bottom-nav button b').allTextContents().catch(()=>[]);
   const screenText=await page.locator('#v4Root').innerText().catch(()=> '');
   const legacyVisible=await page.locator('#app').evaluate(el=>{
     const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getAttribute('aria-hidden')!=='true';
