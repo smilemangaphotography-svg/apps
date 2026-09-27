@@ -190,7 +190,14 @@ jobs:
           grep -q 'android:icon="@mipmap/ic_launcher"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q '<string name="app_name">KINETIQ</string>' personal-trainer/android-beta/app/src/main/res/values/strings.xml
 
-      - name: Validate Phase 10.1 startup migration\n        shell: bash\n        run: |\n          set -euo pipefail\n          node --check personal-trainer/validation/phase10-startup-migration-validation.js\n          node personal-trainer/validation/phase10-startup-migration-validation.js\n\n      - name: Build signed A54 candidate APK
+      - name: Validate Phase 10.1 startup migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check personal-trainer/validation/phase10-startup-migration-validation.js
+          node personal-trainer/validation/phase10-startup-migration-validation.js
+
+      - name: Build signed A54 candidate APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
 
       - name: Verify APK identity and persistent signature
