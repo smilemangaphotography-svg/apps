@@ -65,14 +65,13 @@ const path = require('path');
   await page.waitForTimeout(8000);
   const runtime=await page.evaluate(async()=>{
     const v4=window.KINETIQV4||{};
-    const safe=async p=>{try{return await p}catch(e){return {error:String(e?.message||e)}}};
     return {
       htmlClass:document.documentElement.className,
       v4Owned:document.documentElement.classList.contains('v4-owned'),
       phase0:{readyState:v4.phase0?.readyState,error:v4.phase0?.error||null},
       phase1:{readyState:v4.phase1?.readyState,error:v4.phase1?.error||null,lastResult:v4.phase1?.startup?.lastResult||null},
       phase2:{readyState:(v4.phase2b||v4.phase2a)?.readyState,error:(v4.phase2b||v4.phase2a)?.error||null,lastResult:(v4.phase2b||v4.phase2a)?.startup?.lastResult||null},
-      phase10:{status:v4.phase10Startup?.status,error:v4.phase10Startup?.error||null,result:v4.phase10Startup?.ready?await safe(v4.phase10Startup.ready):null},
+      phase10:{status:v4.phase10Startup?.status,error:v4.phase10Startup?.error||null},
       hasShell:!!window.KINETIQV4UI?.shell,
       rootExists:!!document.getElementById('v4Root'),
       bodyText:(document.body?.innerText||'').slice(0,6000)
