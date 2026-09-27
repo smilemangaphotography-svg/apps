@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.os.Build;
 import android.content.Intent;
+import android.content.ContentValues;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Insets;
@@ -13,6 +14,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.provider.Settings;
+import android.provider.MediaStore;
 import android.speech.tts.TextToSpeech;
 import android.view.ViewGroup;
 import android.view.View;
@@ -58,6 +60,7 @@ public class MainActivity extends Activity {
     private FrameLayout root;
     private View startupSplash;
     private ValueCallback<Uri[]> fileCallback;
+    private Uri cameraCaptureUri;
     private static final int FILE_CHOOSER = 501;
     private static final int LOCATION_PERMISSION = 502;
     private static final String GARMIN_CONNECT_PACKAGE = "com.garmin.android.apps.connectmobile";
@@ -167,18 +170,37 @@ public class MainActivity extends Activity {
         webView.setWebChromeClient(new WebChromeClient() {
             @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
                 if (fileCallback != null) fileCallback.onReceiveValue(null);
+                if (cameraCaptureUri != null) {
+                    try { getContentResolver().delete(cameraCaptureUri, null, null); } catch (Exception ignored) { }
+                    cameraCaptureUri = null;
+                }
                 fileCallback = callback;
                 Intent i;
-                try { i = params.createIntent(); }
-                catch (Exception e) {
+                boolean imageCapture = params.isCaptureEnabled() && acceptsImage(params);
+                try {
+                    if (imageCapture) {
+                        i = createImageCaptureIntent();
+                    } else {
+                        i = params.createIntent();
+                        if (params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                    }
+                } catch (Exception e) {
                     i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                    i.setType("*/*");
+                    String fallbackType = "*/*";
+                    String[] acceptTypes = params.getAcceptTypes();
+                    if (acceptTypes != null && acceptTypes.length == 1 && acceptTypes[0] != null && !acceptTypes[0].trim().isEmpty()) fallbackType = acceptTypes[0];
+                    i.setType(fallbackType);
                     i.addCategory(Intent.CATEGORY_OPENABLE);
+                    if (params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
                 }
                 try { startActivityForResult(i, FILE_CHOOSER); }
                 catch (Exception e) {
+                    if (cameraCaptureUri != null) {
+                        try { getContentResolver().delete(cameraCaptureUri, null, null); } catch (Exception ignored) { }
+                        cameraCaptureUri = null;
+                    }
                     fileCallback = null;
-                    Toast.makeText(MainActivity.this, "File picker unavailable", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, imageCapture ? "Camera unavailable" : "File picker unavailable", Toast.LENGTH_SHORT).show();
                     return false;
                 }
                 return true;
@@ -188,6 +210,27 @@ public class MainActivity extends Activity {
         webView.loadUrl("file:///android_asset/system.html");
     }
 
+
+    private boolean acceptsImage(WebChromeClient.FileChooserParams params) {
+        String[] types = params.getAcceptTypes();
+        if (types == null || types.length == 0) return false;
+        for (String type : types) {
+            if (type != null && (type.startsWith("image/") || "*/*".equals(type))) return true;
+        }
+        return false;
+    }
+
+    private Intent createImageCaptureIntent() {
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Images.Media.DISPLAY_NAME, "kinetiq_exercise_" + System.currentTimeMillis() + ".jpg");
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+        cameraCaptureUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+        if (cameraCaptureUri == null) throw new IllegalStateException("Camera output unavailable");
+        Intent camera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        camera.putExtra(MediaStore.EXTRA_OUTPUT, cameraCaptureUri);
+        camera.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        return camera;
+    }
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
@@ -700,15 +743,23 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == FILE_CHOOSER && fileCallback != null) {
             Uri[] out = null;
-            if (resultCode == RESULT_OK && data != null) {
+            if (resultCode == RESULT_OK && cameraCaptureUri != null) {
+                out = new Uri[]{cameraCaptureUri};
+            } else if (resultCode == RESULT_OK && data != null) {
                 if (data.getClipData() != null) {
                     int n = data.getClipData().getItemCount();
                     out = new Uri[n];
                     for (int k = 0; k < n; k++) out[k] = data.getClipData().getItemAt(k).getUri();
-                } else if (data.getData() != null) out = new Uri[]{data.getData()};
+                } else if (data.getData() != null) {
+                    out = new Uri[]{data.getData()};
+                }
+            }
+            if (resultCode != RESULT_OK && cameraCaptureUri != null) {
+                try { getContentResolver().delete(cameraCaptureUri, null, null); } catch (Exception ignored) { }
             }
             fileCallback.onReceiveValue(out);
             fileCallback = null;
+            cameraCaptureUri = null;
         }
     }
 
