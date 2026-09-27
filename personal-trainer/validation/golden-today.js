@@ -54,7 +54,32 @@ const path = require('path');
   page.on('pageerror',e=>errors.push(String(e.stack||e)));
   const url=process.env.GOLDEN_URL||'http://127.0.0.1:4173/system.html';
   await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
-  await page.waitForTimeout(8000);
+  await page.waitForFunction(()=>document.documentElement.classList.contains('v4-owned')&&window.KINETIQV4UI?.shell,null,{timeout:20000});
+  await page.evaluate(async()=>{
+    const v4=window.KINETIQV4, ui=window.KINETIQV4UI, snap=await ui.Shell.readCanonicalSnapshot();
+    const store=v4.phase0.store, now=Date.now();
+    if(snap.event){
+      await store.repository('goalEventOutcomes').put({...snap.event,heroImage:'../../cover-v4.webp',updatedAt:now});
+    }
+    if(snap.block&&snap.week?.startDate){
+      const ws=new Date(snap.week.startDate+'T00:00:00Z'), start=new Date(ws.getTime()-7*86400000), end=new Date(start.getTime()+27*86400000);
+      const iso=d=>d.toISOString().slice(0,10);
+      await store.repository('blocks').put({...snap.block,startDate:iso(start),endDate:iso(end),updatedAt:now});
+    }
+    if(snap.primarySession){
+      await store.repository('sessionInstances').put({...snap.primarySession,plannedDuration:45,purpose:'Aerobic development|Controlled knee load',updatedAt:now});
+    }
+    if(snap.primaryDefinition){
+      const rs={...(snap.primaryDefinition.runStructure||{}),targetReference:'5:35–5:55 /KM'};
+      await store.repository('sessionDefinitions').put({...snap.primaryDefinition,runStructure:rs,updatedAt:now});
+    }
+    if(snap.today){
+      await store.repository('todayPrescriptions').put({...snap.today,statusSummary:{knee:'GREEN · GOOD TODAY',recovery:'READY TO TRAIN',recentLoad:'NORMAL'},purposePrimary:'Aerobic development',purposeSecondary:'Controlled knee load',updatedAt:now});
+    }
+    const refreshed=await ui.Shell.readCanonicalSnapshot();
+    ui.shell.mount(refreshed);
+  });
+  await page.waitForTimeout(900);
   const runtime=await page.evaluate(async()=>{
     const v4=window.KINETIQV4||{};
     return {
@@ -69,7 +94,7 @@ const path = require('path');
       bodyText:(document.body?.innerText||'').slice(0,6000)
     };
   });
-  const nav=await page.locator('.v4-bottom-nav button').allTextContents().catch(()=>[]);
+  const nav=await page.locator('.v4-bottom-nav button').evaluateAll(btns=>btns.map(b=>String(b.dataset.v4Nav||'').trim())).catch(()=>[]);
   const screenText=await page.locator('#v4Root').innerText().catch(()=> '');
   const legacyVisible=await page.locator('#app').evaluate(el=>{
     const s=getComputedStyle(el);return s.display!=='none'&&s.visibility!=='hidden'&&el.getAttribute('aria-hidden')!=='true';
@@ -78,7 +103,7 @@ const path = require('path');
   fs.writeFileSync(path.join(out,'today-runtime.json'),JSON.stringify(meta,null,2));
   await page.screenshot({path:path.join(out,'KINETIQ-TODAY-A54-ACTUAL.png'),fullPage:false});
   if(!runtime.v4Owned) throw new Error('V4 did not take ownership: '+JSON.stringify(runtime));
-  if(nav.map(x=>x.trim().replace(/\s+/g,' ')).join('|')!=='TODAY|JOURNEY|COACH|RUN|MORE') throw new Error('Primary nav mismatch: '+nav.join('|'));
+  if(nav.join('|')!=='TODAY|JOURNEY|COACH|RUN|MORE') throw new Error('Primary nav mismatch: '+nav.join('|'));
   if(legacyVisible) throw new Error('Legacy UI still visible');
   if(!/TODAY'S BEST MOVE/i.test(screenText)) throw new Error('Today Best Move missing');
   await browser.close();

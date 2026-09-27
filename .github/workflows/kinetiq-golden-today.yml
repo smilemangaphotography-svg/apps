@@ -3,7 +3,7 @@ name: KINETIQ Golden TODAY A54
 on:
   workflow_dispatch:
   push:
-    branches: [ kinetiq-v4-goal-engine-beta ]
+    branches: [ kinetiq-golden-today-correction ]
     paths:
       - 'personal-trainer/android-beta/app/src/main/assets/**'
       - 'personal-trainer/validation/golden-today.js'
