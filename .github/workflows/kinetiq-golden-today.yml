@@ -1,0 +1,108 @@
+name: KINETIQ Golden TODAY A54
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ kinetiq-v4-goal-engine-beta ]
+    paths:
+      - 'personal-trainer/android-beta/app/src/main/assets/**'
+      - 'personal-trainer/validation/golden-today.js'
+      - 'docs/previews/KINETIQ-V4-PHASE3A1-TODAY-A54.png'
+      - '.github/workflows/kinetiq-golden-today.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  render-today:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Chromium renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+          python3 -m pip install --user pillow
+
+      - name: Syntax preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check personal-trainer/validation/golden-today.js
+          node --check personal-trainer/android-beta/app/src/main/assets/v4/ui/v4-today.js
+          node --check personal-trainer/android-beta/app/src/main/assets/v4/ui/v4-shell.js
+
+      - name: Serve actual KINETIQ source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory personal-trainer/android-beta/app/src/main/assets >/tmp/kinetiq-golden-server.log 2>&1 &
+          echo $! > /tmp/kinetiq-golden-server.pid
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/system.html >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/kinetiq-golden-server.log
+          exit 1
+
+      - name: Render real TODAY at Samsung Galaxy A54 viewport
+        shell: bash
+        env:
+          GOLDEN_URL: http://127.0.0.1:4173/system.html
+          GOLDEN_OUT: golden-today-output
+        run: |
+          set -euo pipefail
+          node personal-trainer/validation/golden-today.js
+
+      - name: Compare actual with approved preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp docs/previews/KINETIQ-V4-PHASE3A1-TODAY-A54.png golden-today-output/KINETIQ-TODAY-A54-REFERENCE.png
+          python3 - <<'PY'
+          from PIL import Image,ImageChops,ImageStat,ImageDraw
+          import json,os
+          out='golden-today-output'
+          ref=Image.open(os.path.join(out,'KINETIQ-TODAY-A54-REFERENCE.png')).convert('RGB')
+          act=Image.open(os.path.join(out,'KINETIQ-TODAY-A54-ACTUAL.png')).convert('RGB')
+          original={'reference':ref.size,'actual':act.size}
+          if act.size!=ref.size:
+              act_cmp=act.resize(ref.size)
+          else:
+              act_cmp=act
+          diff=ImageChops.difference(ref,act_cmp)
+          stat=ImageStat.Stat(diff)
+          mae=sum(stat.mean)/3
+          bbox=diff.getbbox()
+          px=list(diff.getdata())
+          changed=sum(1 for p in px if max(p)>12)
+          ratio=changed/len(px)
+          diff.save(os.path.join(out,'KINETIQ-TODAY-A54-DIFF.png'))
+          canvas=Image.new('RGB',(ref.width*2,ref.height))
+          canvas.paste(ref,(0,0));canvas.paste(act_cmp,(ref.width,0))
+          d=ImageDraw.Draw(canvas);d.text((20,20),'APPROVED PREVIEW',fill='white');d.text((ref.width+20,20),'REAL IMPLEMENTATION',fill='white')
+          canvas.save(os.path.join(out,'KINETIQ-TODAY-A54-SIDE-BY-SIDE.png'))
+          report={'dimensions':original,'mae':mae,'changedPixelRatioThreshold12':ratio,'exactPixelMatch':bbox is None}
+          with open(os.path.join(out,'visual-metrics.json'),'w') as f: json.dump(report,f,indent=2)
+          print(json.dumps(report,indent=2))
+          PY
+
+      - name: Upload Golden TODAY evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: KINETIQ-GOLDEN-TODAY-A54
+          path: golden-today-output/*
+          if-no-files-found: error
+          retention-days: 30
