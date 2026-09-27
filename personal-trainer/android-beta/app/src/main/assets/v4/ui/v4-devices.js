@@ -1,0 +1,24 @@
+(()=>{'use strict';
+const ui=window.KINETIQV4UI=window.KINETIQV4UI||{};
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtDate=v=>v?new Date(v).toLocaleString():'Never';
+const pace=v=>{v=Number(v);if(!Number.isFinite(v)||v<=0)return'—';let m=Math.floor(v/60),s=Math.round(v%60);if(s===60){m++;s=0}return m+':'+String(s).padStart(2,'0')+' /km'};
+const stateClass=v=>'s-'+String(v||'UNAVAILABLE').toLowerCase().replace(/[^a-z]+/g,'-');
+const btn=(action,label,primary=false,disabled=false)=>`<button type="button" class="v4-device-btn ${primary?'primary':''}" data-v4-action="${action}" ${disabled?'disabled':''}>${esc(label)}</button>`;
+function renderMoreEntry(){return `<section class="v4-panel v4-devices-entry"><button type="button" data-v4-action="OPEN_DEVICES"><span><small>CONNECTED TRAINING</small><b>DEVICES</b><em>Health Connect · Garmin history · Phone GPS</em></span><strong>›</strong></button></section>`}
+function activity(a){return `<article class="v4-device-activity"><div><span>${esc(a.title||'Activity')}</span><small>${esc(a.startTime||'')} · ${esc(a.source||'UNAVAILABLE')}</small></div><div><b>${a.duration?Math.round(a.duration/60)+' min':'—'}</b><small>${a.distance?Number(a.distance).toFixed(2)+' km':'—'} · ${a.pace?esc(pace(a.pace)):'—'}</small></div></article>`}
+function render(model){
+ if(!model)return '<div class="v4-devices-page"><section class="v4-panel">Device status is unavailable.</section></div>';
+ const h=model.healthConnect,g=model.garmin,p=model.phoneGps,hist=model.historical,live=model.liveGarmin,acts=hist.activities||[];
+ const historySource=hist.garminCount?'GARMIN_HISTORY':hist.healthConnectCount?'HEALTH_CONNECT':'UNAVAILABLE',historyLabel=hist.availability==='NO_RECORDS'?'NO RECORDS':hist.count?hist.count+' ACTIVITIES':'UNAVAILABLE';
+ const healthAction=h.state==='PERMISSION_REQUIRED'?btn('DEVICE_CONNECT_HEALTH','CONNECT HEALTH DATA',true):h.state==='AVAILABLE'?btn('DEVICE_SYNC_HISTORY',hist.state==='SYNCING'?'SYNCING…':'SYNC HISTORY',true,hist.state==='SYNCING'):'';
+ return `<div class="v4-devices-page" data-v4-screen="DEVICES">
+  <section class="v4-devices-head"><button type="button" class="v4-phase8-back" data-v4-action="PHASE8_BACK">‹ MORE</button><div><span>KINETIQ</span><h1>Devices</h1><p>Historical imports and live sources remain separate. Every metric keeps explicit provenance.</p></div></section>
+  <section class="v4-panel v4-device-card"><div class="v4-device-title"><div><small>GARMIN / HEALTH CONNECT</small><h2>${esc(g.connectionState)}</h2></div><span class="${stateClass(hist.state)}">${esc(hist.state)}</span></div><div class="v4-device-grid"><div><span>HEALTH CONNECT</span><b>${esc(h.state)}</b></div><div><span>GARMIN CONNECT</span><b>${g.installed?'INSTALLED':'NOT INSTALLED'}</b></div><div><span>HISTORY SOURCE</span><b>${historySource}</b></div><div><span>LAST SYNC</span><b>${esc(fmtDate(hist.lastSync))}</b></div></div>${model.error?`<p class="v4-device-error">${esc(model.error)}</p>`:''}<div class="v4-device-actions">${healthAction}${btn('DEVICE_OPEN_GARMIN','OPEN GARMIN CONNECT')}</div></section>
+  <section class="v4-panel v4-device-card"><div class="v4-device-title"><div><small>PHONE GPS</small><h2>${esc(p.state)}</h2></div><span class="${stateClass(p.state)}">${esc(p.source)}</span></div><p>Phone GPS remains the real live route, distance and pace source when available.</p>${p.state==='PERMISSION_REQUIRED'?btn('DEVICE_ALLOW_GPS','ALLOW GPS',true):''}</section>
+  <section class="v4-panel v4-device-card"><div class="v4-device-title"><div><small>GARMIN LIVE</small><h2>${esc(live.state)}</h2></div><span class="${stateClass(live.state)}">${live.present?'BRIDGE DETECTED':'NO LIVE BRIDGE'}</span></div><p>${live.state==='AVAILABLE'?'A legitimate external Garmin live bridge is available. Only bridge-proven packets may use GARMIN_LIVE.':'No approved external Garmin live bridge is available. Garmin Connect installation is not treated as a live connection.'}</p></section>
+  <section class="v4-panel v4-device-card"><div class="v4-device-title"><div><small>HISTORICAL DATA</small><h2>${esc(historyLabel)}</h2></div><span class="${stateClass(hist.state)}">${esc(hist.freshness)}</span></div><p>Imported activities are observed history for Coach, Progress and Goal Engine context. They never silently modify Today or Journey.</p><div class="v4-device-history">${acts.length?acts.slice(0,8).map(activity).join(''):'<div class="v4-device-empty">No imported activities for this profile.</div>'}</div></section>
+ </div>`
+}
+ui.Devices=Object.freeze({renderMoreEntry,render});
+})();
