@@ -1,4 +1,4 @@
-name: Build KINETIQ V4 Phase 10 A54 Candidate
+name: Build KINETIQ V4 Phase 10.1 A54 Candidate
 
 on:
   workflow_dispatch:
@@ -182,15 +182,15 @@ jobs:
           set -euo pipefail
           G=personal-trainer/android-beta/app/build.gradle
           grep -q "applicationId 'com.ilia.personaltrainer.systembeta'" "$G"
-          grep -q 'versionCode 49' "$G"
-          grep -q "versionName '4.0.0-beta.1'" "$G"
+          grep -q 'versionCode 50' "$G"
+          grep -q "versionName '4.0.0-beta.2'" "$G"
           grep -q 'minSdk 26' "$G"
           grep -q 'targetSdk 35' "$G"
           grep -q 'signingConfig signingConfigs.beta' "$G"
           grep -q 'android:icon="@mipmap/ic_launcher"' personal-trainer/android-beta/app/src/main/AndroidManifest.xml
           grep -q '<string name="app_name">KINETIQ</string>' personal-trainer/android-beta/app/src/main/res/values/strings.xml
 
-      - name: Build signed A54 candidate APK
+      - name: Validate Phase 10.1 startup migration\n        shell: bash\n        run: |\n          set -euo pipefail\n          node --check personal-trainer/validation/phase10-startup-migration-validation.js\n          node personal-trainer/validation/phase10-startup-migration-validation.js\n\n      - name: Build signed A54 candidate APK
         run: gradle --no-daemon -p personal-trainer/android-beta :app:assembleDebug
 
       - name: Verify APK identity and persistent signature
@@ -201,7 +201,7 @@ jobs:
           test -s "$APK"
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.systembeta' versionCode='49' versionName='4.0.0-beta.1'"
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.ilia.personaltrainer.systembeta' versionCode='50' versionName='4.0.0-beta.2'"
           "$AAPT" dump badging "$APK" | grep -q "application-label:'KINETIQ'"
           unzip -l "$APK" | grep -q 'assets/system.html'
           unzip -l "$APK" | grep -q 'assets/v4/phase9-recovery-progress.js'
@@ -219,14 +219,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release
-          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/KINETIQ-V4-A54-CANDIDATE.apk
+          cp personal-trainer/android-beta/app/build/outputs/apk/debug/app-debug.apk release/KINETIQ-V4-A54-CANDIDATE-10.1.apk
           cp "$RUNNER_TEMP/kinetiq-v4-cert-sha256.txt" release/SIGNING-CERT-SHA256.txt
-          sha256sum release/KINETIQ-V4-A54-CANDIDATE.apk > release/SHA256SUMS.txt
+          sha256sum release/KINETIQ-V4-A54-CANDIDATE-10.1.apk > release/SHA256SUMS.txt
           cat > release/PHASE10-README.txt <<'REPORT'
-          KINETIQ V4 — PHASE 10 A54 ACCEPTANCE CANDIDATE
+          KINETIQ V4 — PHASE 10.1 A54 ACCEPTANCE CANDIDATE
           Package: com.ilia.personaltrainer.systembeta
-          Version: 4.0.0-beta.1
-          Version code: 49
+          Version: 4.0.0-beta.2
+          Version code: 50
           Target device: Samsung Galaxy A54
           Target SDK: 35
           This is a real-device acceptance candidate, not the final permanent freeze.
@@ -241,7 +241,7 @@ jobs:
       - name: Upload A54 candidate artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KINETIQ-V4-A54-CANDIDATE
+          name: KINETIQ-V4-A54-CANDIDATE-10.1
           path: release/*
           if-no-files-found: error
           retention-days: 30
